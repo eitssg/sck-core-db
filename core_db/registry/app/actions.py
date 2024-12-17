@@ -41,8 +41,8 @@ class AppActions(RegistryAction):
         """
         Get the client portfolio name from the input arguments.
 
-        Mutates **kwargs by removing the client-portfolio name and returning the client-portfolio name.
-        Do not ** kwargs else it wont mutate.
+        Mutates \\*\\*kwargs by removing the client-portfolio name and returning the client-portfolio name.
+        Do not \\*\\* kwargs else it wont mutate.
 
         Args:
             kwargs (Dict): Dictionary containing:

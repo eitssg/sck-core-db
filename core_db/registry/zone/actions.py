@@ -28,8 +28,8 @@ class ZoneActions(RegistryAction):
         """
         Get the client portfolio and zone from the input arguments.
 
-        Mutates **kwargs by removing the client portfolio and zone and returning the client portfolio and zone.
-        Do not ** the kwaargs or else it wont mutate
+        Mutates \\*\\*kwargs by removing the client portfolio and zone and returning the client portfolio and zone.
+        Do not \\*\\* the kwaargs or else it wont mutate
 
         Args:
             kwargs (dict): The paramters with client, portfolio, and zone

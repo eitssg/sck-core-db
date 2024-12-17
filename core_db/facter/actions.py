@@ -23,7 +23,7 @@ from .facter import get_facts
 
 class FactsActions(TableActions):
     """
-    This is a VIEW model on the registry.
+    This is a VIEW model on the registry combining the following 4 tables into a "context" for Jinja2 rendering.
 
     1. Load Registry Client Facts
     2. Load Registry Portfolip Facts

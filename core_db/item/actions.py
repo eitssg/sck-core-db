@@ -43,11 +43,25 @@ from .models import ItemModel
 
 
 class ItemTableActions(TableActions):
+    """
+    Provides the implmentation of :class:`TableActions` for the Items table.
+    """
 
     item_model = ItemModel
 
     @classmethod
     def validate_date(cls, date: Any) -> Any:
+        """
+        Validate that the data is a string and that it is in the correct
+        format for the items table. (iso8601).  If the date is not a string
+        and is a datetime object, then it is returned as is.
+
+        Args:
+            date (Any): string or datetime object representing iso8601 date
+
+        Returns:
+            Any: a datetime object or None
+        """
         if not date:
             return None
         if isinstance(date, str):
@@ -59,12 +73,36 @@ class ItemTableActions(TableActions):
 
     @classmethod
     def validate_prn(cls, prn: str) -> str:
+        """
+        Validates that the prn is a valid prn for the items table.
+
+        Args:
+            prn (str): The 'identity' or Pipeline Reference Number (PRN)
+
+        Raises:
+            BadRequestException: if the PRN is invalid (or None)
+
+        Returns:
+            str: the PRN passed in.
+        """
+
         if not util.validate_item_prn(prn):
             raise BadRequestException(f"Invalid prn: {prn}")
         return prn
 
     @classmethod
     def create(cls, **kwargs) -> Response:
+        """
+        Create a new item in the items table.
+
+        Raises:
+            BadRequestException: If the data is invalid such as bad PRN or bad resource Name or failed data model validations.
+            ConflictException: If the item already exists in the item table
+            UnknownException: If some uknown type of error occured when trying to save the record.
+
+        Returns:
+            Response: :class:`Response` object containing the record created.
+        """
         # Load the request data
         log.debug("Received create request", kwargs)
 
