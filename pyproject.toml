@@ -1,0 +1,37 @@
+[tool.poetry]
+name = "core-db"
+version = "0.1.0"
+description = ""
+authors = ["James Barwick <jbarwick@me.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+poetry-dynamic-versioning = "^1.4.1"
+boto3 = "^1.35.79"
+pynamodb = "^6.0.1"
+pydantic = "^2.10.3"
+
+[tool.poetry.dependencies.core-framework]
+path = "../core-framework"
+develop = true
+
+[tool.poetry.group.dev.dependencies]
+boto3-stubs = "^1.35.79"
+black = "^24.10.0"
+flake8 = "^7.1.1"
+pytest-dotenv = "^0.5.2"
+
+[tool.poetry-dynamic-versioning]
+enable = true
+bump = true
+ignore-untracked = true
+style = "semver"
+
+[tool.poetry-dynamic-versioning.files."core_db/_version.py"]
+persistent-substitution = true
+initial-content = "  \"\"\"\n  This is the version informatooin for this template\n  \"\"\"\n  __version__ = \"0.0.0\"\n  __version_tuple__ = (0, 0, 0)\n"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
