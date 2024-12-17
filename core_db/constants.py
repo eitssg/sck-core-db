@@ -90,12 +90,12 @@ ENVIRONMENT = "Environment"
     Value: Environment
 """
 # Registry Model
-CLIENT_KEY = "Client"
+CLIENT_KEY = "client"
 """ Hash Key name used to specify the Client in the Client and Portflio registry tables
 
     Value: Client
 """
-PORTFOLIO_KEY = "Portfolio"
+PORTFOLIO_KEY = "portfolio"
 """ Range Key name used to lookup the portfolion name int Portfolio registry table for the Client
 
     Value: Portfolio
