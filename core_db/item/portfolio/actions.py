@@ -1,9 +1,8 @@
 """
-This module contains the actions for the core API for the Portfolio ITEM Actions
+This module contains the actions list, get, create, delete, update for the Items.Portfolio object in core-automation-items
 """
 
 import core_framework as util
-import core_framework.constants
 
 from ...response import Response
 from ...exceptions import BadRequestException
@@ -14,6 +13,7 @@ from .models import PortfolioModel
 
 
 class PortfolioActions(ItemTableActions):
+    """ Class container for Portfolio Item specific validations and actions """
 
     item_model = PortfolioModel
 

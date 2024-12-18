@@ -1,3 +1,5 @@
+""" Actions for the Registry.Clients database: list, get, create, update, delete """
+
 from pynamodb.exceptions import (
     DoesNotExist,
     PutError,

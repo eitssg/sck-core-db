@@ -1,3 +1,5 @@
+""" Actions for the Registry.Zones database: list, get, create, update, delete """
+
 from pynamodb.exceptions import DeleteError, PutError
 
 import core_framework as util

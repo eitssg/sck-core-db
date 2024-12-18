@@ -1,3 +1,5 @@
+""" Constants for filed names and keys for the Core-DB databae tables"""
+
 # Facts Fields / And Table Types for the Registry
 CLIENT_FACTS = "ClientFacts"
 """ Key used to lookup the table name for the ClientFact registry table
@@ -28,7 +30,6 @@ APP_FACTS = "AppFacts"
 
     value: AppFacts
 """
-
 # Type Types for the Events and Deployments
 EVENTS = "Events"
 """ Key used to lookup the table name for the Events registry table
@@ -46,7 +47,6 @@ ITEMS = "Items"
 
     value: Items
 """
-
 PRN = "prn"
 """ Hash key field name for the Items and Events tables
 

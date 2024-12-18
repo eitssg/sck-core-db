@@ -1,3 +1,10 @@
+""" A set of helper functions that write and update item records status values in the DB
+
+THe class also provides a mapping of names to classes to allow for the development of
+a single interface to the DB for all the different types of items that can be stored in the DB.
+
+"""
+
 from typing import Any
 
 import os
@@ -68,12 +75,59 @@ actions_routes: TableActionType = {
     "registry:app": RegAppActions,
     "registry:zone": RegZoneActions,
 }
+""" TabelActionType: A dictionary that maps the action prefix to the class that will handle the action
+
+Values are classes that implement the TableActions interface:
+
+    Items Table or Schema Names:
+
+        * portfolio
+        * app
+        * branch
+        * build
+        * component
+
+    Event Table or Schema Names:
+        * event
+
+    Registry Table or Schema Names:
+
+        * registry:client
+        * registry:portfolio
+        * registry:app
+        * registry:zone
+
+    Facts View Name:
+
+        * facts
+
+    This name, concatenated with list, get, create, update, delete, will be used to route the action to the correct class.
+
+    For example, to get a list of items from the portfolio table, the action would be:
+
+        * "portfolio:list"  -> PortfolioActions.list()
+        * "portfolio:get"   -> PortfolioActions.get()
+
+    The class must implement the TableActions interface.
+
+"""
 
 
 def update_status(
     prn: str, status: str, message: str | None = None, details={}
 ) -> dict:
+    """
+    Updates the status of a PRN in the DB
 
+    Args:
+        prn (str): Pipeline Reference Number
+        status (str): Status Code from :class:`BuildStatus`
+        message (str | None, optional): Text Message. Defaults to None.
+        details (dict, optional): Item Details. Defaults to {}.
+
+    Returns:
+        dict: The items details after the update
+    """
     environment = os.getenv(ENV_ENVIRONMENT)
 
     # Try and set environment from config if not already set
@@ -114,7 +168,19 @@ def get_facts_by_prn(client: str, prn: str) -> dict:
 
 
 def update_item(prn: str, **kwargs) -> dict:
+    """
+    Add or update an item in the DB
 
+    Args:
+        prn (str): The Pipeline Reference Number
+        **kwargs: The item details
+
+    Raises:
+        ValueError: If the data is invalid
+
+    Returns:
+        dict: The item after it ahs been updated/saved.
+    """
     try:
         scope = util.get_prn_scope(prn)
         if not scope:
@@ -140,7 +206,19 @@ def update_item(prn: str, **kwargs) -> dict:
 
 
 def register_item(prn: str, name: str, **kwargs) -> dict:
+    """
+    Creates a new item in the DB
 
+    Args:
+        prn (str): The Pipeline Reference Number
+        name (str): The Name of the item
+
+    Raises:
+        ValueError: If the item data is invalid
+
+    Returns:
+        dict: The item after it has been created.
+    """
     try:
         scope = util.get_prn_scope(prn)
         if not scope:

@@ -1,3 +1,5 @@
+""" Classes defining the Clients record model for the core-automation-clients table """
+
 from pynamodb.attributes import UnicodeAttribute
 
 import core_framework as util

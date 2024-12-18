@@ -1,3 +1,5 @@
+""" Definiton of the Portfolio Facts in the core-automation-portfolios table """
+
 from pynamodb.models import Model
 from pynamodb.attributes import (
     UnicodeAttribute,
@@ -12,25 +14,28 @@ from ...config import get_table_name, PORTFOLIO_FACTS
 
 
 class ContactFacts(MapAttribute):
+    """ Contact details """
     name = UnicodeAttribute(hash_key=True)
     email = UnicodeAttribute(range_key=True)
     enabled = BooleanAttribute(default=True)
 
 
 class ApproverFacts(MapAttribute):
+    """ Approver details """
     name = UnicodeAttribute(hash_key=True)
     email = UnicodeAttribute(range_key=True)
     enabled = BooleanAttribute(default=True)
 
 
 class OwnerFacts(MapAttribute):
+    """ Owner details """
     name = UnicodeAttribute(hash_key=True)
     email = UnicodeAttribute(range_key=True)
     phone = UnicodeAttribute(null=True)
 
 
 class PortfolioFacts(Model):
-
+    """ Portfolio Facts database table record model """
     class Meta:
         table_name = get_table_name(PORTFOLIO_FACTS)
         region = util.get_region()

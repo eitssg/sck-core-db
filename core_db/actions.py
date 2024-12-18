@@ -1,10 +1,11 @@
+""" All table Actions share a CRUD interface and this Model class defines the functions for Create, Read, Update, Delete functions. """
 from .response import Response
 from .exceptions import NotFoundException
 
 
 class TableActions(object):
     """
-    Base API for all table actions
+    Base Interface Class API for all table actions for list, get, update, create, delete, and patch
     """
 
     def __init__(self, *args, **kwargs):

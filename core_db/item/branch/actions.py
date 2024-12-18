@@ -1,5 +1,7 @@
+"""
+This module contains the actions list, get, create, delete, update for the Items.Branch object in core-automation-items
+"""
 import core_framework as util
-import core_framework.constants
 
 from ...constants import (
     PRN,
@@ -20,6 +22,7 @@ from .models import BranchModel
 
 
 class BranchActions(ItemTableActions):
+    """ Class container for Branch Item specific validations and actions"""
 
     item_model = BranchModel
 

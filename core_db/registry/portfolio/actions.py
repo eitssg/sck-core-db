@@ -1,14 +1,4 @@
-"""
-This module contains the schemas for the core API for the APP Fact.
-
-Each deployment will be conducted for a "client_portfolio" and will need to match
-the regular expressions provided within the defintion.
-
-typically the user will always perform action_get_list() to retrieve all the deployment defintions (There wont be many).
-
-The user will then perform action_get_item() to retrieve the deployment definition for a specific app.
-
-"""
+""" Actions for the Registry.Portfolios database: list, get, create, update, delete """
 
 from pynamodb.expressions.update import Action
 from pynamodb.exceptions import DeleteError, PutError

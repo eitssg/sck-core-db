@@ -1,3 +1,9 @@
+""" Defines the the generic list, get, create, update, delete methods for the Items table core-automation-items
+
+This will be subclassed to implement Schema specific operations for portfolio, app, branch, build, component items.
+
+"""
+
 from typing import Any
 
 import json

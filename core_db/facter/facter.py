@@ -25,6 +25,8 @@ from core_framework.constants import (
     V_DEFAULT_REGION_ALIAS,
 )
 
+from core_framework.models import DeploymentDetails
+
 from ..constants import APPROVERS, CONTACTS, OWNER, REGION, ENVIRONMENT, ZONE_KEY
 
 from ..registry.client.models import ClientFacts
@@ -34,7 +36,19 @@ from ..registry.app.models import AppFacts
 
 
 def get_client_facts(client: str) -> dict | None:
+    """
+    Uses the logic within the :class:`Clientfacts` class to retrieve the Client Details.
 
+    This is a helper frunction and you can call ClientFacts.get(client) directly without
+    using this helper.
+
+    Args:
+        client (str): The client name to retreive from the
+
+    Return:
+        (dict): The dictionary representing the ClientFacts database table record.
+
+    """
     try:
 
         facts = ClientFacts.get(client)
@@ -48,7 +62,19 @@ def get_client_facts(client: str) -> dict | None:
 
 
 def get_portfolio_facts(client: str, portfolio: str) -> dict | None:
+    """
+    Uses the logic within the :class:`PortfolioFacts` class to retrieve the Portfolio Details.
 
+    This is a helper function and you can call PortfolioFacts.get(client, portfolio) directly
+    without using this helper.
+
+    Args:
+        client (str): The client name (slug)
+        portfolio (str): The portfolio name (slug)
+
+    Returns:
+        dict | None: The dictionary representing PortFolioFacts database table record.
+    """
     try:
 
         portfolio_facts = PortfolioFacts.get(client, portfolio)
@@ -62,10 +88,25 @@ def get_portfolio_facts(client: str, portfolio: str) -> dict | None:
 
 
 def get_zone_facts(client: str, portfolio: str, zone: str) -> dict | None:
+    """
+    Uses the logic with the :class:`ZoneFacts` class to retrieve the Zone Details.
 
+    This is a helper function and you can call ZoneFacts.get(zone_key, zone_name) directly
+    without using this helper.
+
+    zone_key = client + ':' + portfolio
+
+    Args:
+        client (str): The client name
+        portfolio (str): The portfoio name
+        zone (str): The one label
+
+    Returns:
+        dict | None: The dictionary represeting the ZoneFacts database table record.
+    """
     try:
 
-        zone_key = f"{client}-{portfolio}"
+        zone_key = f"{client}:{portfolio}"
         zone_facts = ZoneFacts.get(zone_key, zone)
 
         if zone_facts is None:
@@ -78,7 +119,20 @@ def get_zone_facts(client: str, portfolio: str, zone: str) -> dict | None:
 
 
 def get_zone_facts_by_account_id(account_id: str) -> list[dict] | None:
+    """
+    Uses the logic with the :class:`ZoneFacts` class to retrieve the Zone Details.
 
+    This is a helper function and you can call ZoneFacts.query(account_id) directly
+    without using this helper.
+
+    zone_key = client + ':' + portfolio
+
+    Args:
+        account_id (str): The aws account ID
+
+    Returns:
+        list[dict] | None: The list of Zone Facts that are registered with this AWS Account ID.
+    """
     try:
         zone_facts = ZoneFacts.query(account_id)
         if zone_facts is None:
@@ -90,6 +144,32 @@ def get_zone_facts_by_account_id(account_id: str) -> list[dict] | None:
         return None
 
 
+def get_deployment_details_facts(deployment_details: DeploymentDetails):
+    """
+    Retreives the Facs for DeploymentDetails that can be used in the Jinja2 Renederer
+    to generate final Cloudformation Templates.
+
+    Args:
+        deployment_details (DeploymentDetails): The deployment Details of the TaskPayload
+
+    Returns:
+        _type_: _description_
+    """
+    if deployment_details.Client is None:
+        raise ValueError("Client must be valid in DeploymentDetails")
+
+    if deployment_details.App is None:
+        raise ValueError("App field must be popluated in DeploymentDetails")
+
+    return get_app_facts(
+        deployment_details.Client,
+        deployment_details.Portfolio,
+        deployment_details.App,
+        deployment_details.BranchShortName,
+        deployment_details.Build,
+    )
+
+
 def get_app_facts(
     client: str,
     portfolio: str,
@@ -97,6 +177,27 @@ def get_app_facts(
     branch: str | None = None,
     build: str | None = None,
 ) -> dict | None:
+    """
+    Retrieves the AppFacts data stored in the registry that match the sepecified deployment details.
+
+    .. warning::
+
+        Matches are performed by searching the AppRegEx in the App Registry table core-automation-apps
+        to the value f"prn:{portfolio}:{app}:{branch}:{build}"
+
+        This function will return the FIRST match and order is NOT guaranteed.
+
+
+    Args:
+        client (str): The client that the facts are stored in
+        portfolio (str): The portfolio within the specified client
+        app (str): The app deployment unit within the portfolio
+        branch (str | None, optional): The branch name of the app repository. Defaults to None.
+        build (str | None, optional): The current version, build ID, or commit Id. Defaults to None.
+
+    Returns:
+        dict | None: The FACTS context ready for Jinja2 rendering.
+    """
 
     if branch is None:
         branch = "*"
@@ -159,7 +260,16 @@ def derrive_environment_from_branch(branch: str) -> tuple[str, str]:
 
 
 def get_facts_by_identity(client: str, identity: str) -> dict:
+    """
+    Retreives Facts based on the supplied client and Pipeline Reference Number
 
+    Args:
+        client (str): The cilent where this portfilio is deployed
+        identity (str): The Pipeline Reference Number
+
+    Returns:
+        dict: The Facts context ready for Jinja2 rendering.
+    """
     portfolio, app, branch, build, _ = util.split_prn(identity)
     return get_facts(client, portfolio or "unknown", app or "unknown", branch, build)
 
@@ -226,6 +336,7 @@ def get_facts(  # noqa: C901
     if portfolio_facts is None:
         raise ValueError(f"Portfolio facts not found for {client}-{portfolio}")
 
+    # Some extra fields:  TODO - Put elsewhere.
     if "opex-code" in portfolio_facts and TAG_OPEX_CODE not in app_tags:
         app_tags[TAG_OPEX_CODE] = portfolio_facts["opex-code"]
     if "jira-code" in portfolio_facts and TAG_JIRA_CODE not in app_tags:

@@ -1,3 +1,5 @@
+""" This module provides the field extensions for Items.Build in the core-automation-items table """
+
 from pynamodb.attributes import UnicodeAttribute
 
 from core_framework.status import INIT
@@ -6,7 +8,9 @@ from ..models import ItemModel
 
 
 class BuildModel(ItemModel):
-
+    """
+    Build model field extensions
+    """
     # Attribute status is required
     status = UnicodeAttribute(default_for_new=INIT)
 

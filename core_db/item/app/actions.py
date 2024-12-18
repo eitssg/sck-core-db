@@ -1,9 +1,8 @@
 """
-This module contains the schemas for the core API for the APP Actions.
+This module contains the actions list, get, create, delete, update for the Items.App object in core-automation-items
 """
 
 import core_framework as util
-import core_framework.constants
 
 from ...constants import (
     PRN,
@@ -21,6 +20,7 @@ from .models import AppModel
 
 
 class AppActions(ItemTableActions):
+    """ Class container for App Item specific validations and actions"""
 
     item_model = AppModel
 

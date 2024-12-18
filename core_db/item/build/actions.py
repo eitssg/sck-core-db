@@ -1,6 +1,6 @@
+""" This module contains the actions list, get, create, delete, update for the Items.Build object in core-automation-items """
 import core_framework as util
 
-import core_framework.constants
 from core_framework.status import BuildStatus, INIT
 
 from ...constants import (
@@ -22,6 +22,7 @@ from .models import BuildModel
 
 
 class BuildActions(ItemTableActions):
+    """ Class container for Build Item specific validations and actions"""
 
     item_model = BuildModel
 

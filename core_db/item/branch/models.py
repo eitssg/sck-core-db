@@ -1,3 +1,5 @@
+""" This module provides the field extensions for Items.Branch in the core-automation-items table """
+
 from pynamodb.attributes import UnicodeAttribute
 
 from ...constants import PRN, RELEASED_BUILD_PRN
@@ -6,7 +8,9 @@ from ..models import ItemModel
 
 
 class BranchModel(ItemModel):
-
+    """
+    Branch Model field extentions
+    """
     # Attributes. This mus be a generated short name (slug)
     short_name = UnicodeAttribute(null=False)
 

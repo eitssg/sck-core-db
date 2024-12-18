@@ -1,3 +1,4 @@
+""" Classes defining the Apps record model for the core-automation-apps table """
 import re
 
 from pynamodb.models import Model

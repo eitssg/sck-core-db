@@ -1,5 +1,5 @@
+""" This module contains the actions list, get, create, delete, update for the Items.Component object in core-automation-items """
 import core_framework as util
-import core_framework.constants
 
 from ...exceptions import BadRequestException
 from ...response import Response
@@ -19,6 +19,7 @@ from .models import ComponentModel
 
 
 class ComponentActions(ItemTableActions):
+    """ Class container for Component Item specific validations and actions"""
 
     item_model = ComponentModel
 
