@@ -4,6 +4,7 @@ This will be subclassed by portfolio, app, branch, build, component modesl to im
 specific field extentions.
 
 """
+
 from pynamodb.models import Model
 from pynamodb.indexes import GlobalSecondaryIndex, AllProjection
 from pynamodb.attributes import UnicodeAttribute, UTCDateTimeAttribute

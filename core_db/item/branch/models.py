@@ -11,6 +11,7 @@ class BranchModel(ItemModel):
     """
     Branch Model field extentions
     """
+
     # Attributes. This mus be a generated short name (slug)
     short_name = UnicodeAttribute(null=False)
 

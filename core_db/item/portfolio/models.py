@@ -9,6 +9,7 @@ class PortfolioModel(ItemModel):
     Portfolio model field extensions
 
     """
+
     # Attributes
     contact_email = UnicodeAttribute(null=False)
 

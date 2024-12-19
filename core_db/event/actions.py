@@ -1,4 +1,5 @@
 """ Defines the list, get, create, update, delete methods for the Event table core-automation-events """
+
 from typing import Any
 
 from datetime import datetime
