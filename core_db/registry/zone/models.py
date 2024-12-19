@@ -34,11 +34,12 @@ class ExtendedMapAttribute(MapAttribute):
 
 
 class SecurityAliasFacts(MapAttribute):
-    """ Security Aliases
+    """Security Aliases
 
     { "alias_name": {"Type": "", "Value": "", "Description": ""}}
 
     """
+
     Type = UnicodeAttribute(null=False)
     Value = UnicodeAttribute(null=False)
     Description = UnicodeAttribute(null=True)
@@ -52,7 +53,7 @@ class SecurityAliasFacts(MapAttribute):
 
 
 class KmsFacts(MapAttribute):
-    """ KMS Keys details """
+    """KMS Keys details"""
 
     AwsAccountId = UnicodeAttribute(null=True)
     KmsKeyArn = UnicodeAttribute(null=True)
@@ -68,7 +69,7 @@ class KmsFacts(MapAttribute):
 
 
 class AccountFacts(MapAttribute):
-    """ Account Details FACTS describing the AWS Account """
+    """Account Details FACTS describing the AWS Account"""
 
     Client = UnicodeAttribute(null=True)
     AwsAccountId = UnicodeAttribute(null=False)
@@ -90,7 +91,7 @@ class AccountFacts(MapAttribute):
 
 
 class ProxyFacts(MapAttribute):
-    """ Proxy Details FACTS describing the Proxy information within the Zone """
+    """Proxy Details FACTS describing the Proxy information within the Zone"""
 
     Host = UnicodeAttribute(null=True)
     Port = UnicodeAttribute(null=True)
@@ -106,7 +107,7 @@ class ProxyFacts(MapAttribute):
 
 
 class RegionFacts(MapAttribute):
-    """ Region FACTS descriging the detailed information for each supported region in the Zone """
+    """Region FACTS descriging the detailed information for each supported region in the Zone"""
 
     AwsRegion = UnicodeAttribute(null=False)
     AzCount = NumberAttribute(null=True)
@@ -147,7 +148,8 @@ class RegionFacts(MapAttribute):
 
 
 class ZoneFacts(RegistryModel):
-    """ Zone FACTS describe the AwsAccount and the Region details for the Deployment Zone """
+    """Zone FACTS describe the AwsAccount and the Region details for the Deployment Zone"""
+
     class Meta:
         table_name = get_table_name(ZONE_FACTS)
         region = util.get_region()

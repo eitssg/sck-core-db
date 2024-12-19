@@ -1,4 +1,5 @@
 """ Defines the get method for the Facts table view. """
+
 import os
 import core_framework as util
 

@@ -13,7 +13,7 @@ from .models import PortfolioModel
 
 
 class PortfolioActions(ItemTableActions):
-    """ Class container for Portfolio Item specific validations and actions """
+    """Class container for Portfolio Item specific validations and actions"""
 
     item_model = PortfolioModel
 

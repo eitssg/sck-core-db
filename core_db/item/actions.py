@@ -110,7 +110,7 @@ class ItemTableActions(TableActions):
             Response: :class:`Response` object containing the record created.
         """
         # Load the request data
-        log.debug("Received create request", kwargs)
+        log.debug("Received create request", details=kwargs)
 
         prn = kwargs.pop(PRN, None)
 
@@ -143,7 +143,7 @@ class ItemTableActions(TableActions):
     @classmethod
     def delete(cls, **kwargs) -> Response:
         # Load the request data
-        log.debug(f"Received delete request: {kwargs}")
+        log.debug("Received delete request:", details=kwargs)
 
         prn = kwargs.get(PRN, None)
         if not cls.validate_prn(prn):
@@ -165,7 +165,7 @@ class ItemTableActions(TableActions):
     @classmethod
     def get(cls, **kwargs) -> Response:
         # Load the request data
-        log.debug(f"Received get request: {kwargs}")
+        log.debug("Received get request:", details=kwargs)
 
         prn = kwargs.get(PRN, None)
         if not cls.validate_prn(prn):
@@ -181,7 +181,7 @@ class ItemTableActions(TableActions):
     @classmethod
     def list(cls, **kwargs) -> Response:
 
-        log.debug(f"Received list request: {kwargs}")
+        log.debug("Received list request:", details=kwargs)
 
         parent_prn = kwargs.get(PARENT_PRN, None)
 
@@ -245,7 +245,7 @@ class ItemTableActions(TableActions):
     @classmethod
     def update(cls, **kwargs) -> Response:
         # Load the request data
-        log.debug("Received update request", kwargs)
+        log.debug("Received update request", details=kwargs)
 
         prn = kwargs.get(PRN, None)
         if not cls.validate_prn(prn):

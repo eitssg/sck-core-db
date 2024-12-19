@@ -20,7 +20,7 @@ from .models import AppModel
 
 
 class AppActions(ItemTableActions):
-    """ Class container for App Item specific validations and actions"""
+    """Class container for App Item specific validations and actions"""
 
     item_model = AppModel
 
