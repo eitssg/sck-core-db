@@ -122,6 +122,10 @@ class ItemTableActions(TableActions):
 
         parent_prn = kwargs.pop(PARENT_PRN, prn[0 : prn.rindex(":")])
 
+        # Remove any created_at or updated_at fields as these are automatic
+        kwargs.pop("created_at", None)
+        kwargs.pop("updated_at", None)
+
         item: ItemModel = cls.item_model(prn=prn, parent_prn=parent_prn, **kwargs)
 
         # Add the new item to the database, if it doesn't already exist
@@ -243,7 +247,7 @@ class ItemTableActions(TableActions):
         return SuccessResponse(items)
 
     @classmethod
-    def update(cls, **kwargs) -> Response:
+    def update(cls, **kwargs) -> Response:  # noqa: C901
         # Load the request data
         log.debug("Received update request", details=kwargs)
 
@@ -251,35 +255,40 @@ class ItemTableActions(TableActions):
         if not cls.validate_prn(prn):
             raise BadRequestException(f"Invalid prn: {prn}")
 
+        kwargs.pop("created_at", None)
+        kwargs.pop("updated_at", None)
+
         # Load the requested item
         try:
             item: ItemModel = cls.item_model.get(prn)
         except DoesNotExist:
             raise NotFoundException("Item not found")
 
-        attributes = item.get_attributes()
-
-        # Update individual fields in the table record
-        actions: list[Action] = []
-        for key, value in kwargs.items():
-            if value is None:
-                # Generate a remove() action and delete the attribute - pynamodb doesn't do this automatically
-                attr = attributes[key]
-                actions.append(attr.remove())
-                attr.set(None)
-            elif value != getattr(item, key):
-                actions.append(attributes[key].set(value))
-
         # Execute the updates
         try:
+            attributes = item.get_attributes()
+
+            # Update individual fields in the table record
+            actions: list[Action] = []
+            for key, value in kwargs.items():
+                if hasattr(item, key):
+                    attr = attributes[key]
+                    if value is None:
+                        # Generate a remove() action and delete the attribute - pynamodb doesn't do this automatically
+                        actions.append(attr.remove())
+                        attr.set(None)
+                    elif value != getattr(item, key):
+                        actions.append(attr.set(value))
+
             if len(actions) > 0:
                 actions.append(attributes[UPDATED_AT].set(make_default_time()))
                 item.update(actions=actions)
 
                 # Load the full object to ensure the update is reflected in the response
                 item.refresh()
+
+            # Return the updated item
+            return SuccessResponse(item.to_simple_dict())
+
         except Exception as e:
             raise UnknownException(f"Failed to update - {e}")
-
-        # Return the updated item
-        return SuccessResponse(item.to_simple_dict())

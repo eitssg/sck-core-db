@@ -176,7 +176,9 @@ class AppActions(RegistryAction):
             item = AppFacts(client_portfolio, app_regex, **kwargs)
             item.save(AppFacts.AppRegex.does_not_exist())
         except ValueError as e:
-            raise BadRequestException(f"Invalid item data: {kwargs}: {str(e)}")
+            raise BadRequestException(
+                f"Invalid item data for [{client_portfolio}:{app_regex}] {kwargs}: {str(e)}"
+            )
         except AppFacts.DoesNotExist:
             raise ConflictException(
                 f"App [{client_portfolio}:{app_regex}] already exists"
@@ -206,24 +208,32 @@ class AppActions(RegistryAction):
 
         try:
 
-            item = AppFacts(client_portfolio, app_regex, **kwargs)
+            item = AppFacts.get(client_portfolio, app_regex)
+
+            attributes = item.get_attributes()
 
             actions: list[Action] = []
             for key, value in kwargs.items():
-                attr = item.get_attributes()
                 if hasattr(item, key):
-                    actions.append(attr[key].set(value))
+                    attr = attributes[key]
+                    if value is None:
+                        actions.append(attr.remove())
+                        attr.set(None)
+                    elif value != getattr(item, key):
+                        actions.append(attr.set(value))
 
-            item.update(actions=actions, condition=AppFacts.AppRegex.exists())
-            item.refresh()
+            if len(actions) > 0:
+                item.update(actions=actions, condition=AppFacts.AppRegex.exists())
+                item.refresh()
+
+            return SuccessResponse(item.to_simple_dict())
+
         except AppFacts.DoesNotExist:
             raise NotFoundException(
                 f"App [{client_portfolio}:{app_regex}] does not exist"
             )
         except PutError as e:
             raise ConflictException(f"Failed to update app: {str(e)}")
-
-        return SuccessResponse(item.to_simple_dict())
 
     @classmethod
     def patch(cls, **kwargs) -> Response:
@@ -237,19 +247,27 @@ class AppActions(RegistryAction):
         client_portfolio, app_regex = cls.get_client_portfolio_app(kwargs)
 
         try:
-            item = AppFacts(client_portfolio, app_regex, **kwargs)
+            item = AppFacts.get(client_portfolio, app_regex)
+
+            attributes = item.get_attributes()
 
             actions: list[Action] = []
             for key, value in kwargs.items():
-                attr = item.get_attributes()
                 if hasattr(item, key):
-                    actions.append(attr[key].set(value))
-            item.update(actions=actions)
-            item.refresh()
+                    attr = attributes[key]
+                    if value is None:
+                        actions.append(attr.remove())
+                        attr.set(None)
+                    elif value != getattr(item, key):
+                        actions.append(attr.set(value))
+
+            if len(actions) > 0:
+                item.update(actions=actions)
+                item.refresh()
+
+            return SuccessResponse(item.to_simple_dict())
 
         except AppFacts.DoesNotExist:
             raise NotFoundException(
                 f"App [{client_portfolio}:{app_regex}] does not exist"
             )
-
-        return SuccessResponse(item.to_simple_dict())

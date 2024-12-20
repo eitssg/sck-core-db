@@ -174,16 +174,23 @@ class PortfolioActions(RegistryAction):
 
         try:
             item = PortfolioFacts.get(client, portfolio)
-            attr = item.get_attributes()
+            attributes = item.get_attributes()
 
             actions: list[Action] = []
             for key, value in kwargs.items():
-                if key in attr:
-                    actions.append(attr[key].set(value))
-            item.update(actions=actions)
-            item.refresh()
+                if hasattr(item, key):
+                    if value is None:
+                        attr = attributes[key]
+                        actions.append(attr.remove())
+                        attr.set(None)
+                    elif value != getattr(item, key):
+                        actions.append(attributes[key].set(value))
+
+            if len(actions) > 0:
+                item.update(actions=actions)
+                item.refresh()
+
+            return SuccessResponse(item.to_simple_dict())
 
         except PortfolioFacts.DoesNotExist:
             raise NotFoundException(f"Portfolio {client}:{portfolio} does not exist")
-
-        return SuccessResponse(item.to_simple_dict())

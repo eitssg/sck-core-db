@@ -52,13 +52,18 @@ class EventModel(Model):
 
     # Keys for events
     prn = UnicodeAttribute(hash_key=True)
+    """ Pipeline Reference Number (PRN) of the event (a.k.a identity) """
     timestamp = UTCDateTimeAttribute(range_key=True, default_for_new=make_default_time)
-
+    """ Timestamp of the event.  Let the system auto-generate """
     # Event details
     event_type = UnicodeAttribute(default_for_new="STATUS")
+    """ Type of event (e.g., 'INFO', 'ERROR', 'STATUS') like a LogLevel """
     item_type = UnicodeAttribute(null=True)
+    """ Type of item this event relates to such as portfolio, app, branch, build, component, account, etc. """
     status = UnicodeAttribute(null=True)
+    """ The status name.  Two possible values "ok" or "error" """
     message = UnicodeAttribute(null=True)
+    """ Event message details """
 
     def __repr__(self):
         return f"<Event(prn={self.prn},timestamp={self.timestamp},item_type={self.item_type},status={self.status},message={self.message})>"

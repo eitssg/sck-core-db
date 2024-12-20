@@ -5,6 +5,8 @@ specific field extentions.
 
 """
 
+from dateutil import parser
+
 from pynamodb.models import Model
 from pynamodb.indexes import GlobalSecondaryIndex, AllProjection
 from pynamodb.attributes import UnicodeAttribute, UTCDateTimeAttribute
@@ -64,6 +66,13 @@ class ItemModel(Model):
 
     # Indexes
     parent_created_at_index = ParentCreatedAtIndex()
+
+    def __init__(self, *args, **kwargs):
+        if "created_at" in kwargs and isinstance(kwargs["created_at"], str):
+            kwargs["created_at"] = parser.parse(kwargs["created_at"])
+        if "updated_at" in kwargs and isinstance(kwargs["updated_at"], str):
+            kwargs["updated_at"] = parser.parse(kwargs["updated_at"])
+        super().__init__(*args, **kwargs)
 
     def __repr__(self):
         return f"<Item(prn={self.prn},item_type={self.item_type},name={self.name})>"

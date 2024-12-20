@@ -231,17 +231,23 @@ class ClientActions(RegistryAction):
 
         try:
             # Create actions to remove attributes not in new kwargs
-            fact = ClientFacts(client, **kwargs)
-            attr = fact.get_attributes()
+            fact = ClientFacts.get(client)
+            attributes = fact.get_attributes()
 
             actions: list[Action] = []
             for key, value in kwargs.items():
                 if hasattr(fact, key):
-                    actions.append(attr[key].set(value))
+                    attr = attributes[key]
+                    if value is None:
+                        actions.append(attr.remove())
+                        attr.set(None)
+                    elif value != getattr(fact, key):
+                        actions.append(attr.set(value))
 
-            # Perform the update with all actions
-            fact.update(actions=actions)
-            fact.refresh()
+            if len(actions) > 0:
+                # Perform the update with all actions
+                fact.update(actions=actions)
+                fact.refresh()
 
             return SuccessResponse(fact.to_simple_dict())
 

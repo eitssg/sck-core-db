@@ -54,7 +54,7 @@ class ZoneActions(RegistryAction):
                 raise BadRequestException(
                     'Client portfolio name is required in content: { "client_portfolio": "<name>", ...}'
                 )
-        zone = kwargs.pop(ZONE_KEY, kwargs.pop("zone", None))
+        zone = kwargs.pop("zone", kwargs.pop(ZONE_KEY, None))
         return client_portfolio, zone
 
     @classmethod
