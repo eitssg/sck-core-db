@@ -40,6 +40,8 @@ class AppFacts(Model):
 
     # Attributes
     ImgeAliases: MapAttribute = MapAttribute(null=True)
+
+    # Where the code is stored
     Repository = UnicodeAttribute(null=True)
 
     # You MUST specify a region.  This is used to select Facts from the Zone.
@@ -51,6 +53,10 @@ class AppFacts(Model):
     # If True, then the deployment will enforce validation rules.
     EnforceValidation: UnicodeAttribute = UnicodeAttribute(null=True)
 
+    # Any other attribute that the user wishes to add arbitrarily in their Jinja2 context
+    Metadata: MapAttribute = MapAttribute(null=True)
+
+    # I think I get the need for this attribute because I overrode __init__
     UserInstantiated: UnicodeAttribute = UnicodeAttribute(null=True)
 
     def __init__(self, *args, **kwargs):

@@ -14,15 +14,14 @@ from core_framework.constants import (
     FACTS_ACCOUNT,
     FACTS_REGION,
     FACTS_TAGS,
-    TAG_CAPEX_CODE,
     TAG_ENVIRONMENT,
-    TAG_JIRA_CODE,
-    TAG_OPEX_CODE,
     TAG_OWNER,
     TAG_REGION,
+    TAG_CONTACTS,
     V_DEFAULT_BRANCH,
     V_DEFAULT_ENVIRONMENT,
     V_DEFAULT_REGION_ALIAS,
+    V_EMPTY,
 )
 
 from core_framework.models import DeploymentDetails
@@ -205,7 +204,7 @@ def get_app_facts(
     if build is None:
         build = "*"
 
-    portfolio_key = f"{client}-{portfolio}"
+    portfolio_key = f"{client}:{portfolio}"
     app_test_string = f"prn:{portfolio}:{app}:{branch}:{build}"
 
     app_facts_list = AppFacts.query(portfolio_key)
@@ -274,6 +273,27 @@ def get_facts_by_identity(client: str, identity: str) -> dict:
     return get_facts(client, portfolio or "unknown", app or "unknown", branch, build)
 
 
+def format_contact(contact: dict) -> str:
+    """
+    Format the contact details for the Jinja2 template context.
+
+    Args:
+        contact (dict): The contact details
+
+    Returns:
+        dict: The formatted contact details
+    """
+    name = contact.get("name", "")
+    email = contact.get("email", "")
+    if not name and not email:
+        return V_EMPTY
+    if not name:
+        return email
+    if not email:
+        return name
+    return f"{name} <{email}>"
+
+
 def get_facts(  # noqa: C901
     client: str,
     portfolio: str,
@@ -309,7 +329,7 @@ def get_facts(  # noqa: C901
 
     if app_facts is None:
         raise ValueError(
-            f"App facts not found for {client}-{portfolio}-{app}-{branch}-{build}"
+            f"App facts not found for prn:{client}:{portfolio}:{app}:{branch}:{build}"
         )
 
     # If the app facts do not contain a region, use the default region alias
@@ -336,21 +356,18 @@ def get_facts(  # noqa: C901
     if portfolio_facts is None:
         raise ValueError(f"Portfolio facts not found for {client}-{portfolio}")
 
-    # Some extra fields:  TODO - Put elsewhere.
-    if "opex-code" in portfolio_facts and TAG_OPEX_CODE not in app_tags:
-        app_tags[TAG_OPEX_CODE] = portfolio_facts["opex-code"]
-    if "jira-code" in portfolio_facts and TAG_JIRA_CODE not in app_tags:
-        app_tags[TAG_JIRA_CODE] = portfolio_facts["jira-code"]
-    if "capex-code" in portfolio_facts and TAG_CAPEX_CODE not in app_tags:
-        app_tags[TAG_CAPEX_CODE] = portfolio_facts["capex-code"]
     if "owner" in portfolio_facts and TAG_OWNER not in app_tags:
-        app_tags[TAG_OWNER] = portfolio_facts["owner"]
+        app_tags[TAG_OWNER] = format_contact(portfolio_facts["owner"])
+    if "contacts" in portfolio_facts:
+        app_tags[TAG_CONTACTS] = ",".join(
+            [format_contact(c) for c in portfolio_facts["contacts"]]
+        )
 
     # If a zone is not explicitely provded, we will generate the zone name from the portfolio and environment
     # Remember, all "apps/deployments" go inside the same environment of the portfololiw (a.k.a landing zone)
-    zone = app_facts.get(
-        ZONE_KEY, None
-    )  # if the app facts have a zone, use it. It really must. It's required.
+    zone = app_facts.get(ZONE_KEY, None)
+
+    # if the app facts have a zone, use it. It really must. It's required.
     if zone is None:
         zone = f"{portfolio}-{environment}"
 
