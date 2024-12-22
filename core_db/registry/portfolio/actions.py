@@ -36,6 +36,7 @@ def _get_client_portfolio(**kwargs) -> tuple[str, str]:
 
 
 class PortfolioActions(RegistryAction):
+    """Class container for Portfolio Item specific validations and actions"""
 
     @classmethod
     def list(cls, **kwargs) -> Response:

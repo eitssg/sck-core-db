@@ -10,23 +10,47 @@ from ..models import ItemModel
 class BranchModel(ItemModel):
     """
     Branch Model field extentions
+
     """
+    class Meta:
+        """
+        :no-index:
+        """
+        pass
 
-    # Attributes. This mus be a generated short name (slug)
     short_name = UnicodeAttribute(null=False)
+    """str: Short name of the branch. """
 
-    # Releases references
     released_build_prn = UnicodeAttribute(null=True)
+    """str: PRN of the released build. """
 
-    # PRN References
     portfolio_prn = UnicodeAttribute(null=False)
+    """str: Portfolio PRN for the branch"""
+
     app_prn = UnicodeAttribute(null=False)
+    """str: App PRN for the branch"""
 
     def __repr__(self):
         return f"<Branch(prn={self.prn},name={self.name})>"
 
     @classmethod
     def construct_released_build(cls, **kwargs) -> dict:
+        """
+        Construct the released build PRN.  Get's the PRN from
+        the kwargs if available or returns an empty dict.
+
+        Return example:
+
+            ```
+            {
+                "prn": "prn:portfolio:app:branch:build"
+            }
+            ```
+
+        Returns:
+            dict: Dictionary with the released build PRN
+        """
+
         released_build_prn = kwargs.get(RELEASED_BUILD_PRN, None)
         if released_build_prn:
             return {PRN: released_build_prn}

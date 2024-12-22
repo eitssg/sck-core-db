@@ -18,23 +18,22 @@ from ...config import get_table_name
 from ..models import RegistryModel
 
 
-def _convert_key(key):
-    # Convert lowercase keys to camelCase keys
-    words = re.split("[-_]", key)
-    camel_case_key = words[0] + "".join(word.capitalize() for word in words[1:])
-    return camel_case_key
-
-
 class ExtendedMapAttribute(MapAttribute):
-    """ Convert Keys to CamelCase """
+    """Convert Keys to CamelCase"""
+
+    def _convert_key(self, key):
+        # Convert lowercase keys to camelCase keys
+        words = re.split("[-_]", key)
+        camel_case_key = words[0] + "".join(word.capitalize() for word in words[1:])
+        return camel_case_key
 
     def __init__(self, *args, **kwargs):
         # Convert lowercase keys to camelCase keys
-        kwargs = {_convert_key(k): v for k, v in kwargs.items()}
+        kwargs = {self._convert_key(k): v for k, v in kwargs.items()}
         super().__init__(*args, **kwargs)
 
 
-class SecurityAliasFacts(MapAttribute):
+class SecurityAliasFacts(ExtendedMapAttribute):
     """Security Aliases
 
     { "alias_name": {"Type": "", "Value": "", "Description": ""}}
@@ -50,28 +49,20 @@ class SecurityAliasFacts(MapAttribute):
     """
 
     Type = UnicodeAttribute(null=False)
+    """str: The type of alias"""
     Value = UnicodeAttribute(null=False)
+    """str: The value of the alias"""
     Description = UnicodeAttribute(null=True)
+    """str: A description of the alias"""
 
     UserInstantiated = UnicodeAttribute(null=True)
 
-    def __init__(self, *args, **kwargs):
-        # Convert lowercase keys to camelCase keys
-        kwargs = {_convert_key(k): v for k, v in kwargs.items()}
-        super().__init__(*args, **kwargs)
 
-
-class KmsFacts(MapAttribute):
+class KmsFacts(ExtendedMapAttribute):
     """KMS Keys details
 
     A KMS Key is created for each **Zone**.  The KMS Key is used to encrypt/decrypt resources
     and data at rest.
-
-    Attributes:
-        AwsAccountId (str): The AWS Account ID where KMS Keys are managed/centralized
-        KmsKeyArn (str): The KMS Key ARN for this Zone
-        KmsKey (str): The KMS Key ID for this Zone
-        DelegateAwsAccountIds (list): List of AWS Account IDs that can use the KMS Key
 
     KmsFacts are created by Security Administrators.  You must have the role "CoreSecurityAdmin" to
     be able to modify the KmsFacts.
@@ -79,32 +70,19 @@ class KmsFacts(MapAttribute):
     """
 
     AwsAccountId = UnicodeAttribute(null=True)
+    """str: The AWS Account ID where KMS Keys are managed/centralized"""
     KmsKeyArn = UnicodeAttribute(null=True)
+    """str: The KMS Key ARN for this Zone"""
     KmsKey = UnicodeAttribute(null=True)
+    """str: The KMS Key ID for this Zone"""
     DelegateAwsAccountIds = ListAttribute(of=UnicodeAttribute, null=False)
+    """list[str]: List of AWS Account IDs that can use the KMS Key"""
 
     UserInstantiated = UnicodeAttribute(null=True)
 
-    def __init__(self, *args, **kwargs):
-        # Convert lowercase keys to camelCase keys
-        kwargs = {_convert_key(k): v for k, v in kwargs.items()}
-        super().__init__(*args, **kwargs)
 
-
-class AccountFacts(MapAttribute):
+class AccountFacts(ExtendedMapAttribute):
     """Account Details FACTS describing the AWS Account
-
-    Attributes:
-        Client (str): The client name (AWS Organzation slug. e.g. "acme")
-        OrganizationalUnit (str): The Organizational Unit
-        AwsAccountId (str): The AWS Account ID
-        AccountName (str): The name of the account
-        Environment (str): The environment
-        Kms (KmsFacts): KMS Key details
-        ResourceNamespace (str): The namespace for the resources
-        VpcAliases (dict): VPC Aliases. Aliases are created for VPCs by the Networks pipelines
-        SubnetAliases (dict): Subnet Aliases. Aliases are created for Subnets by the Networks pipelines
-        Tags (dict): Tags to merge into the facts for this deployment
 
     AccountFacts are created by Network Administrators.  You must have the role "CoreNetworkAdmin" to
     be able to modify the AccountFacts.
@@ -112,32 +90,31 @@ class AccountFacts(MapAttribute):
     """
 
     Client = UnicodeAttribute(null=True)
+    """str: The client name (AWS Organzation slug. e.g. "acme")"""
     OrganizationalUnit = UnicodeAttribute(null=True)
+    """str: The Organizational Unit"""
     AwsAccountId = UnicodeAttribute(null=False)
+    """str: The AWS Account ID"""
     AccountName = UnicodeAttribute(null=True)
+    """str: The name of the account"""
     Environment = UnicodeAttribute(null=True)
+    """str: The environment"""
     Kms = KmsFacts(null=True)
+    """KmsFacts: KMS Key details"""
     ResourceNamespace = UnicodeAttribute(null=True)
+    """str: The namespace for the resources"""
     VpcAliases: MapAttribute = MapAttribute(of=UnicodeAttribute, null=True)
+    """dict: VPC Aliases. Aliases are created for VPCs by the Networks pipelines"""
     SubnetAliases: MapAttribute = MapAttribute(of=UnicodeAttribute, null=True)
+    """dict: Subnet Aliases. Aliases are created for Subnets by the Networks pipelines"""
     Tags: MapAttribute = MapAttribute(null=True)
+    """dict: Tags to merge into the facts for this deployment"""
 
     UserInstantiated = UnicodeAttribute(null=True)
 
-    def __init__(self, *args, **kwargs):
-        # Convert lowercase keys to camelCase keys
-        kwargs = {_convert_key(k): v for k, v in kwargs.items()}
-        super().__init__(*args, **kwargs)
 
-
-class ProxyFacts(MapAttribute):
+class ProxyFacts(ExtendedMapAttribute):
     """Proxy Details FACTS describing the Proxy information within the Zone
-
-    Attributes:
-        Host (str): The proxy host
-        Port (str): The proxy port
-        Url (str): The proxy URL
-        NoProxy (str): The no proxy list
 
     Ports are created by Network Administrators.  You must have the role "CoreNetworkAdmin" to
     modify the ProxyFacts.
@@ -145,19 +122,18 @@ class ProxyFacts(MapAttribute):
     """
 
     Host = UnicodeAttribute(null=True)
+    """str: The proxy host. e.g. "proxy.acme.com" """
     Port = UnicodeAttribute(null=True)
+    """str: The proxy port. e.g. 8080 """
     Url = UnicodeAttribute(null=True)
+    """str: The proxy URL. e.g. "http://proxy.acme.com:8080" """
     NoProxy = UnicodeAttribute(null=True)
+    """str: The no proxy list. e.g. "\\*.acme.com,10/8,192.168/16," """
 
     UserInstantiated = UnicodeAttribute(null=True)
 
-    def __init__(self, *args, **kwargs):
-        # Convert lowercase keys to camelCase keys
-        kwargs = {_convert_key(k): v for k, v in kwargs.items()}
-        super().__init__(*args, **kwargs)
 
-
-class RegionFacts(MapAttribute):
+class RegionFacts(ExtendedMapAttribute):
     """Region FACTS descriging the detailed information for each supported region in the Zone
 
     Region FACTS are provided for each region Alias available in the zone.  THe region alias
@@ -165,28 +141,13 @@ class RegionFacts(MapAttribute):
 
         Examples Include:
 
-        * us-west-1 -> usw
-        * us-east-1 -> use
-        * ap-southeast-1 -> sin
-        * ap-southeast-2 -> syd
+        - us-west-1 -> usw
+        - us-east-1 -> use
+        - ap-southeast-1 -> sin
+        - ap-southeast-2 -> syd
 
     When registering RegionFacts, you may do so under any "slug" name you wish as they are user
     defined and scopeed to the **Zone.**
-
-    Attributes:
-        AwsRegion (str): The AWS Region
-        AzCount (int): The number of Availability Zones in the region as defined by the Network Engineer
-        ImageAliases (dict): Image Aliases. Aliases are created for AMIs by the Images pipelines
-        MinSuccessfulInstancesPercent (int): The minimum percentage of successful instances required for a deployment in the Zone
-        SecurityAliases (dict): Security Aliases publised by the security team define names for CIDR values. Aliases are created for Security Groups by the Security pipelines
-        SecurityGroupAliases (dict): Security Group Aliases. Aliases are created for Security Groups by the Security pipelines
-        Proxy (list[ProxyFacts]): Proxy details list of proxy endpoints. (New field - in incubation)
-        ProxyHost (str): The proxy host. e.g. "proxy.acme.com"
-        ProxyPort (int): The proxy port. e.g. 8080
-        ProxyUrl (str): The proxy URL. e.g. "http://proxy.acme.com:8080"
-        NoProxy (str): The no proxy list. e.g. "*.acme.com,10/8,192.168/16,169.254.169.253,169.254.169.254"
-        NameServers (list): List of nameservers for the region
-        Tags (dict): Tags to merge into the facts for this deployment taht can be added to resources
 
     Regions are created by Network Administrators.  You must have the role "CoreNetworkAdmin" to
     be able to modify the RegionFacts.
@@ -194,41 +155,35 @@ class RegionFacts(MapAttribute):
     """
 
     AwsRegion = UnicodeAttribute(null=False)
+    """str: The AWS Region"""
     AzCount = NumberAttribute(null=True)
-
-    # Image aliases
+    """int: The number of Availability Zones in the region as defined by the Network Engineer"""
     ImageAliases: MapAttribute = MapAttribute(of=UnicodeAttribute, null=True)
-
-    # Min successful instances percent
+    """dict[str,str]: Image Aliases. Aliases are created for AMIs by the Images pipelines"""
     MinSuccessfulInstancesPercent = NumberAttribute(null=True)
-
-    # Security aliases
+    """int: The minimum percentage of successful instances required for a deployment in the Zone"""
     SecurityAliases: MapAttribute = MapAttribute(
         null=True, of=ListAttribute(of=SecurityAliasFacts)
     )
+    """dict[str,SecurityAliasFacts]: Security Aliases publised by the security team define names for CIDR values. Aliases are created for Security Groups by the Security pipelines"""
     SecurityGroupAliases: MapAttribute = MapAttribute(of=UnicodeAttribute, null=True)
-
-    # I wish to use this new field to group the proxy facts.
+    """dict[str,str]: Security Group Aliases. Aliases are created for Security Groups by the Security pipelines"""
     Proxy = ListAttribute(of=ProxyFacts, null=True)
-
-    # I don't want to use this to group the proxy facts.
+    """list[ProxyFacts]: Proxy details list of proxy endpoints. (New field - in incubation)"""
     ProxyHost = UnicodeAttribute(null=True)
+    """str: The proxy host. e.g. "proxy.acme.com" """
     ProxyPort = NumberAttribute(null=True)
+    """int: The proxy port. e.g. 8080 """
     ProxyUrl = UnicodeAttribute(null=True)
+    """str: The proxy URL. e.g. "http://proxy.acme.com:8080" """
     NoProxy = UnicodeAttribute(null=True)
-
-    # Nameservers
+    """str: The no proxy list. e.g. "\\*.acme.com,10/8,192.168/16," """
     NameServers = ListAttribute(of=UnicodeAttribute, null=True)
-
-    # Tags
+    """list[str]: List of nameservers for the region"""
     Tags: MapAttribute = MapAttribute(null=True)
+    """dict: Tags to merge into the facts for this deployment taht can be added to resources"""
 
     UserInstantiated = UnicodeAttribute(null=True)
-
-    def __init__(self, *args, **kwargs):
-        # Convert lowercase keys to camelCase keys
-        kwargs = {_convert_key(k): v for k, v in kwargs.items()}
-        super().__init__(*args, **kwargs)
 
 
 class ZoneFacts(RegistryModel):
@@ -255,20 +210,27 @@ class ZoneFacts(RegistryModel):
 
     class Meta:
         table_name = get_table_name(ZONE_FACTS)
+        """str: The table name for the ZoneFacts"""
         region = util.get_region()
+        """str: The region for the ZoneFacts"""
         host = util.get_dynamodb_host()
+        """str: The host for the ZoneFacts"""
         read_capacity_units = 1
+        """int: The read capacity units for the ZoneFacts"""
         write_capacity_units = 1
+        """int: The write capacity units for the ZoneFacts"""
 
-    # Hash/Range keys
     ClientPortfolio = UnicodeAttribute(attr_name=CLIENT_PORTFOLIO_KEY, hash_key=True)
+    """str: The client portfolio name"""
 
-    # This is the "label" of the zone.
     Zone = UnicodeAttribute(attr_name=ZONE_KEY, range_key=True)
+    """str: The zone name. Any name to define the one."""
 
-    # Attributes
     AccountFacts = AccountFacts(null=False)
+    """AccountFacts: AWS Account details for this Zone"""
+
     RegionFacts: MapAttribute = MapAttribute(of=RegionFacts, null=False)
+    """dict[str, RegionFacts]: Region details indexed by region alias (slug)"""
 
     UserInstantiated = UnicodeAttribute(null=True)
 
@@ -277,8 +239,3 @@ class ZoneFacts(RegistryModel):
         if attribute:
             return attribute.__class__
         return None
-
-    def __init__(self, *args, **kwargs):
-        # Convert lowercase keys to camelCase keys
-        kwargs = {_convert_key(k): v for k, v in kwargs.items()}
-        super().__init__(*args, **kwargs)

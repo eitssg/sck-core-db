@@ -13,7 +13,27 @@ from ...config import get_table_name, APP_FACTS
 
 
 class AppFacts(Model):
+    """
+    Classes defining the Apps record model for the core-automation-apps table
 
+    Args:
+        **kwargs: Arbitrary keyword arguments with the attributes
+            * ClientPortfolio: str: Client Portfolio (alternate key "client-portfolio")
+            * AppRegex: str: App Regex (alternate key "app-regex")
+            * Name: str: Name of the app (alternate key "name")
+            * Environment: str: Environment of the app (alternate key "environment")
+            * Account: str: Account of the app (alternate key "account")
+            * Zone: str: Zone of the app (alternate key "zone")
+            * ImgeAliases: dict: Image Aliases of the app to reduce bake time (alternate key "image-aliases")
+            * Repository: str: Git repository of the app (alternate key "repository")
+            * Region: str: Region of the app (alternate key "region")
+            * Tags: dict: Tags of the app (alternate key "tags")
+            * EnforceValidation: str: Enforce validation of the app (alternate key "enforce-validation")
+            * Metadata: dict: Metadata of the app (alternate key "metadata")
+
+    Returns:
+        AppFacts: AppFacts object
+    """
     class Meta:
         table_name = get_table_name(APP_FACTS)
         region = util.get_region()
@@ -21,42 +41,47 @@ class AppFacts(Model):
         read_capacity_units = 1
         write_capacity_units = 1
 
-    # Hash/Range keys
     ClientPortfolio = UnicodeAttribute(attr_name=CLIENT_PORTFOLIO_KEY, hash_key=True)
+    """str: Client Portfolio (alternate key "client-portfolio") """
+
     AppRegex = UnicodeAttribute(attr_name=APP_KEY, range_key=True)
+    """str: App Regex (alternate key "app-regex") """
 
-    # Do you wish to give it a friendly name?
     Name: UnicodeAttribute = UnicodeAttribute(null=True)
+    """str: Name of the app (alternate key "name") """
 
-    # Are you prod, nonprod, dev, uat, preprod, staging.  You choose.
     Environment: UnicodeAttribute = UnicodeAttribute(null=True)
+    """str: Environment of the app (alternate key "environment") """
 
-    # Which "zone" to go into (deprecated.  Use "Zone").
     Account: UnicodeAttribute = UnicodeAttribute(null=True)
+    """str: Zone name of the app (alternate key "account") (same as Zone) """
 
-    # We call this "zone" now.  a "zone" contains "apps" that are deployed together
-    # in an Acccount. A zone can have multiple region definitions.
     Zone: UnicodeAttribute = UnicodeAttribute(null=False)
+    """str: Zone name of the app (alternate key "zone") (same as Account)
 
-    # Attributes
+        We call this "zone" now.  a "zone" contains "apps" that are deployed together
+        in an Acccount. A zone can have multiple region definitions.
+
+    """
+
     ImgeAliases: MapAttribute = MapAttribute(null=True)
+    """str: Image Aliases of the app to reduce bake time (alternate key "image-aliases") """
 
-    # Where the code is stored
     Repository = UnicodeAttribute(null=True)
+    """str: Git repository of the app (alternate key "repository") """
 
-    # You MUST specify a region.  This is used to select Facts from the Zone.
     Region = UnicodeAttribute(null=False)
+    """str: Region alise (slug) of the app (alternate key "region") """
 
-    # Tags to merge into the facts for this deployment.
     Tags: MapAttribute = MapAttribute(null=True)
+    """dict: Tags of the app (alternate key "tags") """
 
-    # If True, then the deployment will enforce validation rules.
     EnforceValidation: UnicodeAttribute = UnicodeAttribute(null=True)
+    """str: Enforce validation of the app (alternate key "enforce-validation") """
 
-    # Any other attribute that the user wishes to add arbitrarily in their Jinja2 context
     Metadata: MapAttribute = MapAttribute(null=True)
+    """dict: Metadata of the app (alternate key "metadata") """
 
-    # I think I get the need for this attribute because I overrode __init__
     UserInstantiated: UnicodeAttribute = UnicodeAttribute(null=True)
 
     def __init__(self, *args, **kwargs):

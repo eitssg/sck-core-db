@@ -14,7 +14,7 @@ from ...constants import (
 )
 
 from ...response import Response
-from ...exceptions import BadRequestException, ConflictException
+from ...exceptions import BadRequestException
 from ..actions import ItemTableActions
 from .models import AppModel
 
@@ -23,6 +23,7 @@ class AppActions(ItemTableActions):
     """Class container for App Item specific validations and actions"""
 
     item_model = AppModel
+    """ItemModel: The :class:`core_db.item.models.ItemModel` class for the ``AppActions`` to work on.  Set to :class:`core_db.item.app.models.AppModel` """
 
     @classmethod
     def validate_prn(cls, prn: str) -> str:
@@ -32,7 +33,23 @@ class AppActions(ItemTableActions):
 
     @classmethod
     def create(cls, **kwargs) -> Response:
+        """
+        Create a App Item in the core-automation-items database
 
+        Args:
+            **kwargs: The fields required to create an app
+                * prn: The App PRN
+                * app_prn: The App PRN
+                * name: The App Name
+                * contact_email: The App Contact Email
+                * portfolio_prn: The Portfolio PRN
+
+        Raises:
+            BadRequestException: If field values are missing
+
+        Returns:
+            Response: Response data with the app item that was created
+        """
         # Application PRN
         app_prn = kwargs.pop(PRN, kwargs.pop(APP_PRN, None))
         if not app_prn:
@@ -53,7 +70,7 @@ class AppActions(ItemTableActions):
         kwargs[PORTFOLIO_PRN] = portfolio_prn
 
         if CONTACT_EMAIL not in kwargs:
-            raise ConflictException("contact_email is required to create an app")
+            raise BadRequestException("contact_email is required to create an app")
 
         return super().create(**kwargs)
 
@@ -61,6 +78,10 @@ class AppActions(ItemTableActions):
     def list(cls, **kwargs) -> Response:
         """
         Return a list of apps by specifying the portfolio_prn in the query parameters
+
+        Args:
+            **kwargs: The fields required to list Items. (ignored for app lists)
+                * portfolio_prn: The Portfolio PRN taht this app belongs to
 
         Returns:
             Response: SuccessResponse or FaiureResponse

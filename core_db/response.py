@@ -1,3 +1,4 @@
+""" Response module for the core_db package.  Response objects are returned by the actions module. """
 import traceback
 
 from typing import Any, Literal

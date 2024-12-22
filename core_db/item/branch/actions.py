@@ -26,16 +26,46 @@ class BranchActions(ItemTableActions):
     """Class container for Branch Item specific validations and actions"""
 
     item_model = BranchModel
+    """ItemModel: The :class:`core_db.item.models.ItemModel` class for the ``BranchActions`` to work on.  Set to :class:`core_db.item.branch.models.BranchModel` """
 
     @classmethod
     def validate_prn(cls, prn: str) -> str:
+        """
+        Override the class validate_prn method to validate the Branch PRN
+
+        Args:
+            prn (str): The branch PRN to validate
+
+        Raises:
+            BadRequestException: If the prn is not a branch prn
+
+        Returns:
+            str: The PRN provided
+        """
         if not util.validate_branch_prn(prn):
             raise BadRequestException(f"Invalid branch_prn: {prn}")
         return prn
 
     @classmethod
     def create(cls, **kwargs) -> Response:
+        """
+        Create a Branch Item in the core-automation-items database
 
+        Args:
+            **kwargs: The fields required to create a branch
+                * prn: The Branch PRN
+                * name: The Branch Name
+                * short_name: The Branch Short Name
+                * branch_prn: The Branch PRN
+                * app_prn: The App PRN
+                * portfolio_prn: The Portfolio PRN
+
+        Raises:
+            BadRequestException: If Data is missing
+
+        Returns:
+            Response: Response data with the branch item that was created
+        """
         # Branch Fields
         branch_prn = kwargs.pop(PRN, kwargs.pop(BRANCH_PRN, None))
         if not branch_prn:
@@ -74,8 +104,12 @@ class BranchActions(ItemTableActions):
         """
         Return a list of branches by specifying the app_prn in the query parameters
 
+        Args:
+            **kwargs: The fields required to list Items. (ignored for branch lists)
+                * app_prn: The App PRN that this branch belongs to
+
         Returns:
-            Response: SuccessResponse
+            Response: SuccessResponse with the list of branch items
         """
         app_prn = kwargs.get(APP_PRN, None)
         if not app_prn:
@@ -87,6 +121,15 @@ class BranchActions(ItemTableActions):
 
     @classmethod
     def update(cls, **kwargs) -> Response:
+        """
+        Update an existing branch item
+
+        Raises:
+            BadRequestException: if the release build PRN is not a valid build PRN
+
+        Returns:
+            Response: The updated build item
+        """
         released_build = BranchModel.construct_released_build(**kwargs)
         if released_build:
             prn = released_build.get(PRN)

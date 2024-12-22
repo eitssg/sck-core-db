@@ -31,10 +31,30 @@ class ParentCreatedAtIndex(GlobalSecondaryIndex):
         pass
 
     parent_prn = UnicodeAttribute(hash_key=True)
+    """str: Parent Pipeline Reference Number (PRN) of the item (a.k.a identity) """
+
     created_at = UTCDateTimeAttribute(range_key=True)
+    """datetime: Timestamp of the item creation.  Let the system auto-generate.  This is a RANGE key for the index. """
 
 
 class ItemModel(Model):
+    """
+    Defines the generic model for items stored in the core-automation-items table.
+
+    References:
+        * :class:`core_db.item.portfolio.models.PortfolioModel`
+        * :class:`core_db.item.app.models.AppModel`
+        * :class:`core_db.item.branch.models.BranchModel`
+        * :class:`core_db.item.build.models.BuildModel`
+        * :class:`core_db.item.component.models.ComponentModel`
+
+    Args:
+        Model (Model): Pynamodb Model class
+
+    Returns:
+        ItemModel: The Item Model representing the core-automation-items table
+    """
+
     class Meta:
         """
         The metadata is used to configure the table for the ItemModel
@@ -50,22 +70,26 @@ class ItemModel(Model):
         read_capacity_units = 1
         write_capacity_units = 1
 
-    # Attribute primary key
     prn = UnicodeAttribute(hash_key=True)
+    """str: Pipeline Reference Number (PRN) of the item (a.k.a identity) """
 
-    # A parent is ALWAYS required.  In this current implementation, the portfolio parent is always "prn".
     parent_prn = UnicodeAttribute(null=False)
+    """str: Parent Pipeline Reference Number (PRN) of the item (a.k.a identity) """
 
-    # Iem attributes
     item_type = UnicodeAttribute(null=False)
+    """str: Type of item this event relates to such as portfolio, app, branch, build, component, account, etc. """
+
     name = UnicodeAttribute(null=False)
+    """str: Name of the item.  This is the human readable name of the item. """
 
-    # Date/Time fields.  We want to know when the item was created and last updated.
     created_at = UTCDateTimeAttribute(default_for_new=make_default_time)
-    updated_at = UTCDateTimeAttribute(default=make_default_time)
+    """datetime: Timestamp of the item creation.  Let the system auto-generate """
 
-    # Indexes
+    updated_at = UTCDateTimeAttribute(default=make_default_time)
+    """datetime: Timestamp of the item update.  Let the system auto-generate """
+
     parent_created_at_index = ParentCreatedAtIndex()
+    """GlobalSecondaryIndex: Index for parent_prn and created_at fields.  Used for querying items by parent and creation date.  """
 
     def __init__(self, *args, **kwargs):
         if "created_at" in kwargs and isinstance(kwargs["created_at"], str):

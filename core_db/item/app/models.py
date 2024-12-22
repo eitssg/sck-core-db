@@ -9,11 +9,18 @@ class AppModel(ItemModel):
     """
     App model field extensions
     """
+    class Meta:
+        """
+        :no-index:
+        """
+        pass
 
     # Attributes
     contact_email = UnicodeAttribute(null=False)
+    """str: Contact email for the app. Example: """
 
     portfolio_prn = UnicodeAttribute(null=False)
+    """str: Portfolio PRN for the app. """
 
     def __repr__(self):
         return f"<App(prn={self.prn},name={self.name})>"

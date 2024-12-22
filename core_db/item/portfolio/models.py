@@ -10,8 +10,14 @@ class PortfolioModel(ItemModel):
 
     """
 
-    # Attributes
+    class Meta:
+        """
+        :no-index:
+        """
+        pass
+
     contact_email = UnicodeAttribute(null=False)
+    """str: Contact email for the portfolio. Example: """
 
     def __repr__(self):
         return f"<Portfolio(prn={self.prn},name={self.name})>"

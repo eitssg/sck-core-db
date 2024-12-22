@@ -15,20 +15,19 @@ from ...config import get_table_name, PORTFOLIO_FACTS
 
 
 class ContactFacts(MapAttribute):
-    """Contact details
-
-    Attributes:
-        name (str): Name of the contact
-        email (str): Email address of the contact
-        attributes (dict): Additional attributes for the contact
-        enabled (bool): Is the contact enabled
-
-    """
+    """Contact details"""
 
     name = UnicodeAttribute()
+    """str: Name of the contact"""
+
     email = UnicodeAttribute(null=True)
+    """str: Email address of the contact"""
+
     attributes: MapAttribute = MapAttribute(of=UnicodeAttribute, null=True)
+    """dict: Additional attributes for the contact"""
+
     enabled = BooleanAttribute(default=True)
+    """bool: Is the contact enabled"""
 
     def serialize(self, values, *args, **kwargs):
 
@@ -40,25 +39,21 @@ class ContactFacts(MapAttribute):
 
 
 class ApproverFacts(MapAttribute):
-    """Approver details
-
-    Attributes:
-        sequence (int): Sequence number of the approver
-        name (str): Name of the approver
-        email (str): Email address of the approver
-        roles (list): List of roles for the approver
-        attributes (dict): Additional attributes for the approver
-        depends_on (list): List of sequence numbers of approvers that this approver depends on
-        enabled (bool): Is the approver enabled
-
-    """
+    """Approver details"""
 
     sequence = NumberAttribute(default=1)
+    """int: Sequence number of the approver. Default is 1.  Can be used to order the approvers"""
     name = UnicodeAttribute()
+    """str: Name of the approver"""
     email = UnicodeAttribute(null=True)
+    """str: Email address of the approver"""
     roles: ListAttribute = ListAttribute(of=UnicodeAttribute, null=True)
+    """list: List of roles for the approver.  This approver can approve only specified roles"""
     attributes: MapAttribute = MapAttribute(of=UnicodeAttribute, null=True)
+    """dict: Additional attributes for the approver"""
     depends_on: ListAttribute = ListAttribute(of=NumberAttribute, null=True)
+    """list: List of sequence numbers of approvers that this approver depends on (which approvers must approve before this approver) """
+
     enabled = BooleanAttribute(default=True)
 
     def serialize(self, values, *args, **kwargs):
@@ -73,54 +68,35 @@ class ApproverFacts(MapAttribute):
 
 
 class OwnerFacts(MapAttribute):
-    """Owner details
-
-    Attributes:
-        name (str): Name of the owner
-        email (str): Email address of the owner
-        phone (str): Phone number of the owner
-        attributes (dict): Additional attributes for the owner
-
-    """
+    """Owner details"""
 
     name = UnicodeAttribute()
+    """str: Name of the owner"""
     email = UnicodeAttribute(null=True)
+    """str: Email address of the owner"""
     phone = UnicodeAttribute(null=True)
+    """str: Phone number of the owner"""
     attributes: MapAttribute = MapAttribute(of=UnicodeAttribute, null=True)
+    """dict: Additional attributes for the owner"""
 
 
 class ProjectFacts(MapAttribute):
-    """Project details
-
-    Attributes:
-        name (str): Name of the project
-        code (str): Code of the project
-        repository (str): Repository of the project
-        description (str): Description of the project
-        attributes (dict): Additional attributes for the project
-
-    """
+    """Project details"""
 
     name = UnicodeAttribute()
+    """str: Name of the project"""
     code = UnicodeAttribute()
+    """str: Code of the project"""
     repository = UnicodeAttribute(null=True)
+    """str: Git repository of the project"""
     description = UnicodeAttribute(null=True)
+    """str: Description of the project"""
     attributes: MapAttribute = MapAttribute(of=UnicodeAttribute, null=True)
+    """dict: Additional attributes for the project"""
 
 
 class PortfolioFacts(Model):
-    """Portfolio Facts database table record model
-
-    Attributes:
-        client (str): Client name
-        portfolio (str): Portfolio name
-        contacts (list): List of contacts
-        approvers (list): List of approvers
-        project (dict): Project details
-        bizapp (dict): Business Application details
-        owner (dict): Owner details
-        attributes (dict): Additional attributes for the portfolio
-    """
+    """Portfolio Facts database table record model"""
 
     class Meta:
         table_name = get_table_name(PORTFOLIO_FACTS)
@@ -129,25 +105,34 @@ class PortfolioFacts(Model):
         read_capacity_units = 1
         write_capacity_units = 1
 
-    # Hash/Range keys
     client = UnicodeAttribute(hash_key=True)
+    """str: Client name is the Organization name "slug" representing the client organization. Example: "myorg" """
+
     portfolio = UnicodeAttribute(range_key=True)
+    """str: Portfolio name is the name of the portfolio. Example: "myportfolio" """
 
-    # Contacts and Approvers
     contacts = ListAttribute(of=ContactFacts, null=True)
+    """list[ContactFacts]: List of contacts for the portfolio"""
+
     approvers = ListAttribute(of=ApproverFacts, null=True)
+    """list[ApproverFacts]: List of approvers for the portfolio"""
 
-    # JIRA Key, Confluence Workspace Code, Bitbucket Project Key, Jira Align Key
     project = ProjectFacts(null=True)
+    """ProjectFacts: Project details such as Jira Project, Confluence Workspace, Bitbucket Project, Jira Align Key"""
 
-    # Business Application
-    # BizApp Code may be a Gitlab Group, GitHub org or GitHub group or team
     bizapp = ProjectFacts(null=True)
+    """ProjectFacts: Business Application details
 
-    # Application Owners
+        BizApp Code may be a Gitlab Group, GitHub org or GitHub group or team
+
+    """
     owner = OwnerFacts(null=True)
+    """OwnerFacts: Owner details"""
 
-    # Allow an option number of attributes to be added to the portfolio as UnicodeAttributes
-    # These will be used to store additional information about the portfolio
-    # that is not covered by the standard attributes
     attributes: MapAttribute = MapAttribute(of=UnicodeAttribute, null=True)
+    """dict: Additional attributes for the portfolio
+
+        Allow an option number of attributes to be added to the portfolio as UnicodeAttributes
+        These will be used to store additional information about the portfolio
+        that is not covered by the standard attributes
+    """
