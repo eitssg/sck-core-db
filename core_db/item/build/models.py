@@ -11,13 +11,6 @@ class BuildModel(ItemModel):
     """
     Build model field extensions
     """
-
-    class Meta:
-        """
-        :no-index:
-        """
-        pass
-
     # Attribute status is required
     status = UnicodeAttribute(default_for_new=INIT)
     """str: Status of the build.  Two possible values :class:`core_framework.status.BuildStatus` """

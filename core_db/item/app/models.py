@@ -9,13 +9,7 @@ class AppModel(ItemModel):
     """
     App model field extensions
     """
-    class Meta:
-        """
-        :no-index:
-        """
-        pass
 
-    # Attributes
     contact_email = UnicodeAttribute(null=False)
     """str: Contact email for the app. Example: """
 

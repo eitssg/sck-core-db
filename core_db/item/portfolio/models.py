@@ -9,13 +9,6 @@ class PortfolioModel(ItemModel):
     Portfolio model field extensions
 
     """
-
-    class Meta:
-        """
-        :no-index:
-        """
-        pass
-
     contact_email = UnicodeAttribute(null=False)
     """str: Contact email for the portfolio. Example: """
 

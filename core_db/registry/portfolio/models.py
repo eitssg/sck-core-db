@@ -29,6 +29,8 @@ class ContactFacts(MapAttribute):
     enabled = BooleanAttribute(default=True)
     """bool: Is the contact enabled"""
 
+    UserInstantiated = UnicodeAttribute(null=True)
+
     def serialize(self, values, *args, **kwargs):
 
         # Why?  Well, because the "default" value is for initialization, not for serialization
@@ -53,8 +55,10 @@ class ApproverFacts(MapAttribute):
     """dict: Additional attributes for the approver"""
     depends_on: ListAttribute = ListAttribute(of=NumberAttribute, null=True)
     """list: List of sequence numbers of approvers that this approver depends on (which approvers must approve before this approver) """
-
     enabled = BooleanAttribute(default=True)
+    """bool: Is the approver enabled"""
+
+    UserInstantiated = UnicodeAttribute(null=True)
 
     def serialize(self, values, *args, **kwargs):
 
@@ -79,6 +83,8 @@ class OwnerFacts(MapAttribute):
     attributes: MapAttribute = MapAttribute(of=UnicodeAttribute, null=True)
     """dict: Additional attributes for the owner"""
 
+    UserInstantiated = UnicodeAttribute(null=True)
+
 
 class ProjectFacts(MapAttribute):
     """Project details"""
@@ -93,6 +99,8 @@ class ProjectFacts(MapAttribute):
     """str: Description of the project"""
     attributes: MapAttribute = MapAttribute(of=UnicodeAttribute, null=True)
     """dict: Additional attributes for the project"""
+
+    UserInstantiated = UnicodeAttribute(null=True)
 
 
 class PortfolioFacts(Model):
@@ -136,3 +144,5 @@ class PortfolioFacts(Model):
         These will be used to store additional information about the portfolio
         that is not covered by the standard attributes
     """
+
+    UserInstantiated = UnicodeAttribute(null=True)

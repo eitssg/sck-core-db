@@ -72,3 +72,5 @@ class ClientFacts(RegistryModel):
     """
     ui_bucket = UnicodeAttribute(null=True)
     """str: UI Bucket is the S3 bucket where the UI website is stored. Example: "core-automation-ui" """
+
+    UserInstantiated = UnicodeAttribute(null=True)

@@ -12,12 +12,6 @@ class BranchModel(ItemModel):
     Branch Model field extentions
 
     """
-    class Meta:
-        """
-        :no-index:
-        """
-        pass
-
     short_name = UnicodeAttribute(null=False)
     """str: Short name of the branch. """
 
