@@ -12,6 +12,7 @@ class BranchModel(ItemModel):
     Branch Model field extentions
 
     """
+
     short_name = UnicodeAttribute(null=False)
     """str: Short name of the branch. """
 
@@ -33,14 +34,12 @@ class BranchModel(ItemModel):
         Construct the released build PRN.  Get's the PRN from
         the kwargs if available or returns an empty dict.
 
-        Return example:
-
+            example:
+            ```json
+                {
+                  "prn": "prn:portfolio:app:branch:build"
+                }
             ```
-            {
-                "prn": "prn:portfolio:app:branch:build"
-            }
-            ```
-
         Returns:
             dict: Dictionary with the released build PRN
         """
