@@ -1,4 +1,4 @@
-""" This module provides the field extensions for Items.Branch in the core-automation-items table """
+"""This module provides the field extensions for Items.Branch in the core-automation-items table"""
 
 from pynamodb.attributes import UnicodeAttribute
 
@@ -8,10 +8,7 @@ from ..models import ItemModel
 
 
 class BranchModel(ItemModel):
-    """
-    Branch Model field extentions
-
-    """
+    """Branch Model field extentions"""
 
     short_name = UnicodeAttribute(null=False)
     """str: Short name of the branch. """
@@ -34,14 +31,15 @@ class BranchModel(ItemModel):
         Construct the released build PRN.  Get's the PRN from
         the kwargs if available or returns an empty dict.
 
-            example:
-            ```json
-                {
-                  "prn": "prn:portfolio:app:branch:build"
-                }
-            ```
+        .. code-block:: json
+
+            {
+              "prn": "prn:portfolio:app:branch:build"
+            }
+
         Returns:
             dict: Dictionary with the released build PRN
+
         """
 
         released_build_prn = kwargs.get(RELEASED_BUILD_PRN, None)
