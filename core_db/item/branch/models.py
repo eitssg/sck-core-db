@@ -37,6 +37,7 @@ class BranchModel(ItemModel):
               "prn": "prn:portfolio:app:branch:build"
             }
 
+
         Returns:
             dict: Dictionary with the released build PRN
 

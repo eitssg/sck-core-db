@@ -1,4 +1,4 @@
-""" Classes defining the Apps record model for the core-automation-zones table """
+""" Classes defining the ZoneFacts record model for the core-automation-zones table """
 
 import re
 
