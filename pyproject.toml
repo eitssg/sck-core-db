@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "sck-core-db"
-version = "0.0.2"
+version = "0.0.3"
 description = "Core Database Library to access DynamoDB for Core-Automation"
 authors = ["James Barwick <jbarwick@me.com>"]
 readme = "README.md"
@@ -21,8 +21,10 @@ boto3 = ">=1.35.87"
 botocore = ">=1.35.87"
 pynamodb = "^6.0.1"
 pydantic = "^2.10.3"
-sck-core-framework = "^0.0.2"
 
+[tool.poetry.dependencies.sck-core-framework]
+path = "../sck-core-framework"
+depend = true
 [tool.poetry.group.dev.dependencies]
 boto3-stubs = ">=1.35.87"
 black = "^24.10.0"
