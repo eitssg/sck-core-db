@@ -11,6 +11,7 @@ class ComponentModel(ItemModel):
     """
     Component Model field extensions
     """
+
     # Attribute status is required
     status = UnicodeAttribute(default_for_new=INIT)
     """str: Status of the component.  Two possible values :class:`core_framework.status.BuildStatus` """

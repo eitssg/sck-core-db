@@ -255,7 +255,9 @@ def register_item(prn: str, name: str, **kwargs) -> dict:
         result = klazz.create(**data)
 
         if result.status != OK:
-            log.error(f"Failed to register item '{prn}':", details=result.data, identity=prn)
+            log.error(
+                f"Failed to register item '{prn}':", details=result.data, identity=prn
+            )
 
         return result.model_dump()
 
@@ -320,7 +322,9 @@ def __api_put_event(prn: str, status: str, message: str | None = None) -> dict:
         result = klazz.create(**data)
 
         if result.status != OK:
-            log.error(f"Failed to create event '{prn}':", details=result.data, identity=prn)
+            log.error(
+                f"Failed to create event '{prn}':", details=result.data, identity=prn
+            )
 
         return result.model_dump()
 

@@ -9,6 +9,11 @@ keywords = ["sck", "core", "aws", "cloud", "automation"]
 [[tool.poetry.packages]]
 include = "core_db"
 
+[[tool.poetry.source]]
+name = "nexus"
+url = "https://monster-jj.jvj28.com:9091/repository/pypi/simple/"
+priority = "primary"
+
 [tool.poetry.dependencies]
 python = "^3.12"
 boto3 = ">=1.35.87"

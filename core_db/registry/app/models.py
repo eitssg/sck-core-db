@@ -34,6 +34,7 @@ class AppFacts(Model):
     Returns:
         AppFacts: AppFacts object
     """
+
     class Meta:
         table_name = get_table_name(APP_FACTS)
         region = util.get_region()
