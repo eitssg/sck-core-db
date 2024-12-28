@@ -5,6 +5,7 @@ description = "Core Database Library to access DynamoDB for Core-Automation"
 authors = ["James Barwick <jbarwick@me.com>"]
 readme = "README.md"
 keywords = ["sck", "core", "aws", "cloud", "automation"]
+include = ["core_db/_version.py"]
 
 [[tool.poetry.packages]]
 include = "core_db"
