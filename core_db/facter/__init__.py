@@ -102,7 +102,6 @@ Example of facts would be:
          Name: Sample
          Enabled: true
          DependsOn: []
-         Enabled: true
     Contacts:
        - Email: contact@me.com
          Name: Contact
