@@ -2,25 +2,40 @@
 
 import re
 from pynamodb.models import Model
+from pynamodb.attributes import MapAttribute
 
 
 class RegistryModel(Model):
     """Common Top-Level Registry Model as a pynamodb Model"""
 
-    class Meta:
-        """
-        :no-index:
-        """
-
-        pass
-
     def __init__(self, *args, **kwargs):
-        # Convert lowercase keys to camelCase keys
+        # Convert snake_case and kebab-case keys to PascalCase keys
         kwargs = {self._convert_key(k): v for k, v in kwargs.items()}
         super().__init__(*args, **kwargs)
 
     def _convert_key(self, key):
-        # Convert lowercase keys to camelCase keys
+        # Convert snake_case and kebab-case keys to PascalCase keys
+        attributes = self.get_attributes()
+        if hasattr(self, key) or key in attributes:
+            return key
         words = re.split("[-_]", key)
-        camel_case_key = words[0] + "".join(word.capitalize() for word in words[1:])
-        return camel_case_key
+        pascal_case_key = "".join(word.capitalize() for word in words)
+        return pascal_case_key
+
+
+class ExtendedMapAttribute(MapAttribute):
+    """Convert Keys to CamelCase"""
+
+    def __init__(self, *args, **kwargs):
+        # Convert snake_case and kebab-case keys to PascalCase keys
+        kwargs = {self._convert_key(k): v for k, v in kwargs.items()}
+        super().__init__(*args, **kwargs)
+
+    def _convert_key(self, key):
+        # Convert snake_case and kebab-case keys to PascalCase keys
+        attributes = self.get_attributes()
+        if hasattr(self, key) or key in attributes:
+            return key
+        words = re.split("[-_]", key)
+        pascal_case_key = "".join(word.capitalize() for word in words)
+        return pascal_case_key

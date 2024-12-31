@@ -39,7 +39,6 @@ from .registry.app.actions import AppActions as RegAppActions
 from .registry.zone.actions import ZoneActions as RegZoneActions
 
 from .facter.actions import FactsActions
-from .facter.facter import get_facts_by_identity
 
 PRN = "prn"
 STATUS = "status"
@@ -148,23 +147,6 @@ def update_status(
     __api_update_status(prn, status, message)
 
     return {TR_STATUS: OK, TR_RESPONSE: "Status updated"}
-
-
-def get_facts_by_prn(client: str, prn: str) -> dict:
-    """
-    Returns the facts for a given PRN for the client specified
-
-    Args:
-        client (str): The client name
-        prn (str): the PRN within the client
-
-    Returns:
-        dict: The Jinja2 context (a.k.a. facts) for the deployment Pipeline Reference Number
-    """
-
-    result = get_facts_by_identity(client, prn)
-
-    return result
 
 
 def update_item(prn: str, **kwargs) -> dict:

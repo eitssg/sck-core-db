@@ -20,32 +20,36 @@ class ClientFacts(RegistryModel):
         write_capacity_units = 1
 
     # Hash/Range keys
-    client = UnicodeAttribute(hash_key=True)
+    Client = UnicodeAttribute(hash_key=True)
     """str: Client ID or slug as the unique identifier for the client organization. Example: "myorg" """
     # Attributes
-    organization_id = UnicodeAttribute(null=True)
+    OrganizationId = UnicodeAttribute(null=True)
     """str: Organization ID for the organization. Example: "o-t73gu32ai5" """
-    organization_name = UnicodeAttribute(null=True)
+    OrganizationName = UnicodeAttribute(null=True)
     """str: Organization name. Example: "My Organization" """
-    organization_account = UnicodeAttribute(null=True)
+    OrganizationAccount = UnicodeAttribute(null=True)
     """str: Organization acount number for the organization (Root Account). Example: "123456789012" """
-    audit_account = UnicodeAttribute(null=True)
+    OrganizationEmail = UnicodeAttribute(null=True)
+    """str: Organization email address for the organization (Root Account). Example: aws+1@gmail.com """
+    Domain = UnicodeAttribute(null=True)
+    """str: Domain name for the organization. Example: "myorg.com" """
+    AuditAccount = UnicodeAttribute(null=True)
     """str: Audit account number for the audit account where Centralized Logging takes place. Example: "123456789012" """
-    master_region = UnicodeAttribute(null=True)
+    MasterRegion = UnicodeAttribute(null=True)
     """str: Master region where the master account resides and is where Core-Auotmation is deployed. Example: "us-west-2" """
-    docs_bucket = UnicodeAttribute(null=True)
+    DocsBucket = UnicodeAttribute(null=True)
     """str: Documentation bucket where the documentation is stored. Example: "myorg-core-automation-docs" """
-    client_region = UnicodeAttribute(null=True)
+    ClientRegion = UnicodeAttribute(null=True)
     """str: Client region for use when other region values are blank. Example: "us-west-2" """
-    automation_bucket = UnicodeAttribute(null=True)
+    AutomationBucket = UnicodeAttribute(null=True)
     """str: Automation S3 bucket where the automation artefacts (packages/files/artefacts) are stored. Example: "myorg-core-automation" """
-    bucket_region = UnicodeAttribute(null=True)
+    AutomationBucketRegion = UnicodeAttribute(null=True)
     """str: Bucket region where the automation bucket resides. Example: "us-west-2" """
-    automation_account = UnicodeAttribute(null=True)
+    AutomationAccount = UnicodeAttribute(null=True)
     """str: Automation account number for the automation account where the automation artefacts are stored. Example: "123456789012" """
-    security_account = UnicodeAttribute(null=True)
+    SecurityAccount = UnicodeAttribute(null=True)
     """str: Security account number for the security account where your centralized SOC will operate. Example: "123456789012" """
-    scope_prefix = UnicodeAttribute(null=True)
+    ScopePrefix = UnicodeAttribute(null=True)
     """str: Scope Prefix as a profix for all resources created for the client. Example: "testing-"
 
     Note: Ensure to put a hyphen after the name. Use "tst-", not "tst"
@@ -70,7 +74,7 @@ class ClientFacts(RegistryModel):
             * "tst-core-automation-deployspec-executor"
             * I think you get the idea.
     """
-    ui_bucket = UnicodeAttribute(null=True)
+    UiBucket = UnicodeAttribute(null=True)
     """str: UI Bucket is the S3 bucket where the UI website is stored. Example: "core-automation-ui" """
 
     UserInstantiated = UnicodeAttribute(null=True)

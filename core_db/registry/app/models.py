@@ -11,8 +11,9 @@ from ...constants import CLIENT_PORTFOLIO_KEY, APP_KEY
 
 from ...config import get_table_name, APP_FACTS
 
+from ..models import RegistryModel
 
-class AppFacts(Model):
+class AppFacts(RegistryModel):
     """
     Classes defining the Apps record model for the core-automation-apps table
 
@@ -65,7 +66,7 @@ class AppFacts(Model):
 
     """
 
-    ImgeAliases: MapAttribute = MapAttribute(null=True)
+    ImageAliases: MapAttribute = MapAttribute(null=True)
     """str: Image Aliases of the app to reduce bake time (alternate key "image-aliases") """
 
     Repository = UnicodeAttribute(null=True)
@@ -84,15 +85,4 @@ class AppFacts(Model):
     """dict: Metadata of the app (alternate key "metadata") """
 
     UserInstantiated: UnicodeAttribute = UnicodeAttribute(null=True)
-
-    def __init__(self, *args, **kwargs):
-        # Convert lowercase keys to camelCase keys
-        kwargs = {self._convert_key(k): v for k, v in kwargs.items()}
-        super().__init__(*args, **kwargs)
-
-    @staticmethod
-    def _convert_key(key):
-        # Convert lowercase keys to camelCase keys
-        words = re.split("[-_]", key)
-        camel_case_key = "".join(word.capitalize() for word in words)
-        return camel_case_key
+    """str: User instantiated the Model (override __init__) """

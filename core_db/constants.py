@@ -90,12 +90,12 @@ ENVIRONMENT = "Environment"
     Value: Environment
 """
 # Registry Model
-CLIENT_KEY = "client"
+CLIENT_KEY = "Client"
 """ Hash Key name used to specify the Client in the Client and Portflio registry tables
 
     Value: Client
 """
-PORTFOLIO_KEY = "portfolio"
+PORTFOLIO_KEY = "Portfolio"
 """ Range Key name used to lookup the portfolion name int Portfolio registry table for the Client
 
     Value: Portfolio
@@ -116,6 +116,7 @@ ZONE_KEY = "Zone"
 
     Value: Zone
 """
+# Whereas registry fields are in PascalCase, the fields in the Items and Events tables are in snake_case
 NAME = "name"
 """ Field name for the name of the object inside the items table
 

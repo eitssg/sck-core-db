@@ -13,20 +13,19 @@ import core_framework as util
 
 from ...config import get_table_name, PORTFOLIO_FACTS
 
+from ..models import RegistryModel, ExtendedMapAttribute
 
-class ContactFacts(MapAttribute):
+
+class ContactFacts(ExtendedMapAttribute):
     """Contact details"""
 
-    name = UnicodeAttribute()
+    Name = UnicodeAttribute()
     """str: Name of the contact"""
-
-    email = UnicodeAttribute(null=True)
+    Email = UnicodeAttribute(null=True)
     """str: Email address of the contact"""
-
-    attributes: MapAttribute = MapAttribute(of=UnicodeAttribute, null=True)
+    Attributes: MapAttribute = MapAttribute(of=UnicodeAttribute, null=True)
     """dict: Additional attributes for the contact"""
-
-    enabled = BooleanAttribute(default=True)
+    Enabled = BooleanAttribute(default=True)
     """bool: Is the contact enabled"""
 
     UserInstantiated = UnicodeAttribute(null=True)
@@ -34,28 +33,28 @@ class ContactFacts(MapAttribute):
     def serialize(self, values, *args, **kwargs):
 
         # Why?  Well, because the "default" value is for initialization, not for serialization
-        if "enabled" not in values:
-            values["enabled"] = True
+        if "Enabled" not in values:
+            values["Enabled"] = True
 
         return super().serialize(values, *args, **kwargs)
 
 
-class ApproverFacts(MapAttribute):
+class ApproverFacts(ExtendedMapAttribute):
     """Approver details"""
 
-    sequence = NumberAttribute(default=1)
+    Sequence = NumberAttribute(default=1)
     """int: Sequence number of the approver. Default is 1.  Can be used to order the approvers"""
-    name = UnicodeAttribute()
+    Name = UnicodeAttribute()
     """str: Name of the approver"""
-    email = UnicodeAttribute(null=True)
+    Email = UnicodeAttribute(null=True)
     """str: Email address of the approver"""
-    roles: ListAttribute = ListAttribute(of=UnicodeAttribute, null=True)
+    Roles: ListAttribute = ListAttribute(of=UnicodeAttribute, null=True)
     """list: List of roles for the approver.  This approver can approve only specified roles"""
-    attributes: MapAttribute = MapAttribute(of=UnicodeAttribute, null=True)
+    Attributes: MapAttribute = MapAttribute(of=UnicodeAttribute, null=True)
     """dict: Additional attributes for the approver"""
-    depends_on: ListAttribute = ListAttribute(of=NumberAttribute, null=True)
+    Depends_on: ListAttribute = ListAttribute(of=NumberAttribute, null=True)
     """list: List of sequence numbers of approvers that this approver depends on (which approvers must approve before this approver) """
-    enabled = BooleanAttribute(default=True)
+    Enabled = BooleanAttribute(default=True)
     """bool: Is the approver enabled"""
 
     UserInstantiated = UnicodeAttribute(null=True)
@@ -63,47 +62,47 @@ class ApproverFacts(MapAttribute):
     def serialize(self, values, *args, **kwargs):
 
         # Why?  Well, because the "default" value is for initialization, not for serialization
-        if "sequence" not in values:
-            values["sequence"] = 1
-        if "enabled" not in values:
-            values["enabled"] = True
+        if "Sequence" not in values:
+            values["Sequence"] = 1
+        if "Enabled" not in values:
+            values["Enabled"] = True
 
         return super().serialize(values, *args, **kwargs)
 
 
-class OwnerFacts(MapAttribute):
+class OwnerFacts(ExtendedMapAttribute):
     """Owner details"""
 
-    name = UnicodeAttribute()
+    Name = UnicodeAttribute()
     """str: Name of the owner"""
-    email = UnicodeAttribute(null=True)
+    Email = UnicodeAttribute(null=True)
     """str: Email address of the owner"""
-    phone = UnicodeAttribute(null=True)
+    Phone = UnicodeAttribute(null=True)
     """str: Phone number of the owner"""
-    attributes: MapAttribute = MapAttribute(of=UnicodeAttribute, null=True)
+    Attributes: MapAttribute = MapAttribute(of=UnicodeAttribute, null=True)
     """dict: Additional attributes for the owner"""
 
     UserInstantiated = UnicodeAttribute(null=True)
 
 
-class ProjectFacts(MapAttribute):
+class ProjectFacts(ExtendedMapAttribute):
     """Project details"""
 
-    name = UnicodeAttribute()
+    Name = UnicodeAttribute()
     """str: Name of the project"""
-    code = UnicodeAttribute()
+    Code = UnicodeAttribute()
     """str: Code of the project"""
-    repository = UnicodeAttribute(null=True)
+    Repository = UnicodeAttribute(null=True)
     """str: Git repository of the project"""
-    description = UnicodeAttribute(null=True)
+    Description = UnicodeAttribute(null=True)
     """str: Description of the project"""
-    attributes: MapAttribute = MapAttribute(of=UnicodeAttribute, null=True)
+    Attributes: MapAttribute = MapAttribute(of=UnicodeAttribute, null=True)
     """dict: Additional attributes for the project"""
 
     UserInstantiated = UnicodeAttribute(null=True)
 
 
-class PortfolioFacts(Model):
+class PortfolioFacts(RegistryModel):
     """Portfolio Facts database table record model"""
 
     class Meta:
@@ -113,31 +112,41 @@ class PortfolioFacts(Model):
         read_capacity_units = 1
         write_capacity_units = 1
 
-    client = UnicodeAttribute(hash_key=True)
+    Client = UnicodeAttribute(hash_key=True)
     """str: Client name is the Organization name "slug" representing the client organization. Example: "myorg" """
 
-    portfolio = UnicodeAttribute(range_key=True)
+    Portfolio = UnicodeAttribute(range_key=True)
     """str: Portfolio name is the name of the portfolio. Example: "myportfolio" """
 
-    contacts = ListAttribute(of=ContactFacts, null=True)
+    Contacts = ListAttribute(of=ContactFacts, null=True)
     """list[ContactFacts]: List of contacts for the portfolio"""
 
-    approvers = ListAttribute(of=ApproverFacts, null=True)
+    Approvers = ListAttribute(of=ApproverFacts, null=True)
     """list[ApproverFacts]: List of approvers for the portfolio"""
 
-    project = ProjectFacts(null=True)
+    Project = ProjectFacts(null=True)
     """ProjectFacts: Project details such as Jira Project, Confluence Workspace, Bitbucket Project, Jira Align Key"""
 
-    bizapp = ProjectFacts(null=True)
+    Domain = UnicodeAttribute(null=True)
+    """str: Domain name for the portfolio bizapp"""
+
+    Bizapp = ProjectFacts(null=True)
     """ProjectFacts: Business Application details
 
         BizApp Code may be a Gitlab Group, GitHub org or GitHub group or team
 
     """
-    owner = OwnerFacts(null=True)
+    Owner = OwnerFacts(null=True)
     """OwnerFacts: Owner details"""
 
-    attributes: MapAttribute = MapAttribute(of=UnicodeAttribute, null=True)
+    Tags: MapAttribute = MapAttribute(of=UnicodeAttribute, null=True)
+    """dict: Tags for the portfolio
+
+        Tags are key value pairs that can be used to categorize and manage the portfolio and
+        will be applied to all Apps registered in the portfolio.
+    """
+
+    Metadata: MapAttribute = MapAttribute(of=UnicodeAttribute, null=True)
     """dict: Additional attributes for the portfolio
 
         Allow an option number of attributes to be added to the portfolio as UnicodeAttributes
@@ -146,3 +155,16 @@ class PortfolioFacts(Model):
     """
 
     UserInstantiated = UnicodeAttribute(null=True)
+
+    def get_client_portfolio_key(self):
+        """Get the client portfolio key
+
+        The key is a combination of the client and portfolio names
+
+        The format is "{Client}:{Portfolio}"
+
+        Returns:
+            str: The client portfolio key
+
+        """
+        return f"{self.Client}:{self.Portfolio}"

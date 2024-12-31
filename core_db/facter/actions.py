@@ -14,6 +14,8 @@ from core_framework.constants import (
     SCOPE_ZONE,
 )
 
+from core_framework.models import DeploymentDetails
+
 from ..constants import PRN
 from ..actions import TableActions
 
@@ -91,6 +93,15 @@ class FactsActions(TableActions):
                 "Client, portfolio, and app are required in the PRN to retreive Facts"
             )
 
-        the_facts = get_facts(client, portfolio, app, branch, build, component)
+        deployment_details = DeploymentDetails(
+            Client=client,
+            Portfolio=portfolio,
+            App=app,
+            Branch=branch,
+            Build=build,
+            Component=component,
+        )
+
+        the_facts = get_facts(deployment_details)
 
         return SuccessResponse(the_facts)

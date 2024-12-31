@@ -5,28 +5,31 @@ This FACTS database should come from DynamoDB.  Not 'accounts.yaml' and 'apps.ya
 (In re-rewrite.  We need to use DynamoDB instead of FACTS YAML files)
 """
 
+from collections import ChainMap
+import os
 import re
 import core_framework as util
 import core_logging as log
 
 from core_framework.constants import (
-    DD_TAGS,
-    FACTS_ACCOUNT,
     FACTS_REGION,
     FACTS_TAGS,
     TAG_ENVIRONMENT,
     TAG_OWNER,
     TAG_REGION,
     TAG_CONTACTS,
-    V_DEFAULT_BRANCH,
     V_DEFAULT_ENVIRONMENT,
     V_DEFAULT_REGION_ALIAS,
     V_EMPTY,
+    SCOPE_BUILD,
+    SCOPE_APP,
+    SCOPE_BRANCH,
+    SCOPE_PORTFOLIO,
 )
 
 from core_framework.models import DeploymentDetails
 
-from ..constants import APPROVERS, CONTACTS, OWNER, REGION, ENVIRONMENT, ZONE_KEY
+from ..constants import REGION, ENVIRONMENT, ZONE_KEY
 
 from ..registry.client.models import ClientFacts
 from ..registry.portfolio.models import PortfolioFacts
@@ -86,7 +89,7 @@ def get_portfolio_facts(client: str, portfolio: str) -> dict | None:
         return None
 
 
-def get_zone_facts(client: str, portfolio: str, zone: str) -> dict | None:
+def get_zone_facts(client: str, zone: str) -> dict | None:
     """
     Uses the logic with the :class:`ZoneFacts` class to retrieve the Zone Details.
 
@@ -105,8 +108,7 @@ def get_zone_facts(client: str, portfolio: str, zone: str) -> dict | None:
     """
     try:
 
-        zone_key = f"{client}:{portfolio}"
-        zone_facts = ZoneFacts.get(zone_key, zone)
+        zone_facts = ZoneFacts.get(client, zone)
 
         if zone_facts is None:
             return None
@@ -143,7 +145,7 @@ def get_zone_facts_by_account_id(account_id: str) -> list[dict] | None:
         return None
 
 
-def get_deployment_details_facts(deployment_details: DeploymentDetails):
+def get_app_facts(deployment_details: DeploymentDetails):
     """
     Retreives the Facs for DeploymentDetails that can be used in the Jinja2 Renederer
     to generate final Cloudformation Templates.
@@ -154,57 +156,27 @@ def get_deployment_details_facts(deployment_details: DeploymentDetails):
     Returns:
         _type_: _description_
     """
-    if deployment_details.Client is None:
+    client = deployment_details.Client
+    if not client:
         raise ValueError("Client must be valid in DeploymentDetails")
 
-    if deployment_details.App is None:
+    portfolio = deployment_details.Portfolio
+    if not portfolio:
+        raise ValueError("Portfolio must be valid in DeploymentDetails")
+
+    app = deployment_details.App
+    if not app:
         raise ValueError("App field must be popluated in DeploymentDetails")
 
-    return get_app_facts(
-        deployment_details.Client,
-        deployment_details.Portfolio,
-        deployment_details.App,
-        deployment_details.BranchShortName,
-        deployment_details.Build,
-    )
-
-
-def get_app_facts(
-    client: str,
-    portfolio: str,
-    app: str,
-    branch: str | None = None,
-    build: str | None = None,
-) -> dict | None:
-    """
-    Retrieves the AppFacts data stored in the registry that match the sepecified deployment details.
-
-    .. warning::
-
-        Matches are performed by searching the AppRegEx in the App Registry table core-automation-apps
-        to the value f"prn:{portfolio}:{app}:{branch}:{build}"
-
-        This function will return the FIRST match and order is NOT guaranteed.
-
-
-    Args:
-        client (str): The client that the facts are stored in
-        portfolio (str): The portfolio within the specified client
-        app (str): The app deployment unit within the portfolio
-        branch (str | None, optional): The branch name of the app repository. Defaults to None.
-        build (str | None, optional): The current version, build ID, or commit Id. Defaults to None.
-
-    Returns:
-        dict | None: The FACTS context ready for Jinja2 rendering.
-    """
-
-    if branch is None:
+    branch = deployment_details.BranchShortName
+    if not branch:
         branch = "*"
 
-    if build is None:
+    build = deployment_details.Build
+    if not build:
         build = "*"
 
-    portfolio_key = f"{client}:{portfolio}"
+    portfolio_key = deployment_details.get_client_portfolio_key()
     app_test_string = f"prn:{portfolio}:{app}:{branch}:{build}"
 
     app_facts_list = AppFacts.query(portfolio_key)
@@ -254,25 +226,6 @@ def derrive_environment_from_branch(branch: str) -> tuple[str, str]:
     return environment, region_alias
 
 
-# Why don't we use botocore deep_merge instead of util.merge.deep_merge?  It's the same thing. Is it?
-# from botocore.utils import deep_merge as deep_merge
-
-
-def get_facts_by_identity(client: str, identity: str) -> dict:
-    """
-    Retreives Facts based on the supplied client and Pipeline Reference Number
-
-    Args:
-        client (str): The cilent where this portfilio is deployed
-        identity (str): The Pipeline Reference Number
-
-    Returns:
-        dict: The Facts context ready for Jinja2 rendering.
-    """
-    portfolio, app, branch, build, _ = util.split_prn(identity)
-    return get_facts(client, portfolio or "unknown", app or "unknown", branch, build)
-
-
 def format_contact(contact: dict) -> str:
     """
     Format the contact details for the Jinja2 template context.
@@ -283,8 +236,8 @@ def format_contact(contact: dict) -> str:
     Returns:
         dict: The formatted contact details
     """
-    name = contact.get("name", "")
-    email = contact.get("email", "")
+    name = contact.get("Name", "")
+    email = contact.get("Email", "")
     if not name and not email:
         return V_EMPTY
     if not name:
@@ -294,14 +247,76 @@ def format_contact(contact: dict) -> str:
     return f"{name} <{email}>"
 
 
-def get_facts(  # noqa: C901
-    client: str,
-    portfolio: str,
-    app: str,
-    branch: str | None = None,
-    build: str | None = None,
-    zone: str | None = None,
-) -> dict:
+def get_store_url(
+    bucket_name: str,
+    bucket_region: str,
+) -> str:
+
+    for_s3 = not util.is_local_mode()
+
+    if for_s3:
+        return f"https://s3-{bucket_region}.amazonaws.com/{bucket_name}"
+    else:
+        store = util.get_storage_volume()
+        return f"file://{os.path.join(store, bucket_name)}"
+
+
+def get_compiler_facts(dd: DeploymentDetails) -> dict:
+
+    # When building context replacement variables, we need to know if we are building for S3 or not
+    for_s3 = not util.is_local_mode()
+
+    # Shared Files path separator
+    sep = "/" if for_s3 else os.path.sep
+
+    client = dd.Client
+
+    artefacts_bucket_name = util.get_artefact_bucket_name(client)
+    artefacts_bucket_region = util.get_artefact_bucket_region()
+
+    s3_bucket_url = get_store_url(artefacts_bucket_name, artefacts_bucket_region)
+
+    # Construct the compilation context
+    compiler_facts = {
+        # Artefacts
+        "ArtefactsBucketName": artefacts_bucket_name,
+        "ArtefactsBucketRegion": artefacts_bucket_region,
+        "ArtefactsBucketUrl": s3_bucket_url,
+        "ArtefactsPrefix": dd.get_artefacts_key(s3=for_s3),
+
+        # Artifacts (spelling)
+        "ArtifactBucketName": artefacts_bucket_name,
+        "ArtifactBucketRegion": artefacts_bucket_region,
+        "ArtifactBaseUrl": s3_bucket_url,
+        "ArtifactKeyPrefix": dd.get_artefacts_key(s3=for_s3),
+        "ArtifactKeyBuildPrefix": dd.get_artefacts_key(scope=SCOPE_BUILD, s3=for_s3),
+
+        # Files
+        "FilesBucketName": artefacts_bucket_name,
+        "FilesBucketRegion": artefacts_bucket_region,
+        "FilesBucketUrl": s3_bucket_url,
+
+        # Files Prefix
+        "PortfolioFilesPrefix": dd.get_files_key(scope=SCOPE_PORTFOLIO, s3=for_s3),
+        "AppFilesPrefix": dd.get_files_key(scope=SCOPE_APP, s3=for_s3),
+        "BranchFilesPrefix": dd.get_files_key(scope=SCOPE_BRANCH, s3=for_s3),
+        "BuildFilesPrefix": dd.get_files_key(scope=SCOPE_BUILD, s3=for_s3),
+
+        # ArtifactKey
+        "ArtifactKeyPortfolioPrefix": dd.get_artefacts_key(
+            scope=SCOPE_PORTFOLIO, s3=for_s3
+        ),
+        "ArtifactKeyAppPrefix": dd.get_artefacts_key(scope=SCOPE_APP, s3=for_s3),
+        "ArtifactKeyBranchPrefix": dd.get_artefacts_key(scope=SCOPE_BRANCH, s3=for_s3),
+
+        # Shared Files
+        "SharedFilesPrefix": f"files{sep}shared",
+    }
+
+    return compiler_facts
+
+
+def get_facts(deployment_details: DeploymentDetails) -> dict:  # noqa: C901
     """
     Get the facts for a given app, portfolio, and zone.
 
@@ -321,91 +336,95 @@ def get_facts(  # noqa: C901
     Returns:
         dict: The Jinja2 template context dictionary. (a.k.a FACTS)
     """
+    client = deployment_details.Client
 
-    if branch is None:
-        branch = V_DEFAULT_BRANCH
+    # Get the dictionary of client facts dictionary for this deployment
+    client_facts = get_client_facts(client)
+    if not client_facts:
+        raise ValueError(f"Client facts not found for {client}")
 
-    app_facts = get_app_facts(client, portfolio, app, branch, build)
+    # Get the portfolio facts dictionary for this deployment
+    portfolio = deployment_details.Portfolio
+    portfolio_facts = get_portfolio_facts(client, portfolio)
+    if not portfolio_facts:
+        raise ValueError(f"Portfolio facts not found for {client}:{portfolio}")
 
+    # Get the app facts dictionary for this deployment
+    identity = deployment_details.get_identity()
+    app_facts = get_app_facts(deployment_details)
     if app_facts is None:
         raise ValueError(
-            f"App facts not found for prn:{client}:{portfolio}:{app}:{branch}:{build}"
+            f"App facts not found for {identity}.  Contact DevOps to register this app."
         )
+
+    # If the app facts do not contain a zone, throw an error
+    zone = app_facts.get(ZONE_KEY, None)
+    if not zone:
+        raise ValueError(f"Zone not found for {identity}")
 
     # If the app facts do not contain a region, use the default region alias
     region_alias = app_facts.get(REGION, None)
+    if not region_alias:
+        raise ValueError(f"Region alias not found for {identity}")
 
     # if environment is not set, try to derrive it from the branch.  But facts ALWAYS come first.
     environment = app_facts.get(ENVIRONMENT, None)
     branch_region_alias = V_DEFAULT_REGION_ALIAS
     if not environment:
-        environment, branch_region_alias = derrive_environment_from_branch(branch)
+        environment, branch_region_alias = derrive_environment_from_branch(
+            deployment_details.Branch or V_DEFAULT_REGION_ALIAS
+        )
 
     # FACTS always override user input.  So, don't use the user input if FACTS are present.
     if region_alias is None:
         region_alias = branch_region_alias
 
-    # If the app doen't have an environment tag or a region tag, add it
-    app_tags = app_facts.get(DD_TAGS, {})
-    if TAG_ENVIRONMENT not in app_tags:
-        app_tags[TAG_ENVIRONMENT] = environment
-    if TAG_REGION not in app_tags:
-        app_tags[TAG_REGION] = region_alias
+    # Get the zone facts dictionary for this deployment and environment
+    zone_facts = get_zone_facts(client, zone)
+    if not zone_facts:
+        raise ValueError(f"Zone facts not found for {client}:{zone}")
 
-    portfolio_facts = get_portfolio_facts(client, portfolio)
-    if portfolio_facts is None:
-        raise ValueError(f"Portfolio facts not found for {client}-{portfolio}")
-
-    if "owner" in portfolio_facts and TAG_OWNER not in app_tags:
-        app_tags[TAG_OWNER] = format_contact(portfolio_facts["owner"])
-    if "contacts" in portfolio_facts:
-        app_tags[TAG_CONTACTS] = ",".join(
-            [format_contact(c) for c in portfolio_facts["contacts"]]
-        )
-
-    # If a zone is not explicitely provded, we will generate the zone name from the portfolio and environment
-    # Remember, all "apps/deployments" go inside the same environment of the portfololiw (a.k.a landing zone)
-    zone = app_facts.get(ZONE_KEY, None)
-
-    # if the app facts have a zone, use it. It really must. It's required.
-    if zone is None:
-        zone = f"{portfolio}-{environment}"
-
-    # If your zone has not been registered, contact DevOps to register it.  Retrieve the facts from the registry.
-    zone_facts = get_zone_facts(client, portfolio, zone)
-
-    if zone_facts is None or app_facts is None:
-        raise ValueError(
-            f"Account or app facts not found for {client}-{portfolio}-{app}"
-        )
-
-    # Merge in the zone tags into the app tags
-    zone_tags = zone_facts.get(FACTS_TAGS, {})
-    for key, value in zone_tags.items():
-        if key not in app_tags:
-            app_tags[key] = value
-
-    if FACTS_ACCOUNT not in zone_facts or FACTS_REGION not in zone_facts:
-        raise ValueError(f"Account or region facts not found for {zone}")
-
-    # Extract account facts and region-specific facts
-    account_facts = zone_facts[FACTS_ACCOUNT]
-    region_facts = zone_facts[FACTS_REGION].get(region_alias, None)
-
+    # Get the region facts
+    region_facts = zone_facts.get(FACTS_REGION, {}).get(region_alias, None)
     if region_facts is None:
         raise ValueError(f"Region {region_alias} has not been enabled for {zone}")
 
-    # Merge account facts and region-specific facts into facts dict
-    facts = util.merge.deep_merge(account_facts, region_facts, merge_lists=True)
+    compiler_facts = get_compiler_facts(deployment_details)
 
-    # Merge app facts into facts dict
-    facts = util.merge.deep_merge(facts, app_facts, merge_lists=True)
+    # Now that we ALL the facts, let's gather all the Tags for this deployment starting top down
+    # Client -> Zone -> Region -> Portfolio -> App
+    tags = ChainMap(
+        client_facts.get(FACTS_TAGS, {}),
+        zone_facts.get(FACTS_TAGS, {}),
+        region_facts.get(FACTS_TAGS, {}),
+        portfolio_facts.get(FACTS_TAGS, {}),
+        app_facts.get(FACTS_TAGS, {}),
+        {
+            TAG_ENVIRONMENT: environment,
+            TAG_REGION: region_alias,
+            TAG_OWNER: format_contact(portfolio_facts.get("Owner", {})),
+            TAG_CONTACTS: ",".join(
+                [format_contact(c) for c in portfolio_facts["Contacts"]]
+            ),
+        },
+    )
+    app_facts[FACTS_TAGS] = dict(tags)
 
-    if APPROVERS not in facts:
-        facts[APPROVERS] = portfolio_facts.get("approvers", [])
-    if CONTACTS not in facts:
-        facts[CONTACTS] = portfolio_facts.get("contacts", [])
-    if OWNER not in facts and "owner" in portfolio_facts:
-        facts[OWNER] = portfolio_facts.get("owner")
+    deployment_facts = deployment_details.model_dump()
+
+    # Merge account facts and region-specific facts into the facts
+    facts = util.merge.deep_merge(zone_facts, region_facts, merge_lists=True)
+
+    # Next, merge the portfolio facts into the facts
+    facts = util.merge.deep_merge_in_place(facts, portfolio_facts, merge_lists=True)
+
+    # Next, merge the app facts into the facts
+    facts = util.merge.deep_merge_in_place(facts, app_facts, merge_lists=True)
+
+    # Finally, we merge in the deployment details facts
+    facts = util.merge.deep_merge_in_place(facts, deployment_facts, merge_lists=True)
+
+    # Lastly, we merge in the storage volume facts
+    facts = util.merge.deep_merge_in_place(facts, compiler_facts, merge_lists=True)
 
     return facts

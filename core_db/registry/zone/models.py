@@ -11,26 +11,11 @@ from pynamodb.attributes import (
 
 import core_framework as util
 
-from ...constants import CLIENT_PORTFOLIO_KEY, ZONE_KEY, ZONE_FACTS
+from ...constants import CLIENT_KEY, ZONE_KEY, ZONE_FACTS
 
 from ...config import get_table_name
 
-from ..models import RegistryModel
-
-
-class ExtendedMapAttribute(MapAttribute):
-    """Convert Keys to CamelCase"""
-
-    def _convert_key(self, key):
-        # Convert lowercase keys to camelCase keys
-        words = re.split("[-_]", key)
-        camel_case_key = words[0] + "".join(word.capitalize() for word in words[1:])
-        return camel_case_key
-
-    def __init__(self, *args, **kwargs):
-        # Convert lowercase keys to camelCase keys
-        kwargs = {self._convert_key(k): v for k, v in kwargs.items()}
-        super().__init__(*args, **kwargs)
+from ..models import RegistryModel, ExtendedMapAttribute
 
 
 class SecurityAliasFacts(ExtendedMapAttribute):
@@ -69,7 +54,7 @@ class KmsFacts(ExtendedMapAttribute):
 
     """
 
-    AwsAccountId = UnicodeAttribute(null=True)
+    AwsAccountId = UnicodeAttribute(null=False)
     """str: The AWS Account ID where KMS Keys are managed/centralized"""
     KmsKeyArn = UnicodeAttribute(null=True)
     """str: The KMS Key ARN for this Zone"""
@@ -103,6 +88,8 @@ class AccountFacts(ExtendedMapAttribute):
     """KmsFacts: KMS Key details"""
     ResourceNamespace = UnicodeAttribute(null=True)
     """str: The namespace for the resources"""
+    NetworkName = UnicodeAttribute(null=True)
+    """str: The name of the network.  What do your network Admins call this? """
     VpcAliases: MapAttribute = MapAttribute(of=UnicodeAttribute, null=True)
     """dict: VPC Aliases. Aliases are created for VPCs by the Networks pipelines"""
     SubnetAliases: MapAttribute = MapAttribute(of=UnicodeAttribute, null=True)
@@ -220,7 +207,7 @@ class ZoneFacts(RegistryModel):
         write_capacity_units = 1
         """int: The write capacity units for the ZoneFacts"""
 
-    ClientPortfolio = UnicodeAttribute(attr_name=CLIENT_PORTFOLIO_KEY, hash_key=True)
+    Client = UnicodeAttribute(attr_name=CLIENT_KEY, hash_key=True)
     """str: The client portfolio name"""
 
     Zone = UnicodeAttribute(attr_name=ZONE_KEY, range_key=True)
@@ -231,6 +218,8 @@ class ZoneFacts(RegistryModel):
 
     RegionFacts: MapAttribute = MapAttribute(of=RegionFacts, null=False)
     """dict[str, RegionFacts]: Region details indexed by region alias (slug)"""
+
+    Tags: MapAttribute = MapAttribute(of=UnicodeAttribute, null=True)
 
     UserInstantiated = UnicodeAttribute(null=True)
 
