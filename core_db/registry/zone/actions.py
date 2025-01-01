@@ -4,7 +4,7 @@ from pynamodb.exceptions import DeleteError, PutError
 
 import core_framework as util
 
-from ...constants import CLIENT_PORTFOLIO_KEY, ZONE_KEY, CLIENT_KEY, PORTFOLIO_KEY
+from ...constants import ZONE_KEY, CLIENT_KEY
 
 from ...response import (
     Response,
@@ -26,7 +26,7 @@ from .models import ZoneFacts
 class ZoneActions(RegistryAction):
 
     @classmethod
-    def get_clent_portfolio_zone(cls, kwargs: dict) -> tuple[str | None, str | None]:
+    def get_client_zone(cls, kwargs: dict, default_zone: str | None = None) -> tuple[str | None, str | None]:
         """
         Get the client portfolio and zone from the input arguments.
 
@@ -42,20 +42,15 @@ class ZoneActions(RegistryAction):
         Returns:
             tuple[str | None, str | None]: client:portfolio, zone
         """
-        client_portfolio = kwargs.pop(
-            CLIENT_PORTFOLIO_KEY, kwargs.pop("client-portfolio", None)
-        )
-        if not client_portfolio:
-            client = kwargs.pop(CLIENT_KEY, kwargs.pop("Client", None))
-            portfolio = kwargs.pop(PORTFOLIO_KEY, kwargs.pop("Portfolio", None))
-            if client and portfolio:
-                client_portfolio = f"{client}:{portfolio}"
-            else:
-                raise BadRequestException(
-                    'Client portfolio name is required in content: { "client_portfolio": "<name>", ...}'
-                )
-        zone = kwargs.pop("zone", kwargs.pop(ZONE_KEY, None))
-        return client_portfolio, zone
+        client = kwargs.pop("client", kwargs.pop(CLIENT_KEY, None))
+        zone = kwargs.pop("zone", kwargs.pop(ZONE_KEY, default_zone))
+
+        if not client or not zone:
+            raise BadRequestException(
+                'Client and Zone names are required in content: { "client": "<name>", "zone": "<name>", ...}'
+            )
+
+        return client, zone
 
     @classmethod
     def list(cls, **kwargs) -> Response:
@@ -69,11 +64,11 @@ class ZoneActions(RegistryAction):
         Args:
             client_portfolio (str): The client portfolio name
         """
-        client_portfolio, _ = cls.get_clent_portfolio_zone(kwargs)
+        client_portfolio, _ = cls.get_client_zone(kwargs, default_zone="-")
 
         try:
             items = ZoneFacts.query(
-                hash_key=client_portfolio, attributes_to_get=["Zone"]
+                hash_key=client_portfolio, attributes_to_get=[ZONE_KEY]
             )
             results = [z.Zone for z in items]
         except ZoneFacts.DoesNotExist:
@@ -92,17 +87,12 @@ class ZoneActions(RegistryAction):
             client_portfolio (str): The client portfolio name
             zone (str): the zone name
         """
-        client_portfolio, zone = cls.get_clent_portfolio_zone(kwargs)
-
-        if not zone:
-            raise BadRequestException(
-                'Zone name is required in content { "zone": "<name>", ...}'
-            )
+        client, zone = cls.get_client_zone(kwargs)
 
         try:
-            item = ZoneFacts.get(client_portfolio, zone)
+            item = ZoneFacts.get(client, zone)
         except ZoneFacts.DoesNotExist:
-            raise NotFoundException(f"Zone [{client_portfolio}:{zone}] not found")
+            raise NotFoundException(f"Zone [{client}:{zone}] not found")
         except Exception as e:
             raise UnknownException(f"Failed to get zone: {str(e)}")
 
@@ -117,18 +107,13 @@ class ZoneActions(RegistryAction):
             client_portfolio (str): The client portfolio name
             zone (str): the zone name
         """
-        client_portfolio, zone = cls.get_clent_portfolio_zone(kwargs)
-
-        if not zone:
-            raise BadRequestException(
-                'Zone name is required in content { "zone": "<name>", ...}'
-            )
+        client, zone = cls.get_client_zone(kwargs)
 
         try:
-            item = ZoneFacts(client_portfolio, zone)
+            item = ZoneFacts(client, zone)
             item.delete(condition=ZoneFacts.Zone.exists())
         except ZoneFacts.DoesNotExist:
-            return NoContentResponse(f"Zone {client_portfolio}:{zone} does not exist")
+            return NoContentResponse(f"Zone {client}:{zone} does not exist")
         except DeleteError as e:
             raise UnknownException(f"Failed to delete zone: {str(e)}")
         except Exception as e:
@@ -146,15 +131,10 @@ class ZoneActions(RegistryAction):
             zone (str): the zone name
             kwargs: The attributes to create
         """
-        client_portfolio, zone = cls.get_clent_portfolio_zone(kwargs)
-
-        if not zone:
-            raise BadRequestException(
-                'Zone name is required in content { "zone": "<name>", ...}'
-            )
+        client, zone = cls.get_client_zone(kwargs)
 
         try:
-            item = ZoneFacts(client_portfolio, zone, **kwargs)
+            item = ZoneFacts(client, zone, **kwargs)
             item.save(ZoneFacts.Zone.does_not_exist())
         except PutError as e:
             raise ConflictException(f"Failed to create zone: {str(e)}")
@@ -175,18 +155,13 @@ class ZoneActions(RegistryAction):
             zone (str): the zone name
             kwargs: The attributes to update
         """
-        client_portfolio, zone = cls.get_clent_portfolio_zone(kwargs)
-
-        if not zone:
-            raise BadRequestException(
-                'Zone name is required in content { "zone": "<name>", ...}'
-            )
+        client, zone = cls.get_client_zone(kwargs)
 
         try:
-            item = ZoneFacts(client_portfolio, zone, **kwargs)
+            item = ZoneFacts(client, zone, **kwargs)
             item.save(condition=ZoneFacts.Zone.exists())
         except ZoneFacts.DoesNotExist:
-            raise NotFoundException(f"Zone [{client_portfolio}:{zone}] not found")
+            raise NotFoundException(f"Zone [{client}:{zone}] not found")
         except Exception as e:
             raise UnknownException(f"Failed to update zone: {str(e)}")
 
@@ -202,7 +177,7 @@ class ZoneActions(RegistryAction):
             zone (str): the zone name
             kwargs: The attributes to update
         """
-        client_portfolio, zone = cls.get_clent_portfolio_zone(kwargs)
+        client, zone = cls.get_client_zone(kwargs)
 
         if not zone:
             raise BadRequestException(
@@ -210,16 +185,22 @@ class ZoneActions(RegistryAction):
             )
 
         try:
-            item: dict = ZoneFacts.get(client_portfolio, zone).to_simple_dict()
+            # Get the current zone facts from the DB
+            facts = ZoneFacts.get(client, zone)
 
-            # Merge the patch data into the item
+            # Make sure the primary keys are PascalCase
+            kwargs = facts.convert_keys(**kwargs)
+
+            item: dict = facts.to_simple_dict()
+
+            # Merge the patch data into the existing data
             util.deep_merge_in_place(item, kwargs, merge_lists=True)
 
-            new_item = ZoneFacts(client_portfolio, zone, **item)
+            new_item = ZoneFacts(client, zone, **item)
             new_item.save()
 
         except ZoneFacts.DoesNotExist:
-            raise NotFoundException(f"Zone [{client_portfolio}:{zone}] not found")
+            raise NotFoundException(f"Zone [{client}:{zone}] not found")
         except Exception as e:
             raise UnknownException(f"Failed to patch zone: {str(e)}")
 

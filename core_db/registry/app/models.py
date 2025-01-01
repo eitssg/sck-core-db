@@ -1,8 +1,5 @@
 """ Classes defining the Apps record model for the core-automation-apps table """
 
-import re
-
-from pynamodb.models import Model
 from pynamodb.attributes import MapAttribute, UnicodeAttribute
 
 import core_framework as util
@@ -12,6 +9,7 @@ from ...constants import CLIENT_PORTFOLIO_KEY, APP_KEY
 from ...config import get_table_name, APP_FACTS
 
 from ..models import RegistryModel
+
 
 class AppFacts(RegistryModel):
     """

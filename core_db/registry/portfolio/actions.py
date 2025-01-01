@@ -1,7 +1,7 @@
 """ Actions for the Registry.Portfolios database: list, get, create, update, delete """
 
 from pynamodb.expressions.update import Action
-from pynamodb.exceptions import DeleteError, PutError
+from pynamodb.exceptions import DeleteError, PutError, AttributeNullError
 
 from ...constants import CLIENT_KEY, PORTFOLIO_KEY
 
@@ -18,25 +18,25 @@ from ..actions import RegistryAction
 from .models import PortfolioFacts
 
 
-def _get_client_portfolio(**kwargs) -> tuple[str, str]:
-
-    client = kwargs.pop(CLIENT_KEY, None)
-    if not client:
-        raise BadRequestException(
-            'Client name is required in content: { "client": "<name>", ...}'
-        )
-
-    portfolio = kwargs.pop(PORTFOLIO_KEY, None)
-    if not portfolio:
-        raise BadRequestException(
-            'Portfolio name is required in content: { "portfolio": "<name>", ...}'
-        )
-
-    return client, portfolio
-
-
 class PortfolioActions(RegistryAction):
     """Class container for Portfolio Item specific validations and actions"""
+
+    @classmethod
+    def _get_client_portfolio(
+        cls, kwargs: dict, default_portfolio: str | None = None
+    ) -> tuple[str, str]:
+
+        client = kwargs.pop("client", kwargs.pop(CLIENT_KEY, None))
+        portfolio = kwargs.pop(
+            "portfolio", kwargs.pop(PORTFOLIO_KEY, default_portfolio)
+        )
+
+        if not portfolio or not client:
+            raise BadRequestException(
+                'Client and Portfolio names ar required in content: { "client": <name>, "portfolio": "<name>", ...}'
+            )
+
+        return client, portfolio
 
     @classmethod
     def list(cls, **kwargs) -> Response:
@@ -46,7 +46,8 @@ class PortfolioActions(RegistryAction):
         Args:
             client (str): The clinet name
         """
-        client = kwargs.get(CLIENT_KEY)
+        client, _ = cls._get_client_portfolio(kwargs, default_portfolio="-")
+
         if not client:
             raise BadRequestException(
                 'Client name is required in content: { "client": "<name>", ...}'
@@ -55,9 +56,9 @@ class PortfolioActions(RegistryAction):
         try:
 
             facts = PortfolioFacts.query(
-                hash_key=client, attributes_to_get=["portfolio"]
+                hash_key=client, attributes_to_get=[PORTFOLIO_KEY]
             )
-            result = [p.portfolio for p in facts]
+            result = [p.Portfolio for p in facts]
 
         except PortfolioFacts.DoesNotExist:
             result = []
@@ -75,7 +76,7 @@ class PortfolioActions(RegistryAction):
             client (str): The client name
             portfolio (str): the portfolio name
         """
-        client, portfolio = _get_client_portfolio(**kwargs)
+        client, portfolio = cls._get_client_portfolio(kwargs)
 
         try:
             item = PortfolioFacts.get(client, portfolio)
@@ -95,7 +96,7 @@ class PortfolioActions(RegistryAction):
             client (str): The client name
             portfolio (str): the portfolio name
         """
-        client, portfolio = _get_client_portfolio(**kwargs)
+        client, portfolio = cls._get_client_portfolio(kwargs)
 
         try:
             item = PortfolioFacts.get(client, portfolio)
@@ -121,11 +122,11 @@ class PortfolioActions(RegistryAction):
             portfolio (str): the portfolio name
             kwargs: The attributes to create
         """
-        client, portfolio = _get_client_portfolio(**kwargs)
+        client, portfolio = cls._get_client_portfolio(kwargs)
 
         try:
             fact = PortfolioFacts(client, portfolio, **kwargs)
-            fact.save(PortfolioFacts.portfolio.does_not_exist())
+            fact.save(PortfolioFacts.Portfolio.does_not_exist())
         except ValueError as e:
             raise BadRequestException(f"Invalid portfolio data: {kwargs}: {str(e)}")
         except PutError as e:
@@ -146,7 +147,7 @@ class PortfolioActions(RegistryAction):
             portfolio (str): the portfolio name
             kwargs: The attributes to update
         """
-        client, portfolio = _get_client_portfolio(**kwargs)
+        client, portfolio = cls._get_client_portfolio(kwargs)
 
         item = PortfolioFacts.get(client, portfolio)
         if item:
@@ -171,14 +172,19 @@ class PortfolioActions(RegistryAction):
             portfolio (str): the portfolio name
             kwargs: The attributes to update
         """
-        client, portfolio = _get_client_portfolio(**kwargs)
+        client, portfolio = cls._get_client_portfolio(kwargs)
 
         try:
+            # Get the existing record from the dB
             item = PortfolioFacts.get(client, portfolio)
+
+            # Make sure fields are in PascalCase
+            new_facts = item.convert_keys(**kwargs)
+
             attributes = item.get_attributes()
 
             actions: list[Action] = []
-            for key, value in kwargs.items():
+            for key, value in new_facts.items():
                 if hasattr(item, key):
                     if value is None:
                         attr = attributes[key]
@@ -193,5 +199,11 @@ class PortfolioActions(RegistryAction):
 
             return SuccessResponse(item.to_simple_dict())
 
+        except AttributeNullError as e:
+            raise BadRequestException(f"Required attribute missing: {str(e)}")
+
         except PortfolioFacts.DoesNotExist:
             raise NotFoundException(f"Portfolio {client}:{portfolio} does not exist")
+
+        except Exception as e:
+            raise UnknownException(f"Failed to patch portfolio: {str(e)}")

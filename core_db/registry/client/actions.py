@@ -24,31 +24,33 @@ from ..actions import RegistryAction
 from .models import ClientFacts
 
 
-def _get_client_name(**kwargs) -> str:
-    """
-    Get the client name from the input arguments.dict
-
-    Mutates **kwargs by removing the client name and returning the client name.
-
-    Args:
-        **kwargs (dict): Dictionary containing:
-            client (str): The client name (required)
-
-    Returns:
-        str: The client name
-
-    Raises:
-        BadRequestException: If client name is missing from **kwargs
-    """
-    client = kwargs.pop("client", kwargs.pop("Client", None))
-    if not client:
-        raise BadRequestException(
-            'Client name is required in content: { "client": "<name>", ...}'
-        )
-    return client
-
-
 class ClientActions(RegistryAction):
+
+    @classmethod
+    def get_client_name(cls, kwargs: dict) -> str:
+        """
+        Get the client name from the input arguments.dict
+
+        Mutates **kwargs by removing the client name and returning the client name.
+
+        Args:
+            **kwargs (dict): Dictionary containing:
+                client (str): The client name (required)
+
+        Returns:
+            str: The client name
+
+        Raises:
+            BadRequestException: If client name is missing from **kwargs
+        """
+        client = kwargs.pop("client", kwargs.pop(CLIENT_KEY, None))
+
+        if not client:
+            raise BadRequestException(
+                'Client name is required in content: { "client": "<name>", ...}'
+            )
+
+        return client
 
     @classmethod
     def list(cls, **kwargs) -> Response:
@@ -80,7 +82,7 @@ class ClientActions(RegistryAction):
             # Catch-all for unexpected errors
             raise UnknownException(f"Failed to scan clients: {str(e)}")
 
-        result = [i.client for i in items]  # return a simple list of client names
+        result = [i.Client for i in items]  # return a simple list of client names
 
         return SuccessResponse(result)
 
@@ -101,7 +103,7 @@ class ClientActions(RegistryAction):
         Raises:
             UnknownException: If database operations fail
         """
-        client = _get_client_name(**kwargs)
+        client = cls.get_client_name(kwargs)
 
         try:
             fact = ClientFacts.get(client)
@@ -140,7 +142,7 @@ class ClientActions(RegistryAction):
         Raises:
             UnknownException: If database operations fails
         """
-        client = _get_client_name(**kwargs)
+        client = cls.get_client_name(kwargs)
 
         try:
             fact = ClientFacts(client)
@@ -177,11 +179,11 @@ class ClientActions(RegistryAction):
             BadRequestException: If client name is missing or data format is invalid
             UnknownException: If database operations fails
         """
-        client = _get_client_name(**kwargs)
+        client = cls.get_client_name(kwargs)
 
         try:
             fact = ClientFacts(client, **kwargs)
-            fact.save(ClientFacts.client.does_not_exist())
+            fact.save(ClientFacts.Client.does_not_exist())
         except PutError:
             # Condition check failed (item already exists)
             raise ConflictException(f"Client {client} already exists")
@@ -204,7 +206,7 @@ class ClientActions(RegistryAction):
         Args:
             kwargs (dict): The client name
         """
-        client = _get_client_name(**kwargs)
+        client = cls.get_client_name(kwargs)
 
         try:
             # Get the existing client record or create a new one if it doesn't exist
@@ -227,15 +229,18 @@ class ClientActions(RegistryAction):
         Args:
             kwargs (dict): Input arguments
         """
-        client = _get_client_name(**kwargs)
+        client = cls.get_client_name(kwargs)
 
         try:
-            # Create actions to remove attributes not in new kwargs
+            # Get the current record from the DB
             fact = ClientFacts.get(client)
-            attributes = fact.get_attributes()
 
+            # Make sure fields are in PascalCase
+            new_facts = fact.convert_keys(**kwargs)
+
+            attributes = fact.get_attributes()
             actions: list[Action] = []
-            for key, value in kwargs.items():
+            for key, value in new_facts.items():
                 if hasattr(fact, key):
                     attr = attributes[key]
                     if value is None:

@@ -10,7 +10,7 @@ class RegistryModel(Model):
 
     def __init__(self, *args, **kwargs):
         # Convert snake_case and kebab-case keys to PascalCase keys
-        kwargs = {self._convert_key(k): v for k, v in kwargs.items()}
+        kwargs = self.convert_keys(**kwargs)
         super().__init__(*args, **kwargs)
 
     def _convert_key(self, key):
@@ -22,14 +22,22 @@ class RegistryModel(Model):
         pascal_case_key = "".join(word.capitalize() for word in words)
         return pascal_case_key
 
+    def convert_keys(self, **kwargs) -> dict:
+        # Convert snake_case and kebab-case keys to PascalCase keys
+        return {self._convert_key(k): v for k, v in kwargs.items()}
+
 
 class ExtendedMapAttribute(MapAttribute):
     """Convert Keys to CamelCase"""
 
     def __init__(self, *args, **kwargs):
         # Convert snake_case and kebab-case keys to PascalCase keys
-        kwargs = {self._convert_key(k): v for k, v in kwargs.items()}
+        kwargs = self.convert_keys(**kwargs)
         super().__init__(*args, **kwargs)
+
+    def convert_keys(self, **kwargs) -> dict:
+        # Convert snake_case and kebab-case keys to PascalCase keys
+        return {self._convert_key(k): v for k, v in kwargs.items()}
 
     def _convert_key(self, key):
         # Convert snake_case and kebab-case keys to PascalCase keys

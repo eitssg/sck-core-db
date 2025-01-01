@@ -664,15 +664,15 @@ test_data = [
     (
         {
             "action": "registry:client:create",
-            "data": {"client": "client"},
+            "data": {"Client": "client"},
         },
-        {"status": "ok", "code": 200, "data": {"client": "client"}},
+        {"status": "ok", "code": 200, "data": {"Client": "client"}},
     ),
     # Case 33
     (
         {
             "action": "registry:client:list",
-            "data": {"client": "client"},
+            "data": {"Client": "client"},
         },
         {"status": "ok", "code": 200, "data": ["client"]},
     ),
@@ -680,23 +680,23 @@ test_data = [
     (
         {
             "action": "registry:client:update",
-            "data": {"client": "client"},
+            "data": {"Client": "client"},
         },
-        {"status": "ok", "code": 200, "data": {"client": "client"}},
+        {"status": "ok", "code": 200, "data": {"Client": "client"}},
     ),
     # Case 35
     (
         {
             "action": "registry:client:get",
-            "data": {"client": "client"},
+            "data": {"Client": "client"},
         },
-        {"status": "ok", "code": 200, "data": {"client": "client"}},
+        {"status": "ok", "code": 200, "data": {"Client": "client"}},
     ),
     # Case 36
     (
         {
             "action": "registry:client:delete",
-            "data": {"client": "client"},
+            "data": {"Client": "client"},
         },
         {"status": "ok", "code": 200, "data": "Client client deleted"},
     ),
@@ -704,27 +704,27 @@ test_data = [
     (
         {
             "action": "registry:client:create",
-            "data": {"client": "client"},
+            "data": {"Client": "client"},
         },
-        {"status": "ok", "code": 200, "data": {"client": "client"}},
+        {"status": "ok", "code": 200, "data": {"Client": "client"}},
     ),
     # Case 38
     (
         {
             "action": "registry:portfolio:create",
-            "data": {"client": "client", "portfolio": "portfolio"},
+            "data": {"Client": "client", "Portfolio": "portfolio"},
         },
         {
             "status": "ok",
             "code": 200,
-            "data": {"client": "client", "portfolio": "portfolio"},
+            "data": {"Client": "client", "Portfolio": "portfolio"},
         },
     ),
     # Case 39
     (
         {
             "action": "registry:portfolio:list",
-            "data": {"client": "client"},
+            "data": {"Client": "client"},
         },
         {"status": "ok", "code": 200, "data": ["portfolio"]},
     ),
@@ -732,31 +732,31 @@ test_data = [
     (
         {
             "action": "registry:portfolio:get",
-            "data": {"client": "client", "portfolio": "portfolio"},
+            "data": {"Client": "client", "Portfolio": "portfolio"},
         },
         {
             "status": "ok",
             "code": 200,
-            "data": {"client": "client", "portfolio": "portfolio"},
+            "data": {"Client": "client", "Portfolio": "portfolio"},
         },
     ),
     # Case 41
     (
         {
             "action": "registry:portfolio:update",
-            "data": {"client": "client", "portfolio": "portfolio"},
+            "data": {"Client": "client", "Portfolio": "portfolio"},
         },
         {
             "status": "ok",
             "code": 200,
-            "data": {"client": "client", "portfolio": "portfolio"},
+            "data": {"Client": "client", "Portfolio": "portfolio"},
         },
     ),
     # Case 42
     (
         {
             "action": "registry:portfolio:delete",
-            "data": {"client": "client", "portfolio": "portfolio"},
+            "data": {"Client": "client", "Portfolio": "portfolio"},
         },
         {"status": "ok", "code": 200, "data": "Portfolio deleted: client:portfolio"},
     ),
@@ -764,12 +764,12 @@ test_data = [
     (
         {
             "action": "registry:portfolio:create",
-            "data": {"client": "client", "portfolio": "portfolio"},
+            "data": {"Client": "client", "Portfolio": "portfolio"},
         },
         {
             "status": "ok",
             "code": 200,
-            "data": {"client": "client", "portfolio": "portfolio"},
+            "data": {"Client": "client", "Portfolio": "portfolio"},
         },
     ),
     # Case 44
@@ -881,7 +881,7 @@ test_data = [
         {
             "action": "registry:zone:create",
             "data": {
-                "ClientPortfolio": "client:portfolio",
+                "Client": "client",
                 "Zone": "zone-one",
                 "AccountFacts": {
                     "AwsAccountId": "123456789012",
@@ -897,7 +897,7 @@ test_data = [
             "status": "ok",
             "code": 200,
             "data": {
-                "ClientPortfolio": "client:portfolio",
+                "Client": "client",
                 "Zone": "zone-one",
                 "AccountFacts": {
                     "AwsAccountId": "123456789012",
@@ -914,7 +914,7 @@ test_data = [
     (
         {
             "action": "registry:zone:list",
-            "data": {"ClientPortfolio": "client:portfolio", "Zone": "zone-one"},
+            "data": {"Client": "client", "Zone": "zone-one"},
         },
         {"status": "ok", "code": 200, "data": ["zone-one"]},
     ),
@@ -922,13 +922,13 @@ test_data = [
     (
         {
             "action": "registry:zone:get",
-            "data": {"ClientPortfolio": "client:portfolio", "Zone": "zone-one"},
+            "data": {"Client": "client", "Zone": "zone-one"},
         },
         {
             "status": "ok",
             "code": 200,
             "data": {
-                "ClientPortfolio": "client:portfolio",
+                "Client": "client",
                 "Zone": "zone-one",
                 "AccountFacts": {
                     "AwsAccountId": "123456789012",
@@ -946,7 +946,7 @@ test_data = [
         {
             "action": "registry:zone:update",
             "data": {
-                "ClientPortfolio": "client:portfolio",
+                "Client": "client",
                 "Zone": "zone-one",
                 "AccountFacts": {
                     "AwsAccountId": "123456789012",
@@ -962,7 +962,7 @@ test_data = [
             "status": "ok",
             "code": 200,
             "data": {
-                "ClientPortfolio": "client:portfolio",
+                "Client": "client",
                 "Zone": "zone-one",
                 "AccountFacts": {
                     "AwsAccountId": "123456789012",
@@ -979,7 +979,7 @@ test_data = [
     (
         {
             "action": "registry:zone:delete",
-            "data": {"ClientPortfolio": "client:portfolio", "Zone": "zone-one"},
+            "data": {"Client": "client", "Zone": "zone-one"},
         },
         {
             "status": "ok",

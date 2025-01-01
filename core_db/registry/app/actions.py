@@ -18,6 +18,8 @@ from ...exceptions import (
 from ...constants import (
     APP_KEY,
     CLIENT_PORTFOLIO_KEY,
+    CLIENT_KEY,
+    PORTFOLIO_KEY,
 )
 
 from ..actions import RegistryAction
@@ -27,7 +29,7 @@ from .models import AppFacts
 class AppActions(RegistryAction):
 
     @classmethod
-    def get_client_portfolio_app(cls, kwargs: dict) -> tuple[str, str]:
+    def get_client_portfolio_app(cls, kwargs: dict, default_regex: str | None = None) -> tuple[str, str]:
         """
         Get the client portfolio name from the input arguments.
 
@@ -50,18 +52,21 @@ class AppActions(RegistryAction):
             BadRequestException: If client-portfolio name is missing or cant be created from client and portfolio
         """
         client_portfolio = kwargs.pop(
-            CLIENT_PORTFOLIO_KEY, kwargs.pop("client-portfolio", None)
+            "client-portfolio", kwargs.pop(CLIENT_PORTFOLIO_KEY, None)
         )
+
         if not client_portfolio:
-            client = kwargs.pop("client", kwargs.pop("Client", None))
-            portfolio = kwargs.pop("portfolio", kwargs.pop("Portfolio", None))
-            if client and portfolio:
-                client_portfolio = f"{client}:{portfolio}"
-            else:
-                raise BadRequestException(
-                    'Client portfolio name is required in content: { "client-portfolio": "<name>", ...}'
-                )
-        app_regex = kwargs.pop(APP_KEY, kwargs.pop("app-regex", None))
+            client = kwargs.pop("client", kwargs.pop(CLIENT_KEY, None))
+            portfolio = kwargs.pop("portfolio", kwargs.pop(PORTFOLIO_KEY, None))
+            client_portfolio = f"{client}:{portfolio}" if client and portfolio else None
+
+        app_regex = kwargs.pop("app-regex", kwargs.pop(APP_KEY, default_regex))
+
+        if not client_portfolio or not app_regex:
+            raise BadRequestException(
+                'Client portfolio name is required in content: { "client-portfolio": "<name>", ...}'
+            )
+
         return client_portfolio, app_regex
 
     @classmethod
@@ -91,7 +96,7 @@ class AppActions(RegistryAction):
         Returns:
             List[str]: A list of application regex patterns
         """
-        client_portfolio, _ = cls.get_client_portfolio_app(kwargs)
+        client_portfolio, _ = cls.get_client_portfolio_app(kwargs, default_regex="-")
 
         try:
             items = AppFacts.query(
