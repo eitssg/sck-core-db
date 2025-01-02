@@ -1,6 +1,5 @@
 """ Definiton of the Portfolio Facts in the core-automation-portfolios table """
 
-from pynamodb.models import Model
 from pynamodb.attributes import (
     UnicodeAttribute,
     BooleanAttribute,
@@ -52,7 +51,7 @@ class ApproverFacts(ExtendedMapAttribute):
     """list: List of roles for the approver.  This approver can approve only specified roles"""
     Attributes: MapAttribute = MapAttribute(of=UnicodeAttribute, null=True)
     """dict: Additional attributes for the approver"""
-    Depends_on: ListAttribute = ListAttribute(of=NumberAttribute, null=True)
+    DependsOn: ListAttribute = ListAttribute(of=NumberAttribute, null=True)
     """list: List of sequence numbers of approvers that this approver depends on (which approvers must approve before this approver) """
     Enabled = BooleanAttribute(default=True)
     """bool: Is the approver enabled"""
@@ -147,6 +146,14 @@ class PortfolioFacts(RegistryModel):
     """
 
     Metadata: MapAttribute = MapAttribute(of=UnicodeAttribute, null=True)
+    """dict: Additional metadata for the portfolio
+
+        Allow an option number of attributes to be added to the portfolio as UnicodeAttributes
+        These will be used to store additional information about the portfolio
+        that is not covered by the standard attributes
+    """
+
+    Attributes: MapAttribute = MapAttribute(of=UnicodeAttribute, null=True)
     """dict: Additional attributes for the portfolio
 
         Allow an option number of attributes to be added to the portfolio as UnicodeAttributes

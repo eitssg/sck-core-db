@@ -14,6 +14,7 @@ import core_logging as log
 from core_framework.constants import (
     FACTS_REGION,
     FACTS_TAGS,
+    FACTS_ACCOUNT,
     TAG_ENVIRONMENT,
     TAG_OWNER,
     TAG_REGION,
@@ -252,22 +253,17 @@ def get_store_url(
     bucket_region: str,
 ) -> str:
 
-    for_s3 = not util.is_local_mode()
+    store = util.get_storage_volume(bucket_region)
 
-    if for_s3:
-        return f"https://s3-{bucket_region}.amazonaws.com/{bucket_name}"
-    else:
-        store = util.get_storage_volume()
-        return f"file://{os.path.join(store, bucket_name)}"
+    sep = "/" if util.is_use_s3() else os.path.sep
+
+    return sep.join([store, bucket_name])
 
 
 def get_compiler_facts(dd: DeploymentDetails) -> dict:
 
-    # When building context replacement variables, we need to know if we are building for S3 or not
-    for_s3 = not util.is_local_mode()
-
     # Shared Files path separator
-    sep = "/" if for_s3 else os.path.sep
+    sep = "/" if util.is_use_s3() else os.path.sep
 
     client = dd.Client
 
@@ -282,33 +278,26 @@ def get_compiler_facts(dd: DeploymentDetails) -> dict:
         "ArtefactsBucketName": artefacts_bucket_name,
         "ArtefactsBucketRegion": artefacts_bucket_region,
         "ArtefactsBucketUrl": s3_bucket_url,
-        "ArtefactsPrefix": dd.get_artefacts_key(s3=for_s3),
-
+        "ArtefactsPrefix": dd.get_artefacts_key(),
         # Artifacts (spelling)
         "ArtifactBucketName": artefacts_bucket_name,
         "ArtifactBucketRegion": artefacts_bucket_region,
         "ArtifactBaseUrl": s3_bucket_url,
-        "ArtifactKeyPrefix": dd.get_artefacts_key(s3=for_s3),
-        "ArtifactKeyBuildPrefix": dd.get_artefacts_key(scope=SCOPE_BUILD, s3=for_s3),
-
+        "ArtifactKeyPrefix": dd.get_artefacts_key(),
+        "ArtifactKeyBuildPrefix": dd.get_artefacts_key(scope=SCOPE_BUILD),
         # Files
         "FilesBucketName": artefacts_bucket_name,
         "FilesBucketRegion": artefacts_bucket_region,
         "FilesBucketUrl": s3_bucket_url,
-
         # Files Prefix
-        "PortfolioFilesPrefix": dd.get_files_key(scope=SCOPE_PORTFOLIO, s3=for_s3),
-        "AppFilesPrefix": dd.get_files_key(scope=SCOPE_APP, s3=for_s3),
-        "BranchFilesPrefix": dd.get_files_key(scope=SCOPE_BRANCH, s3=for_s3),
-        "BuildFilesPrefix": dd.get_files_key(scope=SCOPE_BUILD, s3=for_s3),
-
+        "PortfolioFilesPrefix": dd.get_files_key(scope=SCOPE_PORTFOLIO),
+        "AppFilesPrefix": dd.get_files_key(scope=SCOPE_APP),
+        "BranchFilesPrefix": dd.get_files_key(scope=SCOPE_BRANCH),
+        "BuildFilesPrefix": dd.get_files_key(scope=SCOPE_BUILD),
         # ArtifactKey
-        "ArtifactKeyPortfolioPrefix": dd.get_artefacts_key(
-            scope=SCOPE_PORTFOLIO, s3=for_s3
-        ),
-        "ArtifactKeyAppPrefix": dd.get_artefacts_key(scope=SCOPE_APP, s3=for_s3),
-        "ArtifactKeyBranchPrefix": dd.get_artefacts_key(scope=SCOPE_BRANCH, s3=for_s3),
-
+        "ArtifactKeyPortfolioPrefix": dd.get_artefacts_key(scope=SCOPE_PORTFOLIO),
+        "ArtifactKeyAppPrefix": dd.get_artefacts_key(scope=SCOPE_APP),
+        "ArtifactKeyBranchPrefix": dd.get_artefacts_key(scope=SCOPE_BRANCH),
         # Shared Files
         "SharedFilesPrefix": f"files{sep}shared",
     }
@@ -384,6 +373,10 @@ def get_facts(deployment_details: DeploymentDetails) -> dict:  # noqa: C901
     if not zone_facts:
         raise ValueError(f"Zone facts not found for {client}:{zone}")
 
+    account_facts = zone_facts.get(FACTS_ACCOUNT, None)
+    if account_facts is None:
+        raise ValueError(f"Account facts not found for {zone}")
+
     # Get the region facts
     region_facts = zone_facts.get(FACTS_REGION, {}).get(region_alias, None)
     if region_facts is None:
@@ -413,7 +406,7 @@ def get_facts(deployment_details: DeploymentDetails) -> dict:  # noqa: C901
     deployment_facts = deployment_details.model_dump()
 
     # Merge account facts and region-specific facts into the facts
-    facts = util.merge.deep_merge(zone_facts, region_facts, merge_lists=True)
+    facts = util.merge.deep_merge(account_facts, region_facts, merge_lists=True)
 
     # Next, merge the portfolio facts into the facts
     facts = util.merge.deep_merge_in_place(facts, portfolio_facts, merge_lists=True)

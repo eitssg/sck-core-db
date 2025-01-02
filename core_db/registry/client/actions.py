@@ -192,6 +192,9 @@ class ClientActions(RegistryAction):
             raise UnknownException(
                 f"Failed to save client {client}: Database table error"
             )
+        except ValueError as e:
+            # Invalid data format
+            raise BadRequestException(f"Data error on create {client}: {str(e)}")
         except Exception as e:
             # Catch-all for unexpected errors
             raise UnknownException(f"Failed to save client {client}: {str(e)}")
