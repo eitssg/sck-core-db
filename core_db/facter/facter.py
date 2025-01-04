@@ -309,8 +309,6 @@ def get_facts(deployment_details: DeploymentDetails) -> dict:  # noqa: C901
     """
     Get the facts for a given app, portfolio, and zone.
 
-    TODO: This function is too long and should be refactored.  And, portfolio and app should bo optional.
-
     Args:
         client (str): The client FACTS database to query.
         portfolio (str): BizApp (Business Applicatino) slug/id

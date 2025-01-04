@@ -1,12 +1,11 @@
 """ Classes defining the ZoneFacts record model for the core-automation-zones table """
 
-import re
-
 from pynamodb.attributes import (
     UnicodeAttribute,
     MapAttribute,
     ListAttribute,
     NumberAttribute,
+    BooleanAttribute
 )
 
 import core_framework as util
@@ -62,6 +61,8 @@ class KmsFacts(ExtendedMapAttribute):
     """str: The KMS Key ID for this Zone"""
     DelegateAwsAccountIds = ListAttribute(of=UnicodeAttribute, null=False)
     """list[str]: List of AWS Account IDs that can use the KMS Key"""
+    AllowSNS = BooleanAttribute(null=True)
+    """bool: Allow SNS to use the KMS Key """
 
     UserInstantiated = UnicodeAttribute(null=True)
 
