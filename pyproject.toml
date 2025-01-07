@@ -17,8 +17,8 @@ priority = "primary"
 
 [tool.poetry.dependencies]
 python = "^3.12"
-boto3 = ">=1.35.87"
-botocore = ">=1.35.87"
+boto3 = ">=1.35.93"
+botocore = ">=1.35.93"
 pynamodb = "^6.0.1"
 pydantic = "^2.10.3"
 
@@ -26,7 +26,7 @@ pydantic = "^2.10.3"
 path = "../sck-core-framework"
 develop = true
 [tool.poetry.group.dev.dependencies]
-boto3-stubs = ">=1.35.87"
+boto3-stubs = ">=1.35.93"
 black = "^24.10.0"
 flake8 = "^7.1.1"
 pytest-dotenv = "^0.5.2"

@@ -5,7 +5,7 @@ from pynamodb.attributes import (
     MapAttribute,
     ListAttribute,
     NumberAttribute,
-    BooleanAttribute
+    BooleanAttribute,
 )
 
 import core_framework as util

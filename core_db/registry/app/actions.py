@@ -29,7 +29,9 @@ from .models import AppFacts
 class AppActions(RegistryAction):
 
     @classmethod
-    def get_client_portfolio_app(cls, kwargs: dict, default_regex: str | None = None) -> tuple[str, str]:
+    def get_client_portfolio_app(
+        cls, kwargs: dict, default_regex: str | None = None
+    ) -> tuple[str, str]:
         """
         Get the client portfolio name from the input arguments.
 

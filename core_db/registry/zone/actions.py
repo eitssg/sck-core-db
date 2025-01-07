@@ -26,7 +26,9 @@ from .models import ZoneFacts
 class ZoneActions(RegistryAction):
 
     @classmethod
-    def get_client_zone(cls, kwargs: dict, default_zone: str | None = None) -> tuple[str | None, str | None]:
+    def get_client_zone(
+        cls, kwargs: dict, default_zone: str | None = None
+    ) -> tuple[str | None, str | None]:
         """
         Get the client portfolio and zone from the input arguments.
 
