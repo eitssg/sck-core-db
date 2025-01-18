@@ -41,15 +41,19 @@ class ClientFacts(RegistryModel):
     """str: Documentation bucket where the documentation is stored. Example: "myorg-core-automation-docs" """
     ClientRegion = UnicodeAttribute(null=True)
     """str: Client region for use when other region values are blank. Example: "us-west-2" """
-    AutomationBucket = UnicodeAttribute(null=True)
-    """str: Automation S3 bucket where the automation artefacts (packages/files/artefacts) are stored. Example: "myorg-core-automation" """
-    AutomationBucketRegion = UnicodeAttribute(null=True)
-    """str: Bucket region where the automation bucket resides. Example: "us-west-2" """
     AutomationAccount = UnicodeAttribute(null=True)
     """str: Automation account number for the automation account where the automation artefacts are stored. Example: "123456789012" """
+    BucketName = UnicodeAttribute(null=True)
+    """str: Automation S3 bucket where the automation artefacts (packages/files/artefacts) are stored. Example: "myorg-core-automation" """
+    BucketRegion = UnicodeAttribute(null=True)
+    """str: Bucket region where the automation bucket resides. Example: "us-west-2" """
+    ArtefactBucketName = UnicodeAttribute(null=True)
+    """str: Artefact S3 bucket where the artefacts are stored. Example: "myorg-core-automation-artefacts" """
     SecurityAccount = UnicodeAttribute(null=True)
     """str: Security account number for the security account where your centralized SOC will operate. Example: "123456789012" """
-    ScopePrefix = UnicodeAttribute(null=True)
+    NetworkAccount = UnicodeAttribute(null=True)
+    """str: Network account number for the network account where your centralized VPCs, domain services, and endpoints will operate. Example: "123456789012" """
+    Scope = UnicodeAttribute(null=True)
     """str: Scope Prefix as a profix for all resources created for the client. Example: "testing-"
 
     Note: Ensure to put a hyphen after the name. Use "tst-", not "tst"

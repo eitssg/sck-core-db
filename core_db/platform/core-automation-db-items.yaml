@@ -1,0 +1,449 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: AWS::DynamoDB::Table - api-db - resources
+
+Parameters:
+  ScopePrefix:
+    Type: String
+    Default: ""
+    AllowedPattern: "^([a-z]+-)*$"
+
+  Client:
+    Type: String
+    Default: "eits"
+    AllowedPattern: "^[a-z]+$"
+
+  Portfolio:
+    Type: String
+    Default: "core"
+
+  App:
+    Type: String
+    Default: "db"
+
+  Branch:
+    Type: String
+    Default: "master"
+
+  Build:
+    Type: String
+
+  Environment:
+    Type: String
+    Default: "prod"
+
+  ItemTableName:
+    Type: String
+
+  EventTableName:
+    Type: String
+
+Resources:
+
+  # So we avoid ValidationError("No updates are to be performed") by changing the build number
+  DummyResource:
+    Metadata:
+      Build:
+        Ref: Build
+    Type: AWS::CloudFormation::WaitConditionHandle
+
+  ChangeItemsLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName:
+        Fn::Sub: "/aws/lambda/${ScopePrefix}core-automation-change-items-lambda"
+      RetentionInDays: 1
+      Tags:
+        - Key: Name
+          Value: !Sub "${ScopePrefix}core-automation-change-events-items-lambda"
+        - Key: Scope
+          Value: !Ref ScopePrefix
+        - Key: Client
+          Value: !Ref Client
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Portfolio
+          Value: !Ref Portfolio
+        - Key: App
+          Value: !Ref App
+        - Key: Branch
+          Value: !Ref Branch
+        - Key: Build
+          Value: !Ref Build
+
+  ChangeEventsLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName:
+        Fn::Sub: "/aws/lambda/${ScopePrefix}core-automation-change-events-lambda"
+      RetentionInDays: 1
+      Tags:
+        - Key: Name
+          Value: !Sub "${ScopePrefix}core-automation-change-events-events-lambda"
+        - Key: Scope
+          Value: !Ref ScopePrefix
+        - Key: Client
+          Value: !Ref Client
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Portfolio
+          Value: !Ref Portfolio
+        - Key: App
+          Value: !Ref App
+        - Key: Branch
+          Value: !Ref Branch
+        - Key: Build
+          Value: !Ref Build
+
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    DependsOn:
+      - ChangeItemsLogGroup
+      - ChangeEventsLogGroup
+    Properties:
+      RoleName:
+        Fn::Sub: "${ScopePrefix}CoreAutomationDbLambdaExecutionRole"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: DynamoDBStreamPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:Scan
+                  - dynamodb:Query
+                  - dynamodb:DeleteItem
+                  - dynamodb:GetRecords
+                  - dynamodb:GetShardIterator
+                  - dynamodb:DescribeStream
+                  - dynamodb:ListStreams
+                Resource:
+                  - Fn::GetAtt:
+                      - EventsTable
+                      - Arn
+                  - Fn::GetAtt:
+                      - ItemsTable
+                      - Arn
+                  - Fn::GetAtt:
+                      - EventsTable
+                      - StreamArn
+                  - Fn::GetAtt:
+                      - ItemsTable
+                      - StreamArn
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource:
+                  - Fn::Sub: 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${ScopePrefix}core-automation-change-items-lambda:*'
+                  - Fn::Sub: 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${ScopePrefix}core-automation-change-events-lambda:*'
+      Path: /
+      Tags:
+        - Key: Name
+          Value: !Sub "${ScopePrefix}CoreAutomationDbLambdaExecutionRole"
+        - Key: Scope
+          Value: !Ref ScopePrefix
+        - Key: Client
+          Value: !Ref Client
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Portfolio
+          Value: !Ref Portfolio
+        - Key: App
+          Value: !Ref App
+        - Key: Branch
+          Value: !Ref Branch
+        - Key: Build
+          Value: !Ref Build
+
+  ChangeItemsLambda:
+    Type: AWS::Lambda::Function
+    DependsOn:
+      - LambdaExecutionRole
+      - ChangeItemsLogGroup
+    Properties:
+      FunctionName: !Sub "${ScopePrefix}core-automation-change-items-lambda"
+      Handler: index.handler
+      Role:
+        Fn::GetAtt:
+          - LambdaExecutionRole
+          - Arn
+      Runtime: python3.12
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          import os
+          from boto3.dynamodb.conditions import Attr
+
+          def handler(event, context):
+              dynamodb = boto3.resource('dynamodb')
+
+              log_level = os.environ.get('LOG_LEVEL', 'ERROR').upper()
+
+              events_table = dynamodb.Table(os.environ['EVENTS_TABLE'])
+
+              # Items are references in events table.  So, we need to delete events.
+
+              try:
+                  count = 0
+                  for record in event['Records']:
+                      if record['eventName'] == 'REMOVE':
+                          prn = record['dynamodb']['OldImage']['prn']['S']
+
+                          # TODO - change to "query", not "scan"
+                          response = portflios_table.scan(
+                              FilterExpression=Attr('prn').eq(prn)
+                          )
+
+                          for item in response['Items']:
+                              prn = item['prn']
+                              timestamp = item['timestamp']
+                              events_table.delete_item(Key={'prn': prn, 'timestamp': timestamp})
+
+                              count += 1
+                              if log_level == 'INFO':
+                                  print(f'SUCCESS: event [{prn}], time [{timestamp}] deleted')
+
+                          count += 1
+                          if log_level == 'INFO':
+                              print(f'SUCCESS: [{prn}] deleted')
+
+                  print(f'SUCCESS: {count} records deleted')
+                  return {
+                      'statusCode': 200,
+                      'body': json.dumps(f'Success: {count} records deleted')
+                  }
+              except Exception as e:
+                  print(f'ERROR: {str(e)}')
+                  return {
+                      'statusCode': 500,
+                      'body': json.dumps(f'Error: {str(e)}')
+                  }
+      Timeout: 30
+      Environment:
+        Variables:
+          EVENTS_TABLE: !Ref EventTableName
+          LOG_LEVEL: INFO
+      LoggingConfig:
+        LogGroup: !Sub "/aws/lambda/${ScopePrefix}core-automation-change-items-lambda"
+      Tags:
+        - Key: Name
+          Value: !Sub "${ScopePrefix}core-automation-change-items-lambda"
+        - Key: Scope
+          Value: !Ref ScopePrefix
+        - Key: Client
+          Value: !Ref Client
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Portfolio
+          Value: !Ref Portfolio
+        - Key: App
+          Value: !Ref App
+        - Key: Branch
+          Value: !Ref Branch
+        - Key: Build
+          Value: !Ref Build
+
+  ChangeEventsLambda:
+    Type: AWS::Lambda::Function
+    DependsOn:
+      - LambdaExecutionRole
+      - ChangeEventsLogGroup
+    Properties:
+      FunctionName: !Sub "${ScopePrefix}core-automation-change-events-lambda"
+      Handler: index.handler
+      Role:
+        Fn::GetAtt:
+          - LambdaExecutionRole
+          - Arn
+      Runtime: python3.12
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          import os
+          from boto3.dynamodb.conditions import Attr
+
+          def handler(event, context):
+              dynamodb = boto3.resource('dynamodb')
+
+              log_level = os.environ.get('LOG_LEVEL', 'ERROR').upper()
+
+              # Events are not referenced anywhere
+
+              try:
+                  count = 0
+                  for record in event['Records']:
+                      if record['eventName'] == 'REMOVE':
+                          prn = record['dynamodb']['OldImage']['prn']['S']
+                          timestamp = record['dynamodb']['OldImage']['timestamp']['S']
+
+                          count += 1
+                          if log_level == 'INFO':
+                              print(f'SUCCESS: [{prn}], time: [{timestamp}] deleted')
+
+                  print(f'SUCCESS: {count} records deleted')
+                  return {
+                      'statusCode': 200,
+                      'body': json.dumps(f'Success: {count} records deleted')
+                  }
+              except Exception as e:
+                  print(f'ERROR: {str(e)}')
+                  return {
+                      'statusCode': 500,
+                      'body': json.dumps(f'Error: {str(e)}')
+                  }
+      Timeout: 30
+      Environment:
+        Variables:
+          LOG_LEVEL: INFO
+      LoggingConfig:
+        LogGroup: !Sub "/aws/lambda/${ScopePrefix}core-automation-change-events-lambda"
+      Tags:
+        - Key: Name
+          Value: !Sub "${ScopePrefix}core-automation-change-events-lambda"
+        - Key: Scope
+          Value: !Ref ScopePrefix
+        - Key: Client
+          Value: !Ref Client
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Portfolio
+          Value: !Ref Portfolio
+        - Key: App
+          Value: !Ref App
+        - Key: Branch
+          Value: !Ref Branch
+        - Key: Build
+          Value: !Ref Build
+
+  ItemsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        - AttributeName: prn
+          AttributeType: S
+        - AttributeName: parent_prn
+          AttributeType: S
+        - AttributeName: created_at
+          AttributeType: S
+      BillingMode: PAY_PER_REQUEST
+      KeySchema:
+        - AttributeName: prn
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: parent-created_at-index
+          KeySchema:
+            - AttributeName: parent_prn
+              KeyType: HASH
+            - AttributeName: created_at
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      TableName: !Ref ItemTableName
+      StreamSpecification:
+        StreamViewType: OLD_IMAGE
+      Tags:
+        - Key: Name
+          Value: !Ref ItemTableName
+        - Key: Scope
+          Value: !Ref ScopePrefix
+        - Key: Client
+          Value: !Ref Client
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Portfolio
+          Value: !Ref Portfolio
+        - Key: App
+          Value: !Ref App
+        - Key: Branch
+          Value: !Ref Branch
+        - Key: Build
+          Value: !Ref Build
+
+  EventsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        - AttributeName: prn
+          AttributeType: S
+        - AttributeName: timestamp
+          AttributeType: S
+      BillingMode: PAY_PER_REQUEST
+      KeySchema:
+        - AttributeName: prn
+          KeyType: HASH
+        - AttributeName: timestamp
+          KeyType: RANGE
+      TableName: !Ref EventTableName
+      StreamSpecification:
+        StreamViewType: OLD_IMAGE
+      Tags:
+        - Key: Name
+          Value: !Ref EventTableName
+        - Key: Scope
+          Value: !Ref ScopePrefix
+        - Key: Client
+          Value: !Ref Client
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Portfolio
+          Value: !Ref Portfolio
+        - Key: App
+          Value: !Ref App
+        - Key: Branch
+          Value: !Ref Branch
+        - Key: Build
+          Value: !Ref Build
+
+  ItemsTableStream:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      BatchSize: 100
+      EventSourceArn:
+        Fn::GetAtt:
+          - ItemsTable
+          - StreamArn
+      FunctionName:
+        Fn::GetAtt:
+          - ChangeItemsLambda
+          - Arn
+      StartingPosition: LATEST
+
+  EventsTableStream:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      BatchSize: 100
+      EventSourceArn:
+        Fn::GetAtt:
+          - EventsTable
+          - StreamArn
+      FunctionName:
+        Fn::GetAtt:
+          - ChangeEventsLambda
+          - Arn
+      StartingPosition: LATEST
+
+Outputs:
+
+  ItemsTableArn:
+    Value:
+      Fn::GetAtt: [ItemsTable, Arn]
+    Export:
+      Name:
+        Fn::Sub: "${ScopePrefix}ItemsTableArn"
+
+  EventsTableArn:
+    Value:
+      Fn::GetAtt: [EventsTable, Arn]
+    Export:
+      Name:
+        Fn::Sub: "${ScopePrefix}EventsTableArn"
