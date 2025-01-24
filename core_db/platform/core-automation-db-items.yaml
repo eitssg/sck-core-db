@@ -2,7 +2,7 @@ AWSTemplateFormatVersion: '2010-09-09'
 Description: AWS::DynamoDB::Table - api-db - resources
 
 Parameters:
-  ScopePrefix:
+  Scope:
     Type: String
     Default: ""
     AllowedPattern: "^([a-z]+-)*$"
@@ -50,13 +50,13 @@ Resources:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName:
-        Fn::Sub: "/aws/lambda/${ScopePrefix}core-automation-change-items-lambda"
+        Fn::Sub: "/aws/lambda/${Scope}core-automation-change-items-lambda"
       RetentionInDays: 1
       Tags:
         - Key: Name
-          Value: !Sub "${ScopePrefix}core-automation-change-events-items-lambda"
+          Value: !Sub "${Scope}core-automation-change-events-items-lambda"
         - Key: Scope
-          Value: !Ref ScopePrefix
+          Value: !Ref Scope
         - Key: Client
           Value: !Ref Client
         - Key: Environment
@@ -74,13 +74,13 @@ Resources:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName:
-        Fn::Sub: "/aws/lambda/${ScopePrefix}core-automation-change-events-lambda"
+        Fn::Sub: "/aws/lambda/${Scope}core-automation-change-events-lambda"
       RetentionInDays: 1
       Tags:
         - Key: Name
-          Value: !Sub "${ScopePrefix}core-automation-change-events-events-lambda"
+          Value: !Sub "${Scope}core-automation-change-events-events-lambda"
         - Key: Scope
-          Value: !Ref ScopePrefix
+          Value: !Ref Scope
         - Key: Client
           Value: !Ref Client
         - Key: Environment
@@ -101,7 +101,7 @@ Resources:
       - ChangeEventsLogGroup
     Properties:
       RoleName:
-        Fn::Sub: "${ScopePrefix}CoreAutomationDbLambdaExecutionRole"
+        Fn::Sub: "${Scope}CoreAutomationDbLambdaExecutionRole"
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -142,14 +142,14 @@ Resources:
                   - logs:CreateLogStream
                   - logs:PutLogEvents
                 Resource:
-                  - Fn::Sub: 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${ScopePrefix}core-automation-change-items-lambda:*'
-                  - Fn::Sub: 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${ScopePrefix}core-automation-change-events-lambda:*'
+                  - Fn::Sub: 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${Scope}core-automation-change-items-lambda:*'
+                  - Fn::Sub: 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${Scope}core-automation-change-events-lambda:*'
       Path: /
       Tags:
         - Key: Name
-          Value: !Sub "${ScopePrefix}CoreAutomationDbLambdaExecutionRole"
+          Value: !Sub "${Scope}CoreAutomationDbLambdaExecutionRole"
         - Key: Scope
-          Value: !Ref ScopePrefix
+          Value: !Ref Scope
         - Key: Client
           Value: !Ref Client
         - Key: Environment
@@ -169,7 +169,7 @@ Resources:
       - LambdaExecutionRole
       - ChangeItemsLogGroup
     Properties:
-      FunctionName: !Sub "${ScopePrefix}core-automation-change-items-lambda"
+      FunctionName: !Sub "${Scope}core-automation-change-items-lambda"
       Handler: index.handler
       Role:
         Fn::GetAtt:
@@ -233,12 +233,12 @@ Resources:
           EVENTS_TABLE: !Ref EventTableName
           LOG_LEVEL: INFO
       LoggingConfig:
-        LogGroup: !Sub "/aws/lambda/${ScopePrefix}core-automation-change-items-lambda"
+        LogGroup: !Sub "/aws/lambda/${Scope}core-automation-change-items-lambda"
       Tags:
         - Key: Name
-          Value: !Sub "${ScopePrefix}core-automation-change-items-lambda"
+          Value: !Sub "${Scope}core-automation-change-items-lambda"
         - Key: Scope
-          Value: !Ref ScopePrefix
+          Value: !Ref Scope
         - Key: Client
           Value: !Ref Client
         - Key: Environment
@@ -258,7 +258,7 @@ Resources:
       - LambdaExecutionRole
       - ChangeEventsLogGroup
     Properties:
-      FunctionName: !Sub "${ScopePrefix}core-automation-change-events-lambda"
+      FunctionName: !Sub "${Scope}core-automation-change-events-lambda"
       Handler: index.handler
       Role:
         Fn::GetAtt:
@@ -306,12 +306,12 @@ Resources:
         Variables:
           LOG_LEVEL: INFO
       LoggingConfig:
-        LogGroup: !Sub "/aws/lambda/${ScopePrefix}core-automation-change-events-lambda"
+        LogGroup: !Sub "/aws/lambda/${Scope}core-automation-change-events-lambda"
       Tags:
         - Key: Name
-          Value: !Sub "${ScopePrefix}core-automation-change-events-lambda"
+          Value: !Sub "${Scope}core-automation-change-events-lambda"
         - Key: Scope
-          Value: !Ref ScopePrefix
+          Value: !Ref Scope
         - Key: Client
           Value: !Ref Client
         - Key: Environment
@@ -355,7 +355,7 @@ Resources:
         - Key: Name
           Value: !Ref ItemTableName
         - Key: Scope
-          Value: !Ref ScopePrefix
+          Value: !Ref Scope
         - Key: Client
           Value: !Ref Client
         - Key: Environment
@@ -390,7 +390,7 @@ Resources:
         - Key: Name
           Value: !Ref EventTableName
         - Key: Scope
-          Value: !Ref ScopePrefix
+          Value: !Ref Scope
         - Key: Client
           Value: !Ref Client
         - Key: Environment
@@ -439,11 +439,11 @@ Outputs:
       Fn::GetAtt: [ItemsTable, Arn]
     Export:
       Name:
-        Fn::Sub: "${ScopePrefix}ItemsTableArn"
+        Fn::Sub: "${Scope}ItemsTableArn"
 
   EventsTableArn:
     Value:
       Fn::GetAtt: [EventsTable, Arn]
     Export:
       Name:
-        Fn::Sub: "${ScopePrefix}EventsTableArn"
+        Fn::Sub: "${Scope}EventsTableArn"

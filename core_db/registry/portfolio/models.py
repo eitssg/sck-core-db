@@ -106,7 +106,7 @@ class PortfolioFacts(RegistryModel):
 
     class Meta:
         table_name = get_table_name(PORTFOLIO_FACTS)
-        region = util.get_region()
+        region = util.get_dynamodb_region()
         host = util.get_dynamodb_host()
         read_capacity_units = 1
         write_capacity_units = 1
@@ -162,6 +162,12 @@ class PortfolioFacts(RegistryModel):
     """
 
     UserInstantiated = UnicodeAttribute(null=True)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def __repr__(self):
+        return f"PortfolioFacts({self.Client}, {self.Portfolio})"
 
     def get_client_portfolio_key(self):
         """Get the client portfolio key

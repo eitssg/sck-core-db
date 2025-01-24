@@ -14,7 +14,7 @@ class ClientFacts(RegistryModel):
 
     class Meta:
         table_name = get_table_name(CLIENT_FACTS)
-        region = util.get_region()
+        region = util.get_dynamodb_region()
         host = util.get_dynamodb_host()
         read_capacity_units = 1
         write_capacity_units = 1
@@ -82,3 +82,9 @@ class ClientFacts(RegistryModel):
     """str: UI Bucket is the S3 bucket where the UI website is stored. Example: "core-automation-ui" """
 
     UserInstantiated = UnicodeAttribute(null=True)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def __repr__(self):
+        return f"ClientFacts({self.Client})"

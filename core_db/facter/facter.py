@@ -5,6 +5,7 @@ This FACTS database should come from DynamoDB.  Not 'accounts.yaml' and 'apps.ya
 (In re-rewrite.  We need to use DynamoDB instead of FACTS YAML files)
 """
 
+from typing import Any
 from collections import ChainMap
 import os
 import re
@@ -419,3 +420,33 @@ def get_facts(deployment_details: DeploymentDetails) -> dict:  # noqa: C901
     facts = util.merge.deep_merge_in_place(facts, compiler_facts, merge_lists=True)
 
     return facts
+
+
+def get_facts_flatend(deploymet_details: DeploymentDetails) -> dict[str, Any]:
+    """
+    Flatten the nested dictionary into a flat dictionary.
+
+    NEW: TODO: This function is not used.  It is in incubtion to evaluate if it is needed.
+
+    Args:
+        facts (dict): The nested dictionary
+
+    Returns:
+        dict: The flat dictionary
+    """
+    flat_facts: dict[str, Any] = {}
+
+    def flatten(d: dict, parent_key: str = ""):
+        for k, v in d.items():
+            new_key = f"{parent_key}.{k}" if parent_key else k
+            if isinstance(v, dict):
+                flatten(v, new_key)
+            elif isinstance(v, list):
+                for i, item in enumerate(v):
+                    flatten(item, f"{new_key}.{i}")
+            else:
+                flat_facts[new_key] = v
+
+    flatten(get_facts(deploymet_details))
+
+    return flat_facts

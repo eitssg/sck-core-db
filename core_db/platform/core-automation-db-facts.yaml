@@ -1,7 +1,7 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: AWS::DynamoDB::Table - core-automation-api-app - resources
 Parameters:
-  ScopePrefix:
+  Scope:
     Type: String
     Default: ''
     AllowedPattern: '^([a-z]+-)*$'
@@ -57,13 +57,13 @@ Resources:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName:
-        Fn::Sub: "/aws/lambda/${ScopePrefix}core-automation-change-clients-lambda"
+        Fn::Sub: "/aws/lambda/${Scope}core-automation-change-clients-lambda"
       RetentionInDays: 1
       Tags:
         - Key: Name
-          Value: !Sub "${ScopePrefix}core-automation-change-events-clients-lambda"
+          Value: !Sub "${Scope}core-automation-change-events-clients-lambda"
         - Key: Scope
-          Value: !Ref ScopePrefix
+          Value: !Ref Scope
         - Key: Client
           Value: !Ref Client
         - Key: Environment
@@ -81,13 +81,13 @@ Resources:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName:
-        Fn::Sub: "/aws/lambda/${ScopePrefix}core-automation-change-portfolios-lambda"
+        Fn::Sub: "/aws/lambda/${Scope}core-automation-change-portfolios-lambda"
       RetentionInDays: 1
       Tags:
         - Key: Name
-          Value: !Sub "${ScopePrefix}core-automation-change-events-portfolios-lambda"
+          Value: !Sub "${Scope}core-automation-change-events-portfolios-lambda"
         - Key: Scope
-          Value: !Ref ScopePrefix
+          Value: !Ref Scope
         - Key: Client
           Value: !Ref Client
         - Key: Environment
@@ -104,13 +104,13 @@ Resources:
   ChangeAppsLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub "/aws/lambda/${ScopePrefix}core-automation-change-apps-lambda"
+      LogGroupName: !Sub "/aws/lambda/${Scope}core-automation-change-apps-lambda"
       RetentionInDays: 1
       Tags:
         - Key: Name
-          Value: !Sub "${ScopePrefix}core-automation-change-events-apps-lambda"
+          Value: !Sub "${Scope}core-automation-change-events-apps-lambda"
         - Key: Scope
-          Value: !Ref ScopePrefix
+          Value: !Ref Scope
         - Key: Client
           Value: !Ref Client
         - Key: Environment
@@ -128,13 +128,13 @@ Resources:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName:
-        Fn::Sub: "/aws/lambda/${ScopePrefix}core-automation-change-zones-lambda"
+        Fn::Sub: "/aws/lambda/${Scope}core-automation-change-zones-lambda"
       RetentionInDays: 1
       Tags:
         - Key: Name
-          Value: !Sub "${ScopePrefix}core-automation-change-events-zones-lambda"
+          Value: !Sub "${Scope}core-automation-change-events-zones-lambda"
         - Key: Scope
-          Value: !Ref ScopePrefix
+          Value: !Ref Scope
         - Key: Client
           Value: !Ref Client
         - Key: Environment
@@ -157,7 +157,7 @@ Resources:
       - ChangeZonesLogGroup
     Properties:
       RoleName:
-        Fn::Sub: "${ScopePrefix}CoreAutomationFactsLambdaExecutionRole"
+        Fn::Sub: "${Scope}CoreAutomationFactsLambdaExecutionRole"
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -210,16 +210,16 @@ Resources:
                   - logs:CreateLogStream
                   - logs:PutLogEvents
                 Resource:
-                  - Fn::Sub: 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${ScopePrefix}core-automation-change-clients-lambda:*'
-                  - Fn::Sub: 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${ScopePrefix}core-automation-change-portfolios-lambda:*'
-                  - Fn::Sub: 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${ScopePrefix}core-automation-change-aps-lambda:*'
-                  - Fn::Sub: 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${ScopePrefix}core-automation-change-zones-lambda:*'
+                  - Fn::Sub: 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${Scope}core-automation-change-clients-lambda:*'
+                  - Fn::Sub: 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${Scope}core-automation-change-portfolios-lambda:*'
+                  - Fn::Sub: 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${Scope}core-automation-change-aps-lambda:*'
+                  - Fn::Sub: 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${Scope}core-automation-change-zones-lambda:*'
       Path: /
       Tags:
         - Key: Name
-          Value: !Sub "${ScopePrefix}CoreAutomationFactsLambdaExecutionRole"
+          Value: !Sub "${Scope}CoreAutomationFactsLambdaExecutionRole"
         - Key: Scope
-          Value: !Ref ScopePrefix
+          Value: !Ref Scope
         - Key: Client
           Value: !Ref Client
         - Key: Environment
@@ -239,7 +239,7 @@ Resources:
       - LambdaExecutionRole
       - ChangeClientsLogGroup
     Properties:
-      FunctionName: !Sub "${ScopePrefix}core-automation-change-clients-lambda"
+      FunctionName: !Sub "${Scope}core-automation-change-clients-lambda"
       Handler: index.handler
       Role:
         Fn::GetAtt:
@@ -308,12 +308,12 @@ Resources:
             Ref: PortfoliosTableName
           LOG_LEVEL: INFO
       LoggingConfig:
-        LogGroup: !Sub "/aws/lambda/${ScopePrefix}core-automation-change-clients-lambda"
+        LogGroup: !Sub "/aws/lambda/${Scope}core-automation-change-clients-lambda"
       Tags:
         - Key: Name
-          Value: !Sub "${ScopePrefix}core-automation-change-clients-lambda"
+          Value: !Sub "${Scope}core-automation-change-clients-lambda"
         - Key: Scope
-          Value: !Ref ScopePrefix
+          Value: !Ref Scope
         - Key: Client
           Value: !Ref Client
         - Key: Environment
@@ -333,7 +333,7 @@ Resources:
       - LambdaExecutionRole
       - ChangePortfoliosLogGroup
     Properties:
-      FunctionName: !Sub "${ScopePrefix}core-automation-change-portfolios-lambda"
+      FunctionName: !Sub "${Scope}core-automation-change-portfolios-lambda"
       Handler: index.handler
       Role:
         Fn::GetAtt:
@@ -424,12 +424,12 @@ Resources:
             Ref: ZonesTableName
           LOG_LEVEL: INFO
       LoggingConfig:
-        LogGroup: !Sub "/aws/lambda/${ScopePrefix}core-automation-change-portfolios-lambda"
+        LogGroup: !Sub "/aws/lambda/${Scope}core-automation-change-portfolios-lambda"
       Tags:
         - Key: Name
-          Value: !Sub "${ScopePrefix}core-automation-change-portfolios-lambda"
+          Value: !Sub "${Scope}core-automation-change-portfolios-lambda"
         - Key: Scope
-          Value: !Ref ScopePrefix
+          Value: !Ref Scope
         - Key: Client
           Value: !Ref Client
         - Key: Environment
@@ -449,7 +449,7 @@ Resources:
       - LambdaExecutionRole
       - ChangeAppsLogGroup
     Properties:
-      FunctionName: !Sub "${ScopePrefix}core-automation-change-apps-lambda"
+      FunctionName: !Sub "${Scope}core-automation-change-apps-lambda"
       Handler: index.handler
       Role:
         Fn::GetAtt:
@@ -499,12 +499,12 @@ Resources:
             Ref: AppsTableName
           LOG_LEVEL: INFO
       LoggingConfig:
-        LogGroup: !Sub "/aws/lambda/${ScopePrefix}core-automation-change-apps-lambda"
+        LogGroup: !Sub "/aws/lambda/${Scope}core-automation-change-apps-lambda"
       Tags:
         - Key: Name
-          Value: !Sub "${ScopePrefix}core-automation-change-apps-lambda"
+          Value: !Sub "${Scope}core-automation-change-apps-lambda"
         - Key: Scope
-          Value: !Ref ScopePrefix
+          Value: !Ref Scope
         - Key: Client
           Value: !Ref Client
         - Key: Environment
@@ -524,7 +524,7 @@ Resources:
       - LambdaExecutionRole
       - ChangeZonesLogGroup
     Properties:
-      FunctionName: !Sub "${ScopePrefix}core-automation-change-zones-lambda"
+      FunctionName: !Sub "${Scope}core-automation-change-zones-lambda"
       Handler: index.handler
       Role:
         Fn::GetAtt:
@@ -574,12 +574,12 @@ Resources:
             Ref: ZonesTableName
           LOG_LEVEL: INFO
       LoggingConfig:
-        LogGroup: !Sub "/aws/lambda/${ScopePrefix}core-automation-change-zones-lambda"
+        LogGroup: !Sub "/aws/lambda/${Scope}core-automation-change-zones-lambda"
       Tags:
         - Key: Name
-          Value: !Sub "${ScopePrefix}core-automation-change-zones-lambda"
+          Value: !Sub "${Scope}core-automation-change-zones-lambda"
         - Key: Scope
-          Value: !Ref ScopePrefix
+          Value: !Ref Scope
         - Key: Client
           Value: !Ref Client
         - Key: Environment
@@ -668,7 +668,7 @@ Resources:
         - Key: Name
           Value: !Ref ClientsTableName
         - Key: Scope
-          Value: !Ref ScopePrefix
+          Value: !Ref Scope
         - Key: Client
           Value: !Ref Client
         - Key: Environment
@@ -705,7 +705,7 @@ Resources:
         - Key: Name
           Value: !Ref PortfoliosTableName
         - Key: Scope
-          Value: !Ref ScopePrefix
+          Value: !Ref Scope
         - Key: Client
           Value: !Ref Client
         - Key: Environment
@@ -742,7 +742,7 @@ Resources:
         - Key: Name
           Value: !Ref ZonesTableName
         - Key: Scope
-          Value: !Ref ScopePrefix
+          Value: !Ref Scope
         - Key: Client
           Value: !Ref Client
         - Key: Environment
@@ -779,7 +779,7 @@ Resources:
         - Key: Name
           Value: !Ref AppsTableName
         - Key: Scope
-          Value: !Ref ScopePrefix
+          Value: !Ref Scope
         - Key: Client
           Value: !Ref Client
         - Key: Environment
@@ -800,13 +800,13 @@ Outputs:
         - ClientsTable
         - Arn
     Export:
-      Name: !Sub "${ScopePrefix}CoreAutomationClientsTableArn"
+      Name: !Sub "${Scope}CoreAutomationClientsTableArn"
 
   ClientsTableName:
     Value:
       Ref: ClientsTableName
     Export:
-      Name: !Sub "${ScopePrefix}CoreAutomationClientsTableName"
+      Name: !Sub "${Scope}CoreAutomationClientsTableName"
 
   PortfoliosTableArn:
     Value:
@@ -814,13 +814,13 @@ Outputs:
         - PortfoliosTable
         - Arn
     Export:
-      Name: !Sub "${ScopePrefix}CoreAutomationPortfoliosTableArn"
+      Name: !Sub "${Scope}CoreAutomationPortfoliosTableArn"
 
   PortfoliosTableName:
     Value:
       Ref: PortfoliosTableName
     Export:
-      Name: !Sub "${ScopePrefix}CoreAutomationPortfoliosTableName"
+      Name: !Sub "${Scope}CoreAutomationPortfoliosTableName"
 
   ZonesTableArn:
     Value:
@@ -828,13 +828,13 @@ Outputs:
         - ZonesTable
         - Arn
     Export:
-      Name: !Sub "${ScopePrefix}CoreAutomationZonesTableArn"
+      Name: !Sub "${Scope}CoreAutomationZonesTableArn"
 
   ZonesTableName:
     Value:
       Ref: ZonesTableName
     Export:
-      Name: !Sub "${ScopePrefix}CoreAutomationZonesTableName"
+      Name: !Sub "${Scope}CoreAutomationZonesTableName"
 
   AppsTableArn:
     Value:
@@ -842,10 +842,10 @@ Outputs:
         - AppsTable
         - Arn
     Export:
-      Name: !Sub "${ScopePrefix}CoreAutomationAppsTableArn"
+      Name: !Sub "${Scope}CoreAutomationAppsTableArn"
 
   AppsTableName:
     Value:
       Ref: AppsTableName
     Export:
-      Name: !Sub "${ScopePrefix}CoreAutomationAppsTableName"
+      Name: !Sub "${Scope}CoreAutomationAppsTableName"

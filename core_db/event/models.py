@@ -37,7 +37,7 @@ class EventModel(Model):
 
     class Meta:
         table_name = get_table_name(EVENTS)
-        region = util.get_region()
+        region = util.get_dynamodb_region()
         host = util.get_dynamodb_host()
         read_capacity_units = 1
         write_capacity_units = 1
@@ -56,6 +56,9 @@ class EventModel(Model):
     """str: The status name.  Two possible values "ok" or "error" """
     message = UnicodeAttribute(null=True)
     """str: Event message details """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
     def __repr__(self):
         return f"<Event(prn={self.prn},timestamp={self.timestamp},item_type={self.item_type},status={self.status},message={self.message})>"

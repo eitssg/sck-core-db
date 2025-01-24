@@ -198,15 +198,10 @@ class ZoneFacts(RegistryModel):
 
     class Meta:
         table_name = get_table_name(ZONE_FACTS)
-        """str: The table name for the ZoneFacts"""
-        region = util.get_region()
-        """str: The region for the ZoneFacts"""
+        region = util.get_dynamodb_region()
         host = util.get_dynamodb_host()
-        """str: The host for the ZoneFacts"""
         read_capacity_units = 1
-        """int: The read capacity units for the ZoneFacts"""
         write_capacity_units = 1
-        """int: The write capacity units for the ZoneFacts"""
 
     Client = UnicodeAttribute(attr_name=CLIENT_KEY, hash_key=True)
     """str: The client portfolio name"""
@@ -223,6 +218,12 @@ class ZoneFacts(RegistryModel):
     Tags: MapAttribute = MapAttribute(of=UnicodeAttribute, null=True)
 
     UserInstantiated = UnicodeAttribute(null=True)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def __repr__(self):
+        return f"ZoneFacts(Client={self.Client}, Zone={self.Zone})"
 
     def get_attribute_class(self, key: str):
         attribute = self.get_attributes().get(key)

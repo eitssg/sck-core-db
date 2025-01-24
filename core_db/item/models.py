@@ -56,17 +56,9 @@ class ItemModel(Model):
     """
 
     class Meta:
-        """
-        The metadata is used to configure the table for the ItemModel
-        Item Model maintains the table documenting all deployments from
-        portfolios through components segments.
-        """
-
-        table_name = get_table_name(ITEMS)  # e.g. "core-automation-items"
-        region = util.get_dynamodb_region()  # e.g. "us-east-1"
-        host = (
-            util.get_dynamodb_host()
-        )  # e.g. "https://dynamodb.us-east-1.amazonaws.com"
+        table_name = get_table_name(ITEMS)
+        region = util.get_dynamodb_region()
+        host = util.get_dynamodb_host()
         read_capacity_units = 1
         write_capacity_units = 1
 

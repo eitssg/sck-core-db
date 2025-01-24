@@ -36,7 +36,7 @@ class AppFacts(RegistryModel):
 
     class Meta:
         table_name = get_table_name(APP_FACTS)
-        region = util.get_region()
+        region = util.get_dynamodb_region()
         host = util.get_dynamodb_host()
         read_capacity_units = 1
         write_capacity_units = 1
@@ -84,3 +84,9 @@ class AppFacts(RegistryModel):
 
     UserInstantiated: UnicodeAttribute = UnicodeAttribute(null=True)
     """str: User instantiated the Model (override __init__) """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def __repr__(self):
+        return f"AppFacts({self.ClientPortfolio}, {self.AppRegex})"

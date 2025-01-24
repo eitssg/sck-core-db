@@ -5,7 +5,7 @@
     stack_name: {{ scope }}core-automation-api-facts-{{ branch }}
     template: core-automation-api-facts.yaml
     parameters:
-      ScopePrefix: {{ scope }}
+      Scope: {{ scope }}
       ClientsTableName: {{ scope }}core-automation-clients
       PortfoliosTableName: {{ scope }}core-automation-portfolios
       AppsTableName: {{ scope }}core-automation-apps
@@ -25,7 +25,7 @@
     stack_name: core-automation-api-items-{{ branch }}
     template: core-automation-api-items.yaml
     parameters:
-      ScopePrefix: {{ scope }}
+      Scope: {{ scope }}
       ItemTableName: {{ scope }}{{ client }}-core-automation-items
       EventTableName: {{ scope }}{{ client }}-core-automation-events
       Client: {{ client }}
@@ -43,7 +43,7 @@
     stack_name: {{ scope }}core-automation-api-roles-{{ branch }}
     template: core-automation-api-roles.yaml
     parameters:
-      ScopePrefix: {{ scope }}
+      Scope: {{ scope }}
       ClientsTableName: {{ scope }}core-automation-clients
       PortfoliosTableName: {{ scope }}core-automation-portfolios
       AppsTableName: {{ scope }}core-automation-apps
