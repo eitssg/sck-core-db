@@ -22,6 +22,8 @@ class ClientFacts(RegistryModel):
     # Hash/Range keys
     Client = UnicodeAttribute(hash_key=True)
     """str: Client ID or slug as the unique identifier for the client organization. Example: "myorg" """
+    ClientName = UnicodeAttribute(null=True)
+    """str: Client name. Example: "My Organization" """
     # Attributes
     OrganizationId = UnicodeAttribute(null=True)
     """str: Organization ID for the organization. Example: "o-t73gu32ai5" """
@@ -37,7 +39,7 @@ class ClientFacts(RegistryModel):
     """str: Audit account number for the audit account where Centralized Logging takes place. Example: "123456789012" """
     MasterRegion = UnicodeAttribute(null=True)
     """str: Master region where the master account resides and is where Core-Auotmation is deployed. Example: "us-west-2" """
-    DocsBucket = UnicodeAttribute(null=True)
+    DocsBucketName = UnicodeAttribute(null=True)
     """str: Documentation bucket where the documentation is stored. Example: "myorg-core-automation-docs" """
     ClientRegion = UnicodeAttribute(null=True)
     """str: Client region for use when other region values are blank. Example: "us-west-2" """
@@ -53,6 +55,8 @@ class ClientFacts(RegistryModel):
     """str: Security account number for the security account where your centralized SOC will operate. Example: "123456789012" """
     NetworkAccount = UnicodeAttribute(null=True)
     """str: Network account number for the network account where your centralized VPCs, domain services, and endpoints will operate. Example: "123456789012" """
+    UiBucketName = UnicodeAttribute(null=True)
+    """str: UI bucket where the UI website is stored. Example: "myorg-core-automation-ui" """
     Scope = UnicodeAttribute(null=True)
     """str: Scope Prefix as a profix for all resources created for the client. Example: "testing-"
 
