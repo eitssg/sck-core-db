@@ -1,4 +1,4 @@
-""" Defines the data model and attributes stored in DynamoDB using the pynamdb interface """
+"""Defines the data model and attributes stored in DynamoDB using the pynamdb interface"""
 
 from typing import Union
 

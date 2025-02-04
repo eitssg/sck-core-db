@@ -1,4 +1,4 @@
-""" This module provides the field extensions for Items.App in the core-automation-items table """
+"""This module provides the field extensions for Items.App in the core-automation-items table"""
 
 from pynamodb.attributes import UnicodeAttribute
 

@@ -1,4 +1,4 @@
-""" Defines the RegistryAction Interface for all tables marked as Registry """
+"""Defines the RegistryAction Interface for all tables marked as Registry"""
 
 from ..actions import TableActions
 

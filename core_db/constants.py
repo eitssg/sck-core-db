@@ -1,4 +1,4 @@
-""" Constants for filed names and keys for the Core-DB databae tables"""
+"""Constants for filed names and keys for the Core-DB databae tables"""
 
 # Facts Fields / And Table Types for the Registry
 CLIENT_FACTS = "ClientFacts"

@@ -1,4 +1,4 @@
-""" A set of helper functions that write and update item records status values in the DB
+"""A set of helper functions that write and update item records status values in the DB
 
 THe class also provides a mapping of names to classes to allow for the development of
 a single interface to the DB for all the different types of items that can be stored in the DB.

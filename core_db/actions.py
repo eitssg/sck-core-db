@@ -1,4 +1,4 @@
-""" All table Actions share a CRUD interface and this Model class defines the functions for Create, Read, Update, Delete functions. """
+"""All table Actions share a CRUD interface and this Model class defines the functions for Create, Read, Update, Delete functions."""
 
 from .response import Response
 from .exceptions import NotFoundException

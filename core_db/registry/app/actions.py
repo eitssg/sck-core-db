@@ -1,4 +1,4 @@
-""" Actions for the Registry.Apps database: list, get, create, update, delete """
+"""Actions for the Registry.Apps database: list, get, create, update, delete"""
 
 from pynamodb.expressions.update import Action
 from pynamodb.exceptions import DeleteError, PutError

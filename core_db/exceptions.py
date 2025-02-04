@@ -1,4 +1,4 @@
-""" Provides a set of Exceptions that the DB engine uses to provide feedback of operations """
+"""Provides a set of Exceptions that the DB engine uses to provide feedback of operations"""
 
 from core_framework.constants import (
     HTTP_INTERNAL_SERVER_ERROR,

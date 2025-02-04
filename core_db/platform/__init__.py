@@ -1,4 +1,4 @@
-"""Module to hold the distribution files for the core-automation database """
+"""Module to hold the distribution files for the core-automation database"""
 
 templates = [
     "core-automation-api-facts.yaml",

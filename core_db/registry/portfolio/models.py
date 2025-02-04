@@ -1,4 +1,4 @@
-""" Definiton of the Portfolio Facts in the core-automation-portfolios table """
+"""Definiton of the Portfolio Facts in the core-automation-portfolios table"""
 
 from pynamodb.attributes import (
     UnicodeAttribute,

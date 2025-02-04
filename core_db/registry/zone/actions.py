@@ -1,4 +1,4 @@
-""" Actions for the Registry.Zones database: list, get, create, update, delete """
+"""Actions for the Registry.Zones database: list, get, create, update, delete"""
 
 from pynamodb.exceptions import DeleteError, PutError
 

@@ -1,4 +1,4 @@
-""" The Registry maintains FACTS for clients, portfolios, zones, and apps"""
+"""The Registry maintains FACTS for clients, portfolios, zones, and apps"""
 
 from .client.actions import ClientActions
 from .client.models import ClientFacts

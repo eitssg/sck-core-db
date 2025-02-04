@@ -1,4 +1,4 @@
-""" Actions for the Registry.Portfolios database: list, get, create, update, delete """
+"""Actions for the Registry.Portfolios database: list, get, create, update, delete"""
 
 from pynamodb.expressions.update import Action
 from pynamodb.exceptions import DeleteError, PutError, AttributeNullError

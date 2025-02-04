@@ -1,4 +1,4 @@
-""" The Facter module contains the function and classes to create a VIEW on the Registry.
+"""The Facter module contains the function and classes to create a VIEW on the Registry.
 
 Combines data from tables:
 

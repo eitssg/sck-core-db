@@ -1,4 +1,4 @@
-""" This module contains the actions list, get, create, delete, update for the Items.Component object in core-automation-items """
+"""This module contains the actions list, get, create, delete, update for the Items.Component object in core-automation-items"""
 
 import core_framework as util
 

@@ -1,4 +1,4 @@
-""" Defines the generic model for items stored in the core-automation-items table.
+"""Defines the generic model for items stored in the core-automation-items table.
 
 This will be subclassed by portfolio, app, branch, build, component modesl to implmeent their
 specific field extentions.

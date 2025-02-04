@@ -1,4 +1,4 @@
-""" Defines a common regsitry class model for all Registry items """
+"""Defines a common regsitry class model for all Registry items"""
 
 import re
 from pynamodb.models import Model

@@ -1,4 +1,4 @@
-""" Classes defining the Apps record model for the core-automation-apps table """
+"""Classes defining the Apps record model for the core-automation-apps table"""
 
 from pynamodb.attributes import MapAttribute, UnicodeAttribute
 
