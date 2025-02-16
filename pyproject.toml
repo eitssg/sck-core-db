@@ -24,6 +24,7 @@ pydantic = "^2.10.3"
 [tool.poetry.dependencies.sck-core-framework]
 path = "../sck-core-framework"
 develop = true
+
 [tool.poetry.group.dev.dependencies]
 boto3-stubs = ">=1.35.93"
 black = "^24.10.0"

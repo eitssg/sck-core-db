@@ -145,11 +145,17 @@ def _build_error_chain(exc: Exception) -> list[ErrorDetail]:
 class ErrorResponse(Response):
     """Convenience class for error responses"""
 
-    def __init__(self, e: Exception, additional_data: dict | None = None):
+    def __init__(self, e: Exception, *, code: int | None = None, message: str | None = None, additional_data: dict | None = None):
+
+        if not message:
+            message = str(e)
+        if not code:
+            code = HTTP_INTERNAL_SERVER_ERROR
+
         super().__init__(
             status="error",
-            code=int(e.code) if hasattr(e, "code") else HTTP_INTERNAL_SERVER_ERROR,
-            data={"message": str(e)},
+            code=int(e.code) if hasattr(e, "code") else code,
+            data={"message": message},
             links=None,
             metadata=additional_data,
             errors=_build_error_chain(e),

@@ -38,3 +38,33 @@ def get_table_name(name: str, default: Optional[str] = None) -> str:
         raise ValueError(f"Table name not found for {name}")
 
     return table
+
+
+def get_clients_table_name() -> str:
+    """Get the name of the client table"""
+    return get_table_name(CLIENT_FACTS)
+
+
+def get_apps_table_name() -> str:
+    """Get the name of the app table"""
+    return get_table_name(APP_FACTS)
+
+
+def get_zones_table_name() -> str:
+    """Get the name of the zone table"""
+    return get_table_name(ZONE_FACTS)
+
+
+def get_portfolios_table_name() -> str:
+    """Get the name of the portfolio table"""
+    return get_table_name(PORTFOLIO_FACTS)
+
+
+def get_items_table_name() -> str:
+    """Get the name of the item table"""
+    return get_table_name(ITEMS)
+
+
+def get_events_table_name() -> str:
+    """Get the name of the event table"""
+    return get_table_name(EVENTS)

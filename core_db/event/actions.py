@@ -10,6 +10,8 @@ from pynamodb.exceptions import DeleteError, PutError
 
 import core_logging as log
 import core_framework as util
+import core_helper.aws as aws
+from core_framework.constants import HTTP_OK
 
 from ..actions import TableActions
 
@@ -25,11 +27,17 @@ from ..constants import (
 )
 from ..item.actions import ASCENDING
 
-from ..exceptions import BadRequestException, ConflictException, UnknownException
-
+from ..exceptions import (
+    BadRequestException,
+    ConflictException,
+    UnknownException,
+    NotFoundException,
+)
+from ..config import get_table_name
+from ..constants import EVENTS
 from ..response import Response, SuccessResponse
 
-from .models import EventModel
+from .models import EventModel, EventModelSchema
 
 from core_framework.constants import (
     SCOPE_PORTFOLIO,
@@ -85,11 +93,11 @@ class EventActions(TableActions):
 
             event.save()
         except ValueError as e:
-            raise BadRequestException(f"Invalid Event Data- {str(e)}")
+            raise BadRequestException(f"Invalid Event Data- {str(e)}") from e
         except PutError as e:
-            raise ConflictException(f"Creation failed - {str(e)}")
+            raise ConflictException(f"Creation failed - {str(e)}") from e
         except Exception as e:
-            raise UnknownException(f"Creation failed - {str(e)}")
+            raise UnknownException(f"Creation failed - {str(e)}") from e
 
         # Return the new event
         return SuccessResponse(event.attribute_values)
@@ -103,7 +111,7 @@ class EventActions(TableActions):
             event = EventModel(prn)
             event.delete()
         except DeleteError as e:
-            raise BadRequestException(f"Failed to delete - {str(e)}")
+            raise BadRequestException(f"Failed to delete - {str(e)}") from e
 
         return SuccessResponse(f"Event deleted: {prn}")
 
@@ -177,3 +185,191 @@ class EventActions(TableActions):
             events,
             additional_data=dict(kwargs),
         )
+
+
+class EventService(TableActions):
+    """
+    Service class implementing the TableActions interface for CRUD operations on the Event table.
+    All methods accept keyword arguments corresponding to the EventModelSchema fields.
+    """
+
+    def __init__(self):
+        # Get the DynamoDB resource and table name from utility methods.
+        region_name = util.get_dynamodb_region()
+        self.dynamodb = aws.dynamodb_resource(region_name=region_name)
+        self.table = self.dynamodb.Table(get_table_name(EVENTS))
+
+    @classmethod
+    def create(cls, **kwargs) -> Response:
+        """
+        Creates a new event record in DynamoDB.
+        Expects all event fields as keyword arguments.
+        """
+        try:
+            instance = cls()
+
+            # Validate input against the Pydantic schema.
+            event = EventModelSchema(**kwargs)
+            item = event.model_dump()
+
+            # Convert datetime to ISO string before storing.
+            if isinstance(item.get("timestamp"), datetime):
+                item["timestamp"] = item["timestamp"].isoformat()
+            instance.table.put_item(Item=item)
+
+            return SuccessResponse(data=item)
+
+        except Exception as e:
+            raise BadRequestException(str(e))
+
+    @classmethod
+    def get(cls, **kwargs) -> Response:
+        """
+        Retrieves an event by its primary key.
+        Expects at least 'prn' and 'timestamp' as keyword arguments.
+        """
+        try:
+            prn = kwargs.get("prn")
+            timestamp = kwargs.get("timestamp")
+            if not prn or not timestamp:
+                raise ValueError(
+                    "Both 'prn' and 'timestamp' are required to get an item."
+                )
+            if isinstance(timestamp, datetime):
+                timestamp = timestamp.isoformat()
+            instance = cls()
+            key = {"prn": prn, "timestamp": timestamp}
+            response = instance.table.get_item(Key=key)
+            item = response.get("Item")
+            if not item:
+                raise NotFoundException("Item not found")
+
+            # Convert the timestamp string back to a datetime object.
+            item["timestamp"] = datetime.fromisoformat(item["timestamp"])
+
+            return SuccessResponse(data=item)
+
+        except Exception as e:
+            raise UnknownException(str(e)) from e
+
+    @classmethod
+    def update(cls, **kwargs) -> Response:
+        """
+        Updates specified attributes of an event.
+        Expects 'prn' and 'timestamp' to identify the record.
+        Other provided keyword arguments specify the fields to update.
+        """
+        try:
+            prn = kwargs.get("prn")
+            timestamp = kwargs.get("timestamp")
+            if not prn or not timestamp:
+                raise ValueError(
+                    "Both 'prn' and 'timestamp' are required to update an item."
+                )
+            # Remove primary key fields from update parameters.
+            update_data = kwargs.copy()
+            update_data.pop("prn", None)
+            update_data.pop("timestamp", None)
+            if not update_data:
+                raise ValueError("No update fields provided.")
+            update_expression = "SET " + ", ".join(f"#{k} = :{k}" for k in update_data)
+            expression_attribute_names = {f"#{k}": k for k in update_data}
+            expression_attribute_values = {
+                f":{k}": v.isoformat() if isinstance(v, datetime) else v
+                for k, v in update_data.items()
+            }
+            if isinstance(timestamp, datetime):
+                timestamp = timestamp.isoformat()
+            instance = cls()
+            key = {"prn": prn, "timestamp": timestamp}
+            instance.table.update_item(
+                Key=key,
+                UpdateExpression=update_expression,
+                ExpressionAttributeNames=expression_attribute_names,
+                ExpressionAttributeValues=expression_attribute_values,
+            )
+
+            return SuccessResponse(data=kwargs)
+
+        except Exception as e:
+            raise BadRequestException(str(e)) from e
+
+    @classmethod
+    def delete(cls, **kwargs) -> Response:
+        """
+        Deletes an event from the DynamoDB table.
+        Expects 'prn' and 'timestamp' as keyword arguments.
+        """
+        try:
+            prn = kwargs.get("prn")
+            timestamp = kwargs.get("timestamp")
+            if not prn or not timestamp:
+                raise ValueError(
+                    "Both 'prn' and 'timestamp' are required to delete an item."
+                )
+            if isinstance(timestamp, datetime):
+                timestamp = timestamp.isoformat()
+
+            instance = cls()
+
+            key = {"prn": prn, "timestamp": timestamp}
+            instance.table.delete_item(Key=key)
+
+            return SuccessResponse(data={"prn": prn, "timestamp": timestamp})
+
+        except Exception as e:
+            raise UnknownException(str(e)) from e
+
+    @classmethod
+    def patch(cls, **kwargs) -> Response:
+        """
+        Partially updates an event record.
+        This method fetches the existing record, updates the specified fields, and saves it back.
+        Expects 'prn' and 'timestamp' to identify the record.
+        """
+        try:
+            # Retrieve the existing record.
+            get_response = cls.get(**kwargs)
+
+            if isinstance(get_response.data, dict):
+                current_data = get_response.data
+            else:
+                current_data = {}
+
+            # Merge the update fields with the current record.
+            update_fields = kwargs.copy()
+            update_fields.pop("prn", None)
+            update_fields.pop("timestamp", None)
+            updated_data = {**current_data, **update_fields}
+
+            # Use the update method to update the record.
+            cls.update(**updated_data)
+
+            return cls.get(**kwargs)
+
+        except Exception as e:
+
+            raise UnknownException(str(e)) from e
+
+    @classmethod
+    def list(cls, **kwargs) -> Response:
+        """
+        Lists all events in the table.
+        This implementation performs a full table scan.
+        """
+        try:
+            instance = cls()
+
+            response = instance.table.scan()
+            items = response.get("Items", [])
+
+            result = []
+            for item in items:
+                if "timestamp" in item:
+                    item["timestamp"] = datetime.fromisoformat(item["timestamp"])
+                result.append(EventModelSchema(**item))
+
+            return SuccessResponse(data=result)
+
+        except Exception as e:
+            return ErrorResponse(e)

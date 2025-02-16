@@ -35,6 +35,8 @@ class ClientFacts(RegistryModel):
     """str: Organization email address for the organization (Root Account). Example: aws+1@gmail.com """
     Domain = UnicodeAttribute(null=True)
     """str: Domain name for the organization. Example: "myorg.com" """
+    IamAccount = UnicodeAttribute(null=True)
+    """str: IAM account number for the IAM account where the IAM roles are stored. Example: "123456789012" """
     AuditAccount = UnicodeAttribute(null=True)
     """str: Audit account number for the audit account where Centralized Logging takes place. Example: "123456789012" """
     MasterRegion = UnicodeAttribute(null=True)
