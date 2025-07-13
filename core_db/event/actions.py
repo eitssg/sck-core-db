@@ -11,7 +11,6 @@ from pynamodb.exceptions import DeleteError, PutError
 import core_logging as log
 import core_framework as util
 import core_helper.aws as aws
-from core_framework.constants import HTTP_OK
 
 from ..actions import TableActions
 
@@ -372,4 +371,5 @@ class EventService(TableActions):
             return SuccessResponse(data=result)
 
         except Exception as e:
-            return ErrorResponse(e)
+
+            raise UnknownException(str(e)) from e

@@ -14,6 +14,9 @@ import core_framework as util
 
 from core_framework.time_utils import make_default_time
 
+from ..config import get_table_name
+from ..constants import EVENTS
+
 
 def convert_level_name(value: Union[int, str]) -> str:
     """
@@ -73,7 +76,8 @@ class EventModelSchema(BaseModel):
         ..., description="Pipeline Reference Number (PRN) of the event (a.k.a identity)"
     )
     timestamp: datetime = Field(
-        description="Timestamp of the event. Let the system auto-generate", default_factory=datetime.now
+        description="Timestamp of the event. Let the system auto-generate",
+        default_factory=datetime.now,
     )
     event_type: str = Field(
         description="Type of event (e.g., 'INFO', 'ERROR', 'STATUS')", default="STATUS"
@@ -92,4 +96,3 @@ class EventModelSchema(BaseModel):
 
     def __repr__(self):
         return f"<Event(prn={self.prn},timestamp={self.timestamp},item_type={self.item_type},status={self.status},message={self.message})>"
-

@@ -145,7 +145,14 @@ def _build_error_chain(exc: Exception) -> list[ErrorDetail]:
 class ErrorResponse(Response):
     """Convenience class for error responses"""
 
-    def __init__(self, e: Exception, *, code: int | None = None, message: str | None = None, additional_data: dict | None = None):
+    def __init__(
+        self,
+        e: Exception,
+        *,
+        code: int | None = None,
+        message: str | None = None,
+        additional_data: dict | None = None,
+    ):
 
         if not message:
             message = str(e)
