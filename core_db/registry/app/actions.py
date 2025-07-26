@@ -1,7 +1,9 @@
 """Actions for the Registry.Apps database: list, get, create, update, delete"""
 
 from pynamodb.expressions.update import Action
-from pynamodb.exceptions import DeleteError, PutError
+from pynamodb.exceptions import DeleteError, PutError, AttributeNullError
+
+import core_logging as log
 
 from ...response import (
     Response,
@@ -23,142 +25,177 @@ from ...constants import (
 )
 
 from ..actions import RegistryAction
-from .models import AppFacts
+from .models import AppFacts, AppFactsFactory
 
 
 class AppActions(RegistryAction):
+    """Class container for App Item specific validations and actions"""
 
     @classmethod
-    def get_client_portfolio_app(
-        cls, kwargs: dict, default_regex: str | None = None
-    ) -> tuple[str, str]:
+    def _get_client_portfolio_app(cls, kwargs: dict, default_regex: str | None = None) -> tuple[str, str, str]:
         """
-        Get the client portfolio name from the input arguments.
+        Extract client, portfolio, and app regex from kwargs.
 
-        Mutates \\*\\*kwargs by removing the client-portfolio name and returning the client-portfolio name.
-        Do not \\*\\* kwargs else it wont mutate.
-
-        Args:
-            kwargs (Dict): Dictionary containing:
-                client-portfolio (str): The client portfolio name (optional)
-
-                or
-
-                client (str): The client name (optional)
-                portfolio (str): The portfolio name (optional)
-
-        Returns:
-            str: The client portfolio name in the format "<client name>:<portfolio name>"
-
-        Raises:
-            BadRequestException: If client-portfolio name is missing or cant be created from client and portfolio
+        :param kwargs: Dictionary containing client, portfolio and app information
+        :type kwargs: dict
+        :param default_regex: Default app regex value if not found in kwargs
+        :type default_regex: str, optional
+        :returns: Client name, portfolio name, and app regex
+        :rtype: tuple[str, str, str]
+        :raises BadRequestException: If required parameters are missing
         """
-        client_portfolio = kwargs.pop(
-            "client-portfolio", kwargs.pop(CLIENT_PORTFOLIO_KEY, None)
-        )
+        # First try to get client-portfolio as a single value
+        client_portfolio = kwargs.pop("client-portfolio", kwargs.pop(CLIENT_PORTFOLIO_KEY, None))
 
-        if not client_portfolio:
+        if client_portfolio:
+            # Split client-portfolio into client and portfolio
+            if ":" in client_portfolio:
+                client, portfolio = client_portfolio.split(":", 1)
+            else:
+                raise BadRequestException('Client-portfolio must be in format "client:portfolio"')
+        else:
+            # Try to get client and portfolio separately
             client = kwargs.pop("client", kwargs.pop(CLIENT_KEY, None))
             portfolio = kwargs.pop("portfolio", kwargs.pop(PORTFOLIO_KEY, None))
-            client_portfolio = f"{client}:{portfolio}" if client and portfolio else None
 
         app_regex = kwargs.pop("app-regex", kwargs.pop(APP_KEY, default_regex))
 
-        if not client_portfolio or not app_regex:
+        if not client or not portfolio or not app_regex:
+            log.error("Missing required parameters: client=%s, portfolio=%s, app_regex=%s", client, portfolio, app_regex)
             raise BadRequestException(
-                'Client portfolio name is required in content: { "client-portfolio": "<name>", ...}'
+                'Client, Portfolio, and App Regex are required in content: { "client": "<name>", "portfolio": "<name>", "app-regex": "<regex>", ...}'
             )
 
-        return client_portfolio, app_regex
+        log.debug("Extracted client=%s, portfolio=%s, app_regex=%s", client, portfolio, app_regex)
+        return client, portfolio, app_regex
+
+    @classmethod
+    def _get_model_class(cls, client: str) -> type[AppFacts]:
+        """
+        Get the client-specific model class.
+
+        :param client: The client name for table selection
+        :type client: str
+        :returns: Client-specific AppFacts model class
+        :rtype: type[AppFacts]
+        """
+        log.debug("Getting model class for client: %s", client)
+        return AppFactsFactory.get_model(client)
+
+    @classmethod
+    def _format_client_portfolio(cls, client: str, portfolio: str) -> str:
+        """
+        Format client and portfolio into client-portfolio key.
+
+        :param client: The client name
+        :type client: str
+        :param portfolio: The portfolio name
+        :type portfolio: str
+        :returns: Formatted client-portfolio string
+        :rtype: str
+        """
+        return f"{client}:{portfolio}"
 
     @classmethod
     def list(cls, **kwargs) -> Response:
         """
         Returns an array of application deployments patterns for the client-portfolio.
-        The array is a list of application regex patterns.
 
-        ```python
-        values: list[str] = ['a','b','c']
-        ```
-        To get the list, supply a single paramter with the cilent and portfolio concatenated with a colon (:).
-
-        Why this list?  Think about the "UI" and the REST api you will want to use and create a type-ahead list.
-        So, you only need to query this list of regex patterns to get the list of applications.
-
-        Select Client:      [ client name        v ]
-        Select Portfolio:   [ portfolio name     v ]
-        Select Application: [ application regex  v ]
-
-        Think about your UI.  use this API to get the list of applications.
-
-        Args:
-            **kwargs (Dict): The dictionary of input arguments.
-                [attribute_name] (str): See get_client_portfolio() for details
-
-        Returns:
-            List[str]: A list of application regex patterns
+        :param kwargs: Must contain 'client' and 'portfolio' parameters
+        :returns: Success response containing list of app regex patterns
+        :rtype: Response
+        :raises BadRequestException: If required parameters are missing
+        :raises UnknownException: If database query fails
         """
-        client_portfolio, _ = cls.get_client_portfolio_app(kwargs, default_regex="-")
+        log.info("Listing apps for client-portfolio")
+        client, portfolio, _ = cls._get_client_portfolio_app(kwargs, default_regex="-")
+        client_portfolio = cls._format_client_portfolio(client, portfolio)
 
         try:
-            items = AppFacts.query(
-                hash_key=client_portfolio, attributes_to_get=["AppRegex"]
-            )
-        except Exception as e:
-            raise UnknownException(f"Failed to get apps: {str(e)}")
-
-        try:
+            model_class = cls._get_model_class(client)
+            log.debug("Querying apps for client-portfolio: %s", client_portfolio)
+            items = model_class.query(hash_key=client_portfolio, attributes_to_get=[APP_KEY])
             result = [a.AppRegex for a in items]
+            log.info("Found %d apps for client-portfolio: %s", len(result), client_portfolio)
         except Exception as e:
-            raise UnknownException(f"Failed to get apps: {str(e)}")
+            # Handle DoesNotExist through the factory model
+            if "DoesNotExist" in str(type(e)):
+                log.warning("No apps found for client-portfolio: %s", client_portfolio)
+                result = []
+            else:
+                log.error("Failed to query apps for client-portfolio %s: %s", client_portfolio, str(e))
+                raise UnknownException(f"Failed to query apps - {str(e)}")
 
         return SuccessResponse(result)
 
     @classmethod
     def get(cls, **kwargs) -> Response:
         """
-        Handles the GET method.  If the item does not exist, a 404 will be returned.
+        Handles the GET method. If the item does not exist, a 404 will be returned.
 
-        Args:
-            client_portfolio (str): The client_portfolio name
-            app_regex (str): the deployment key regular expression
+        :param kwargs: Must contain 'client', 'portfolio', and 'app-regex' parameters
+        :returns: Success response with AppFacts data
+        :rtype: Response
+        :raises BadRequestException: If required parameters are missing
+        :raises NotFoundException: If app does not exist
+        :raises UnknownException: If database operation fails
         """
-        client_portfolio, app_regex = cls.get_client_portfolio_app(kwargs)
-
-        if not app_regex:
-            raise BadRequestException(
-                'App regex is required in content: { "app_regex": "<name>", ...}'
-            )
+        log.info("Getting app")
+        client, portfolio, app_regex = cls._get_client_portfolio_app(kwargs)
+        client_portfolio = cls._format_client_portfolio(client, portfolio)
 
         try:
-            item = AppFacts.get(hash_key=client_portfolio, range_key=app_regex)
-        except AppFacts.DoesNotExist:
-            raise NotFoundException(f"App [{client_portfolio}:{app_regex}] not found")
+            model_class = cls._get_model_class(client)
+            log.debug("Retrieving app: %s:%s", client_portfolio, app_regex)
+            item: AppFacts = model_class.get(client_portfolio, app_regex)
+            log.info("Successfully retrieved app: %s:%s", client_portfolio, app_regex)
+        except Exception as e:
+            if "DoesNotExist" in str(type(e)):
+                log.warning("App not found: %s:%s", client_portfolio, app_regex)
+                raise NotFoundException(f"App [{client_portfolio}:{app_regex}] not found")
+            else:
+                log.error("Failed to get app %s:%s: %s", client_portfolio, app_regex, str(e))
+                raise UnknownException(f"Failed to get app: {str(e)}")
 
         return SuccessResponse(item.to_simple_dict())
 
     @classmethod
     def delete(cls, **kwargs) -> Response:
         """
-        Handles the DELETE method.  If the item does not exist, it will be ignored.  No 404 will ever be returned
+        Handles the DELETE method. If the item does not exist, a 404 will be returned.
 
-        Args:
-            client_portfolio (str): The client_portfolio name
-            app_regex (str): the deployment key regular expression
+        :param kwargs: Must contain 'client', 'portfolio', and 'app-regex' parameters
+        :returns: Success response confirming deletion
+        :rtype: Response
+        :raises BadRequestException: If required parameters are missing
+        :raises NotFoundException: If app does not exist
+        :raises UnknownException: If database operation fails
         """
-        client_portfolio, app_regex = cls.get_client_portfolio_app(kwargs)
-
-        if not app_regex:
-            raise BadRequestException(
-                'App regex is required in content: { "app_regex": "<name>", ...}'
-            )
+        log.info("Deleting app")
+        client, portfolio, app_regex = cls._get_client_portfolio_app(kwargs)
+        client_portfolio = cls._format_client_portfolio(client, portfolio)
 
         try:
-            item = AppFacts(client_portfolio, app_regex)
+            model_class = cls._get_model_class(client)
+            log.debug("Retrieving app for deletion: %s:%s", client_portfolio, app_regex)
+            item: AppFacts = model_class.get(client_portfolio, app_regex)
+        except Exception as e:
+            if "DoesNotExist" in str(type(e)):
+                log.warning("App not found for deletion: %s:%s", client_portfolio, app_regex)
+                raise NotFoundException(f"App {client_portfolio}:{app_regex} does not exist")
+            else:
+                log.error("Failed to get app for deletion %s:%s: %s", client_portfolio, app_regex, str(e))
+                raise UnknownException(f"Failed to get app for deletion: {str(e)}")
+
+        try:
+            log.debug("Deleting app: %s:%s", client_portfolio, app_regex)
             item.delete()
-        except AppFacts.DoesNotExist:
-            return NoContentResponse(f"App [{client_portfolio}:{app_regex}] not found")
+            log.info("Successfully deleted app: %s:%s", client_portfolio, app_regex)
         except DeleteError as e:
+            log.error("Failed to delete app %s:%s: %s", client_portfolio, app_regex, str(e))
+            raise UnknownException(f"Failed to delete - {str(e)}")
+        except Exception as e:
+            log.error("Unexpected error deleting app %s:%s: %s", client_portfolio, app_regex, str(e))
             raise UnknownException(f"Failed to delete - {str(e)}")
 
         return SuccessResponse(f"App [{client_portfolio}:{app_regex}] deleted")
@@ -166,115 +203,144 @@ class AppActions(RegistryAction):
     @classmethod
     def create(cls, **kwargs) -> Response:
         """
-        Handles the POST method.  If the item already exists, an exception will be thrown.
+        Handles the POST method. Creates a new app, fails if it already exists.
 
-        Args:
-            client_portfolio (str): The client_portfolio name
-            app_regex (str): the deployment key regular expression
+        :param kwargs: Must contain 'client', 'portfolio', and 'app-regex' parameters, plus app attributes
+        :returns: Success response with created AppFacts data
+        :rtype: Response
+        :raises BadRequestException: If required parameters are missing or invalid
+        :raises ConflictException: If app already exists
+        :raises UnknownException: If database operation fails
         """
-        client_portfolio, app_regex = cls.get_client_portfolio_app(kwargs)
-
-        if not app_regex:
-            raise BadRequestException(
-                'App regex is required in content: { "AppRegex": "<name>", ...}'
-            )
+        log.info("Creating app")
+        client, portfolio, app_regex = cls._get_client_portfolio_app(kwargs)
+        client_portfolio = cls._format_client_portfolio(client, portfolio)
 
         try:
-            item = AppFacts(client_portfolio, app_regex, **kwargs)
-            item.save(AppFacts.AppRegex.does_not_exist())
+            model_class = cls._get_model_class(client)
+            log.debug("Creating app: %s:%s with data: %s", client_portfolio, app_regex, kwargs)
+            item: AppFacts = model_class(client_portfolio, app_regex, **kwargs)
+
+            # Use the dynamic class's AppRegex attribute for the condition
+            item.save(model_class.AppRegex.does_not_exist())
+            log.info("Successfully created app: %s:%s", client_portfolio, app_regex)
         except ValueError as e:
-            raise BadRequestException(
-                f"Invalid item data for [{client_portfolio}:{app_regex}] {kwargs}: {str(e)}"
-            )
-        except AppFacts.DoesNotExist:
-            raise ConflictException(
-                f"App [{client_portfolio}:{app_regex}] already exists"
-            )
+            log.error("Invalid app data for %s:%s: %s", client_portfolio, app_regex, str(e))
+            raise BadRequestException(f"Invalid app data: {kwargs}: {str(e)}")
         except PutError as e:
-            raise ConflictException(f"Failed to create app: {str(e)}")
+            log.warning("App already exists: %s:%s - %s", client_portfolio, app_regex, str(e))
+            raise ConflictException(f"App {client_portfolio}:{app_regex} already exists")
         except Exception as e:
-            raise UnknownException(f"Creation failed - {str(e)}")
+            if "ConditionalCheckFailedException" in str(e):
+                log.warning("App already exists: %s:%s", client_portfolio, app_regex)
+                raise ConflictException(f"App {client_portfolio}:{app_regex} already exists")
+            else:
+                log.error("Failed to create app %s:%s: %s", client_portfolio, app_regex, str(e))
+                raise UnknownException(f"Failed to create app: {str(e)}")
 
         return SuccessResponse(item.to_simple_dict())
 
     @classmethod
     def update(cls, **kwargs) -> Response:
         """
-        Handles the PUT method.  If the item does not exist, it will be created.  The specified attributes will updated.
+        Handles the PUT method. Creates or replaces an app completely.
 
-        Args:
-            client_portfolio (str): The client_portfolio name
-            app_regex (str): the deployment key regular expression
+        :param kwargs: Must contain 'client', 'portfolio', and 'app-regex' parameters, plus app attributes
+        :returns: Success response with updated AppFacts data
+        :rtype: Response
+        :raises BadRequestException: If required parameters are missing
+        :raises UnknownException: If database operation fails
         """
-        client_portfolio, app_regex = cls.get_client_portfolio_app(kwargs)
+        log.info("Updating app")
+        client, portfolio, app_regex = cls._get_client_portfolio_app(kwargs)
+        client_portfolio = cls._format_client_portfolio(client, portfolio)
 
-        if not app_regex:
-            raise BadRequestException(
-                'App regex is required in content: { "app_regex": "<name>", ...}'
-            )
+        model_class = cls._get_model_class(client)
 
         try:
+            # Check if item exists (for logging purposes)
+            item: AppFacts = model_class.get(client_portfolio, app_regex)
+            if item:
+                log.info("App exists, will be replaced: %s:%s", client_portfolio, app_regex)
+        except Exception as e:
+            if "DoesNotExist" in str(type(e)):
+                log.info("App does not exist, will be created: %s:%s", client_portfolio, app_regex)
+            else:
+                log.error("Failed to check existing app %s:%s: %s", client_portfolio, app_regex, str(e))
+                raise UnknownException(f"Failed to check existing app: {str(e)}")
 
-            item = AppFacts.get(client_portfolio, app_regex)
-
-            attributes = item.get_attributes()
-
-            actions: list[Action] = []
-            for key, value in kwargs.items():
-                if hasattr(item, key):
-                    attr = attributes[key]
-                    if value is None:
-                        actions.append(attr.remove())
-                        attr.set(None)
-                    elif value != getattr(item, key):
-                        actions.append(attr.set(value))
-
-            if len(actions) > 0:
-                item.update(actions=actions, condition=AppFacts.AppRegex.exists())
-                item.refresh()
-
-            return SuccessResponse(item.to_simple_dict())
-
-        except AppFacts.DoesNotExist:
-            raise NotFoundException(
-                f"App [{client_portfolio}:{app_regex}] does not exist"
-            )
+        try:
+            log.debug("Updating app: %s:%s with data: %s", client_portfolio, app_regex, kwargs)
+            item: AppFacts = model_class(client_portfolio, app_regex, **kwargs)
+            item.save()
+            log.info("Successfully updated app: %s:%s", client_portfolio, app_regex)
         except PutError as e:
-            raise ConflictException(f"Failed to update app: {str(e)}")
+            log.error("Put error updating app %s:%s: %s", client_portfolio, app_regex, str(e))
+            raise ConflictException(f"App {client_portfolio}:{app_regex} update conflict")
+        except Exception as e:
+            log.error("Failed to update app %s:%s: %s", client_portfolio, app_regex, str(e))
+            raise UnknownException(f"Failed to update app: {str(e)}")
+
+        return SuccessResponse(item.to_simple_dict())
 
     @classmethod
     def patch(cls, **kwargs) -> Response:
         """
-        Handles the PATCH method.  If the item does not exist, an error will occur
+        Handles the PATCH method. Updates specific attributes of an existing app.
 
-        Args:
-            client_portfolio (str): The client_portfolio name
-            app_regex (str): the deployment key regular expression
+        :param kwargs: Must contain 'client', 'portfolio', and 'app-regex' parameters, plus attributes to update
+        :returns: Success response with patched AppFacts data
+        :rtype: Response
+        :raises BadRequestException: If required parameters are missing or invalid
+        :raises NotFoundException: If app does not exist
+        :raises UnknownException: If database operation fails
         """
-        client_portfolio, app_regex = cls.get_client_portfolio_app(kwargs)
+        log.info("Patching app")
+        client, portfolio, app_regex = cls._get_client_portfolio_app(kwargs)
+        client_portfolio = cls._format_client_portfolio(client, portfolio)
 
         try:
-            item = AppFacts.get(client_portfolio, app_regex)
+            model_class = cls._get_model_class(client)
+            log.debug("Retrieving app for patch: %s:%s", client_portfolio, app_regex)
+            # Get the existing record from the DB
+            item: AppFacts = model_class.get(client_portfolio, app_regex)
+
+            # Make sure fields are in PascalCase
+            new_facts = item.convert_keys(**kwargs) if hasattr(item, "convert_keys") else kwargs
+            log.debug("Patching app %s:%s with: %s", client_portfolio, app_regex, new_facts)
 
             attributes = item.get_attributes()
 
             actions: list[Action] = []
-            for key, value in kwargs.items():
+            for key, value in new_facts.items():
                 if hasattr(item, key):
-                    attr = attributes[key]
                     if value is None:
+                        attr = attributes[key]
                         actions.append(attr.remove())
                         attr.set(None)
+                        log.debug("Removing attribute %s from app %s:%s", key, client_portfolio, app_regex)
                     elif value != getattr(item, key):
-                        actions.append(attr.set(value))
+                        actions.append(attributes[key].set(value))
+                        log.debug("Updating attribute %s in app %s:%s", key, client_portfolio, app_regex)
 
             if len(actions) > 0:
+                log.debug("Applying %d updates to app %s:%s", len(actions), client_portfolio, app_regex)
                 item.update(actions=actions)
                 item.refresh()
+                log.info("Successfully patched app: %s:%s", client_portfolio, app_regex)
+            else:
+                log.info("No changes needed for app: %s:%s", client_portfolio, app_regex)
 
             return SuccessResponse(item.to_simple_dict())
 
-        except AppFacts.DoesNotExist:
-            raise NotFoundException(
-                f"App [{client_portfolio}:{app_regex}] does not exist"
-            )
+        except AttributeNullError as e:
+            log.error("Required attribute missing for app %s:%s: %s", client_portfolio, app_regex, str(e))
+            raise BadRequestException(f"Required attribute missing: {str(e)}")
+
+        except Exception as e:
+            if "DoesNotExist" in str(type(e)):
+                log.warning("App not found for patch: %s:%s", client_portfolio, app_regex)
+                raise NotFoundException(f"App {client_portfolio}:{app_regex} does not exist")
+            else:
+                log.error("Failed to patch app %s:%s: %s", client_portfolio, app_regex, str(e))
+                raise UnknownException(f"Failed to patch app: {str(e)}")

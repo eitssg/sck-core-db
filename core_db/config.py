@@ -11,10 +11,11 @@ from .constants import (
 )
 
 
-def get_table_name(name: str, default: Optional[str] = None) -> str:
+def get_table_name(name: str, client: str = None, default: Optional[str] = None) -> str:
     """Get the name of a table from the tables dictionary"""
 
-    client = util.get_client() or "client"
+    if not client:
+        client = util.get_client() or "client"
     prefix = util.get_automation_scope() or ""
 
     tables = {

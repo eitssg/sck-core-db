@@ -6,11 +6,188 @@ import core_framework as util
 
 from ...constants import CLIENT_FACTS
 from ...config import get_table_name
-
 from ..models import RegistryModel
 
 
 class ClientFacts(RegistryModel):
+    """
+    Model representing client organization configuration in the core-automation-clients table.
+
+    This model stores comprehensive client organization information including AWS account details,
+    regional configurations, bucket names, and automation settings. ClientFacts serves as the
+    central registry for client organizations using the Core Automation platform.
+
+    Attributes
+    ----------
+    Client : UnicodeAttribute
+        Client ID or slug as the unique identifier for the client organization (hash key)
+        Must be URL-safe and unique across all clients
+        Example: "acme", "myorg", "example-corp"
+    ClientName : UnicodeAttribute, optional
+        Human-readable client organization name
+        Example: "ACME Corporation", "My Organization"
+    OrganizationId : UnicodeAttribute, optional
+        AWS Organization ID for the client's AWS Organization
+        Example: "o-t73gu32ai5", "o-example123456"
+    OrganizationName : UnicodeAttribute, optional
+        AWS Organization name as configured in AWS Organizations
+        Example: "ACME Production Organization"
+    OrganizationAccount : UnicodeAttribute, optional
+        AWS account number for the organization root account (master account)
+        Example: "123456789012"
+    OrganizationEmail : UnicodeAttribute, optional
+        Email address associated with the organization root account
+        Example: "aws-admin@acme.com", "aws+root@myorg.com"
+    Domain : UnicodeAttribute, optional
+        Primary domain name for the organization
+        Used for DNS configurations and resource naming
+        Example: "acme.com", "myorg.example.com"
+    IamAccount : UnicodeAttribute, optional
+        AWS account number where centralized IAM roles and policies are stored
+        Example: "123456789012"
+    AuditAccount : UnicodeAttribute, optional
+        AWS account number for centralized logging and audit trail storage
+        Example: "987654321098"
+    MasterRegion : UnicodeAttribute, optional
+        Primary AWS region where Core Automation control plane is deployed
+        Example: "us-west-2", "us-east-1"
+    DocsBucketName : UnicodeAttribute, optional
+        S3 bucket name for storing generated documentation and reports
+        Example: "acme-core-automation-docs"
+    ClientRegion : UnicodeAttribute, optional
+        Default AWS region for client operations when region is not specified
+        Example: "us-west-2", "eu-west-1"
+    AutomationAccount : UnicodeAttribute, optional
+        AWS account number where automation artifacts and resources are stored
+        Example: "123456789012"
+    BucketName : UnicodeAttribute, optional
+        Primary S3 bucket for automation artifacts (packages, files, templates)
+        Example: "acme-core-automation"
+    BucketRegion : UnicodeAttribute, optional
+        AWS region where the primary automation bucket is located
+        Example: "us-west-2"
+    ArtefactBucketName : UnicodeAttribute, optional
+        S3 bucket name for storing deployment artifacts and build outputs
+        Example: "acme-core-automation-artefacts"
+    SecurityAccount : UnicodeAttribute, optional
+        AWS account number for centralized security operations center (SOC)
+        Example: "111111111111"
+    NetworkAccount : UnicodeAttribute, optional
+        AWS account number for centralized VPCs, DNS, and network services
+        Example: "222222222222"
+    UiBucketName : UnicodeAttribute, optional
+        S3 bucket name for hosting the Core Automation web interface
+        Example: "acme-core-automation-ui"
+    Scope : UnicodeAttribute, optional
+        Resource name prefix for all automation-created resources
+        Must end with hyphen for proper concatenation
+        Example: "dev-", "test-", "staging-"
+
+        Note: This prefix is prepended to all resource names including:
+        - S3 buckets: "{scope}acme-core-automation"
+        - DynamoDB tables: "{scope}core-automation-clients"
+        - Lambda functions: "{scope}core-automation-invoker"
+        - IAM roles: "{scope}CoreAutomationExecutionRole"
+    UiBucket : UnicodeAttribute, optional
+        Alternative S3 bucket name for UI hosting (legacy field)
+        Example: "core-automation-ui"
+    UserInstantiated : UnicodeAttribute, optional
+        Internal PynamoDB field indicating user instantiation
+
+    Examples
+    --------
+    Creating a new client configuration:
+
+    >>> client = ClientFacts(
+    ...     "acme",
+    ...     ClientName="ACME Corporation",
+    ...     OrganizationId="o-example123456",
+    ...     OrganizationAccount="123456789012",
+    ...     Domain="acme.com",
+    ...     MasterRegion="us-west-2",
+    ...     Scope="prod-"
+    ... )
+    >>> client.save()
+
+    Retrieving a client:
+
+    >>> client = ClientFacts.get("acme")
+    >>> print(f"Client: {client.ClientName}")
+    >>> print(f"Domain: {client.Domain}")
+    >>> print(f"Master Region: {client.MasterRegion}")
+
+    Updating client configuration:
+
+    >>> client = ClientFacts.get("acme")
+    >>> client.SecurityAccount = "111111111111"
+    >>> client.NetworkAccount = "222222222222"
+    >>> client.save()
+
+    Listing all clients:
+
+    >>> for client in ClientFacts.scan():
+    ...     print(f"{client.Client}: {client.ClientName}")
+
+    Configuring multiple AWS accounts:
+
+    >>> client = ClientFacts(
+    ...     "enterprise",
+    ...     ClientName="Enterprise Corp",
+    ...     OrganizationAccount="123456789012",  # Root account
+    ...     IamAccount="123456789012",           # IAM roles account
+    ...     AuditAccount="987654321098",         # Logging account
+    ...     SecurityAccount="111111111111",      # Security account
+    ...     NetworkAccount="222222222222",       # Network account
+    ...     AutomationAccount="333333333333",    # Automation account
+    ...     MasterRegion="us-east-1",
+    ...     BucketRegion="us-east-1"
+    ... )
+    >>> client.save()
+
+    Managing resource naming with scope:
+
+    >>> client = ClientFacts(
+    ...     "dev-client",
+    ...     ClientName="Development Environment",
+    ...     Scope="dev-",
+    ...     BucketName="dev-myclient-core-automation",
+    ...     DocsBucketName="dev-myclient-core-automation-docs"
+    ... )
+    >>> client.save()
+
+    Notes
+    -----
+    **Account Strategy**: Different AWS accounts can be configured for different purposes:
+
+    - **OrganizationAccount**: Root account for AWS Organizations
+    - **IamAccount**: Centralized IAM roles and policies
+    - **AuditAccount**: CloudTrail, Config, and audit logs
+    - **SecurityAccount**: Security monitoring and SOC tools
+    - **NetworkAccount**: VPCs, DNS, and network infrastructure
+    - **AutomationAccount**: Core Automation deployment and artifacts
+
+    **Resource Naming**: The Scope field affects all resource naming:
+
+    - Without scope: "core-automation-clients"
+    - With scope "dev-": "dev-core-automation-clients"
+    - Ensures environment isolation and easy identification
+
+    **Regional Configuration**: Multiple region fields serve different purposes:
+
+    - **MasterRegion**: Core Automation control plane location
+    - **ClientRegion**: Default region for client operations
+    - **BucketRegion**: Primary bucket location (may differ for compliance)
+
+    **Single Table Design**: Unlike other registry models, ClientFacts uses a single
+    global table without client-specific table names, as it stores the client registry
+    itself and is accessed by the Core Automation platform infrastructure.
+
+    See Also
+    --------
+    PortfolioFacts : Portfolio configuration per client
+    ZoneFacts : Zone configuration per client
+    AppFacts : Application configuration per client
+    """
 
     class Meta:
         table_name = get_table_name(CLIENT_FACTS)
@@ -19,78 +196,111 @@ class ClientFacts(RegistryModel):
         read_capacity_units = 1
         write_capacity_units = 1
 
-    # Hash/Range keys
+    # Primary key
     Client = UnicodeAttribute(hash_key=True)
-    """str: Client ID or slug as the unique identifier for the client organization. Example: "myorg" """
+
+    # Client identification
     ClientName = UnicodeAttribute(null=True)
-    """str: Client name. Example: "My Organization" """
-    # Attributes
+
+    # AWS Organization configuration
     OrganizationId = UnicodeAttribute(null=True)
-    """str: Organization ID for the organization. Example: "o-t73gu32ai5" """
     OrganizationName = UnicodeAttribute(null=True)
-    """str: Organization name. Example: "My Organization" """
     OrganizationAccount = UnicodeAttribute(null=True)
-    """str: Organization acount number for the organization (Root Account). Example: "123456789012" """
     OrganizationEmail = UnicodeAttribute(null=True)
-    """str: Organization email address for the organization (Root Account). Example: aws+1@gmail.com """
+
+    # Domain and networking
     Domain = UnicodeAttribute(null=True)
-    """str: Domain name for the organization. Example: "myorg.com" """
+
+    # AWS Account assignments
     IamAccount = UnicodeAttribute(null=True)
-    """str: IAM account number for the IAM account where the IAM roles are stored. Example: "123456789012" """
     AuditAccount = UnicodeAttribute(null=True)
-    """str: Audit account number for the audit account where Centralized Logging takes place. Example: "123456789012" """
-    MasterRegion = UnicodeAttribute(null=True)
-    """str: Master region where the master account resides and is where Core-Auotmation is deployed. Example: "us-west-2" """
-    DocsBucketName = UnicodeAttribute(null=True)
-    """str: Documentation bucket where the documentation is stored. Example: "myorg-core-automation-docs" """
-    ClientRegion = UnicodeAttribute(null=True)
-    """str: Client region for use when other region values are blank. Example: "us-west-2" """
     AutomationAccount = UnicodeAttribute(null=True)
-    """str: Automation account number for the automation account where the automation artefacts are stored. Example: "123456789012" """
-    BucketName = UnicodeAttribute(null=True)
-    """str: Automation S3 bucket where the automation artefacts (packages/files/artefacts) are stored. Example: "myorg-core-automation" """
-    BucketRegion = UnicodeAttribute(null=True)
-    """str: Bucket region where the automation bucket resides. Example: "us-west-2" """
-    ArtefactBucketName = UnicodeAttribute(null=True)
-    """str: Artefact S3 bucket where the artefacts are stored. Example: "myorg-core-automation-artefacts" """
     SecurityAccount = UnicodeAttribute(null=True)
-    """str: Security account number for the security account where your centralized SOC will operate. Example: "123456789012" """
     NetworkAccount = UnicodeAttribute(null=True)
-    """str: Network account number for the network account where your centralized VPCs, domain services, and endpoints will operate. Example: "123456789012" """
+
+    # Regional configuration
+    MasterRegion = UnicodeAttribute(null=True)
+    ClientRegion = UnicodeAttribute(null=True)
+    BucketRegion = UnicodeAttribute(null=True)
+
+    # S3 bucket configuration
+    BucketName = UnicodeAttribute(null=True)
+    DocsBucketName = UnicodeAttribute(null=True)
+    ArtefactBucketName = UnicodeAttribute(null=True)
     UiBucketName = UnicodeAttribute(null=True)
-    """str: UI bucket where the UI website is stored. Example: "myorg-core-automation-ui" """
+    UiBucket = UnicodeAttribute(null=True)  # Legacy field
+
+    # Resource naming
     Scope = UnicodeAttribute(null=True)
-    """str: Scope Prefix as a profix for all resources created for the client. Example: "testing-"
 
-    Note: Ensure to put a hyphen after the name. Use "tst-", not "tst"
-
-    And will result in Core automation adding this to the front of all bucket names, lambda functions, table names, roles, rules and other items.
-
-        Example of resource names:
-            * "tst-myorg-core-automation"
-            * "tst-myorg-core-automation-docs"
-            * "tst-myorg-core-automation-logs"
-            * "tst-myorg-core-automation-ui"
-            * "tst-myorg-core-automation-items"
-            * "tst-myorg-core-automation-events"
-            * "tst-core-automation-clients"
-            * "tst-core-automation-portfolios"
-            * "tst-core-automation-apps"
-            * "tst-core-automation-zones"
-            * "tst-core-automation-invoker"
-            * "tst-core-automation-execute"
-            * "tst-core-automation-runner"
-            * "tst-core-automation-component-compiler"
-            * "tst-core-automation-deployspec-executor"
-            * I think you get the idea.
-    """
-    UiBucket = UnicodeAttribute(null=True)
-    """str: UI Bucket is the S3 bucket where the UI website is stored. Example: "core-automation-ui" """
-
+    # Internal fields
     UserInstantiated = UnicodeAttribute(null=True)
 
     def __init__(self, *args, **kwargs):
+        """
+        Initialize ClientFacts instance with automatic key conversion.
+
+        :param args: Positional arguments for model initialization
+        :param kwargs: Keyword arguments with automatic snake_case/kebab-case conversion
+        """
         super().__init__(*args, **kwargs)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
+        """
+        Return string representation of ClientFacts.
+
+        :returns: String representation showing Client identifier
+        :rtype: str
+        """
         return f"ClientFacts({self.Client})"
+
+    def get_resource_prefix(self) -> str:
+        """
+        Get the resource prefix for this client including scope.
+
+        :returns: Resource prefix combining scope and client identifier
+        :rtype: str
+        """
+        scope = self.Scope or ""
+        return f"{scope}{self.Client}"
+
+    def get_bucket_name(self, bucket_type: str = "automation") -> str:
+        """
+        Get the appropriate bucket name for the specified type.
+
+        :param bucket_type: Type of bucket ("automation", "docs", "artefacts", "ui")
+        :type bucket_type: str
+        :returns: Full bucket name with scope prefix
+        :rtype: str
+        :raises ValueError: If bucket_type is not recognized
+        """
+        bucket_mapping = {
+            "automation": self.BucketName,
+            "docs": self.DocsBucketName,
+            "artefacts": self.ArtefactBucketName,
+            "ui": self.UiBucketName or self.UiBucket,
+        }
+
+        if bucket_type not in bucket_mapping:
+            raise ValueError(f"Unknown bucket type: {bucket_type}")
+
+        return bucket_mapping[bucket_type]
+
+    def is_multi_account(self) -> bool:
+        """
+        Check if this client uses a multi-account AWS setup.
+
+        :returns: True if multiple distinct AWS accounts are configured
+        :rtype: bool
+        """
+        accounts = {
+            self.OrganizationAccount,
+            self.IamAccount,
+            self.AuditAccount,
+            self.AutomationAccount,
+            self.SecurityAccount,
+            self.NetworkAccount,
+        }
+        # Remove None values and check if more than one unique account
+        accounts.discard(None)
+        return len(accounts) > 1

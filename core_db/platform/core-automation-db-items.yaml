@@ -199,18 +199,18 @@ Resources:
                           prn = record['dynamodb']['OldImage']['prn']['S']
 
                           # TODO - change to "query", not "scan"
-                          response = portflios_table.scan(
+                          response = events_table.scan(
                               FilterExpression=Attr('prn').eq(prn)
                           )
 
-                          for item in response['Items']:
-                              prn = item['prn']
-                              timestamp = item['timestamp']
-                              events_table.delete_item(Key={'prn': prn, 'timestamp': timestamp})
+                          for event_item in response['Items']:
+                              event_prn = event_item['prn']
+                              timestamp = event_item['timestamp']
+                              events_table.delete_item(Key={'prn': event_prn, 'timestamp': timestamp})
 
                               count += 1
                               if log_level == 'INFO':
-                                  print(f'SUCCESS: event [{prn}], time [{timestamp}] deleted')
+                                  print(f'SUCCESS: event [{event_prn}], time [{timestamp}] deleted')
 
                           count += 1
                           if log_level == 'INFO':

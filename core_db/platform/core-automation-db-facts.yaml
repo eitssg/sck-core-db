@@ -212,7 +212,7 @@ Resources:
                 Resource:
                   - Fn::Sub: 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${Scope}core-automation-change-clients-lambda:*'
                   - Fn::Sub: 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${Scope}core-automation-change-portfolios-lambda:*'
-                  - Fn::Sub: 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${Scope}core-automation-change-aps-lambda:*'
+                  - Fn::Sub: 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${Scope}core-automation-change-apps-lambda:*'
                   - Fn::Sub: 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${Scope}core-automation-change-zones-lambda:*'
       Path: /
       Tags:
@@ -257,7 +257,7 @@ Resources:
 
               # When removing clients, we need to remove the Portfolios for the client
 
-              porfolios_table = dynamodb.Table(os.environ['PORTFOLIOS_TABLE'])
+              portfolios_table = dynamodb.Table(os.environ['PORTFOLIOS_TABLE'])
 
               log_level = os.environ.get('LOG_LEVEL', 'ERROR').upper()
 
@@ -267,13 +267,13 @@ Resources:
                       if record['eventName'] == 'REMOVE':
                           client = record['dynamodb']['OldImage']['client']['S']
 
-                          response = portflios_table.scan(
+                          response = portfolios_table.scan(
                               FilterExpression=Attr('Client').eq(client)
                           )
 
                           for item in response['Items']:
                               portfolio = item['Portfolio']
-                              events_table.delete_item(
+                              portfolios_table.delete_item(
                                   Key={
                                       'Client': client,
                                       'Portfolio': portfolio
@@ -283,7 +283,7 @@ Resources:
                               if log_level == 'INFO':
                                   print(f'SUCCESS: client [{client}], portfolio [{portfolio}] deleted')
 
-                          coount += 1
+                          count += 1
                           if log_level == 'INFO':
                               print(f'SUCCESS: [{client}] deleted')
 
@@ -354,7 +354,7 @@ Resources:
               apps_table = dynamodb.Table(os.environ['APPS_TABLE'])
               zones_table = dynamodb.Table(os.environ['ZONES_TABLE'])
 
-              log_level = os.environ.get('LOG_LEBEL', 'ERROR').upper()
+              log_level = os.environ.get('LOG_LEVEL', 'ERROR').upper()
 
               try:
                   count = 0
@@ -378,7 +378,7 @@ Resources:
                                   }
                               )
                               count += 1
-                              if llog_level == 'INFO':
+                              if log_level == 'INFO':
                                   print(f'SUCCESS: [{portfolio_facts}], AppRegex [{app_regex}] deleted')
 
                           response = zones_table.scan(
@@ -386,11 +386,11 @@ Resources:
                           )
 
                           for item in response['Items']:
-                              zone = item['zone']
+                              zone = item['Zone']
                               zones_table.delete_item(
                                   Key={
                                       'ClientPortfolio': portfolio_facts,
-                                      'zone': zone
+                                      'Zone': zone
                                   }
                               )
                               count += 1
@@ -399,12 +399,12 @@ Resources:
 
                           count += 1
                           if log_level == 'INFO':
-                              print(f'SUCCESS: [{portfolio_prn}] deleted')
+                              print(f'SUCCESS: [{portfolio_facts}] deleted')
 
                   print(f'SUCCESS: {count} records deleted')
                   return {
                       'statusCode': 200,
-                      'body': json.dumps(f'Success: {len(event['Records'])} events deleted')
+                      'body': json.dumps(f'Success: {len(event["Records"])} events deleted')  # Should be {count}
                   }
               except Exception as e:
                   print(f'ERROR: {str(e)}')

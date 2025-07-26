@@ -10,9 +10,9 @@ from .test_table_actions_data import test_data
 from core_db.event.models import EventModel
 from core_db.item.models import ItemModel
 from core_db.registry.client.models import ClientFacts
-from core_db.registry.portfolio.models import PortfolioFacts
+from core_db.registry.portfolio.models import PortfolioFactsFactory
 from core_db.registry.app.models import AppFacts
-from core_db.registry.zone.models import ZoneFacts
+from core_db.registry.zone.models import ZoneFactsFactory
 
 import logging
 
@@ -22,36 +22,41 @@ logging.basicConfig(level=logging.DEBUG)
 @pytest.fixture(scope="module")
 def bootstrap_dynamo():
 
+    os.environ["CLIENT"] = "client"  # The client name for all tests should be "client"
+
     # see environment variables in .env
     host = util.get_dynamodb_host()
 
-    assert (
-        host == "http://localhost:8000"
-    ), "DYNAMODB_HOST must be set to http://localhost:8000"
+    assert host == "http://localhost:8000", "DYNAMODB_HOST must be set to http://localhost:8000"
 
     try:
-        if EventModel.exists():
-            EventModel.delete_table()
+
+        # use boto3 to connect to DynamoDB, get a list of all tables, then delete all tables
+        import boto3
+
+        dynamodb = boto3.resource("dynamodb", endpoint_url=host)
+
+        tables = dynamodb.tables.all()
+        if tables:
+            # delete all tables
+            for table in tables:
+                logging.debug(f"Deleting table: {table.name}")
+                table.delete()
+                table.wait_until_not_exists()
+                logging.debug(f"Table {table.name} deleted successfully.")
+
         EventModel.create_table(wait=True)
-
-        if ItemModel.exists():
-            ItemModel.delete_table()
         ItemModel.create_table(wait=True)
-
-        if ClientFacts.exists():
-            ClientFacts.delete_table()
         ClientFacts.create_table(wait=True)
 
-        if PortfolioFacts.exists():
-            PortfolioFacts.delete_table()
+        PortfolioFacts = PortfolioFactsFactory.get_model("client")
+        assert PortfolioFacts is not None, "PortfolioFacts model should not be None"
         PortfolioFacts.create_table(wait=True)
 
-        if AppFacts.exists():
-            AppFacts.delete_table()
         AppFacts.create_table(wait=True)
 
-        if ZoneFacts.exists():
-            ZoneFacts.delete_table()
+        ZoneFacts = ZoneFactsFactory.get_model("client")
+        assert ZoneFacts is not None, "ZoneFacts model should not be None"
         ZoneFacts.create_table(wait=True)
 
     except Exception as e:
@@ -82,7 +87,7 @@ def test_table_actions(bootstrap_dynamo, request_data, expected_result):
         assert client is not None
 
         # see environment variables in .env
-        assert client == "test-client"
+        assert client == "client"
 
         # "action": "portfolio:create", "data": {"prn": "prn:portfolio"}
         assert "action" in request_data

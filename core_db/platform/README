@@ -1,0 +1,53 @@
+# Platform Deployment Actions
+
+This directory contains CloudFormation templates and deployment action files for the SCK Core DB platform resources.
+
+## Overview
+
+Action files follow the naming convention `<task>.actions` where `<task>` represents a specific deployment lifecycle stage.
+
+## Available Tasks
+
+### CI/CD Pipeline Tasks
+* **package** - Package application artifacts and dependencies
+* **upload** - Upload packaged artifacts to storage (S3, artifact repositories)
+* **compile** - Compile source code and generate build artifacts
+
+### Infrastructure Tasks
+* **plan** - Generate and review infrastructure change plans
+* **apply** - Apply infrastructure changes to target environment
+* **deploy** - Deploy application code and configurations
+* **release** - Promote builds through environments and mark as released
+
+### Cleanup Tasks
+* **teardown** - Remove infrastructure and clean up resources
+
+## Usage Notes
+
+- **CI/CD Tasks**: `package`, `upload`, and `compile` are typically executed by CLI/API tools and do not directly invoke deployment actions
+- **Infrastructure Tasks**: `plan`, `apply`, `deploy`, and `release` interact with cloud infrastructure
+- **Cleanup Tasks**: `teardown` should be used carefully as it removes deployed resources
+
+## CloudFormation Templates
+
+This directory contains the following CloudFormation templates:
+
+- `core-automation-db-facts.yaml` - Registry tables for client, portfolio, app, and zone facts
+- `core-automation-db-items.yaml` - Item and event tables with associated Lambda triggers
+
+## Directory Structure
+
+```
+platform/
+├── README.md
+├── <task>.actions          # Deployment action files
+├── *.yaml                  # CloudFormation templates
+└── ...                     # Additional platform resources
+```
+
+## Getting Started
+
+1. Review the available action files for your deployment task
+2. Ensure you have the necessary permissions for the target environment
+3. Execute actions in the appropriate order for your use case
+4. Monitor deployment progress through the provided logging and feedback mechanisms

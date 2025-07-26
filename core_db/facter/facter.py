@@ -1,8 +1,8 @@
 """
-The Factor object is the "FACTS" database.  This object is DEPRECATED and should not be used.
-This FACTS database should come from DynamoDB.  Not 'accounts.yaml' and 'apps.yaml' files.
+The Facter object is the "FACTS" database. This object is DEPRECATED and should not be used.
+This FACTS database should come from DynamoDB. Not 'accounts.yaml' and 'apps.yaml' files.
 
-(In re-rewrite.  We need to use DynamoDB instead of FACTS YAML files)
+(In re-rewrite. We need to use DynamoDB instead of FACTS YAML files)
 """
 
 from typing import Any
@@ -41,20 +41,23 @@ from ..registry.app.models import AppFacts
 
 def get_client_facts(client: str) -> dict | None:
     """
-    Uses the logic within the :class:`Clientfacts` class to retrieve the Client Details.
+    Uses the logic within the :class:`ClientFacts` class to retrieve the Client Details.
 
-    This is a helper frunction and you can call ClientFacts.get(client) directly without
+    This is a helper function and you can call ClientFacts.get(client) directly without
     using this helper.
 
-    Args:
-        client (str): The client name to retreive from the
+    :param client: The client name to retrieve from the database
+    :type client: str
+    :returns: The dictionary representing the ClientFacts database table record
+    :rtype: dict | None
 
-    Return:
-        (dict): The dictionary representing the ClientFacts database table record.
-
+    Examples
+    --------
+    >>> client_facts = get_client_facts("acme")
+    >>> if client_facts:
+    ...     print(f"Client: {client_facts['name']}")
     """
     try:
-
         facts = ClientFacts.get(client)
         if facts is None:
             return None
@@ -72,15 +75,20 @@ def get_portfolio_facts(client: str, portfolio: str) -> dict | None:
     This is a helper function and you can call PortfolioFacts.get(client, portfolio) directly
     without using this helper.
 
-    Args:
-        client (str): The client name (slug)
-        portfolio (str): The portfolio name (slug)
+    :param client: The client name (slug)
+    :type client: str
+    :param portfolio: The portfolio name (slug)
+    :type portfolio: str
+    :returns: The dictionary representing PortfolioFacts database table record
+    :rtype: dict | None
 
-    Returns:
-        dict | None: The dictionary representing PortFolioFacts database table record.
+    Examples
+    --------
+    >>> portfolio_facts = get_portfolio_facts("acme", "core")
+    >>> if portfolio_facts:
+    ...     print(f"Portfolio: {portfolio_facts['name']}")
     """
     try:
-
         portfolio_facts = PortfolioFacts.get(client, portfolio)
         if portfolio_facts is None:
             return None
@@ -93,23 +101,27 @@ def get_portfolio_facts(client: str, portfolio: str) -> dict | None:
 
 def get_zone_facts(client: str, zone: str) -> dict | None:
     """
-    Uses the logic with the :class:`ZoneFacts` class to retrieve the Zone Details.
+    Uses the logic within the :class:`ZoneFacts` class to retrieve the Zone Details.
 
     This is a helper function and you can call ZoneFacts.get(zone_key, zone_name) directly
     without using this helper.
 
     zone_key = client + ':' + portfolio
 
-    Args:
-        client (str): The client name
-        portfolio (str): The portfoio name
-        zone (str): The one label
+    :param client: The client name
+    :type client: str
+    :param zone: The zone label
+    :type zone: str
+    :returns: The dictionary representing the ZoneFacts database table record
+    :rtype: dict | None
 
-    Returns:
-        dict | None: The dictionary represeting the ZoneFacts database table record.
+    Examples
+    --------
+    >>> zone_facts = get_zone_facts("acme", "production")
+    >>> if zone_facts:
+    ...     print(f"Zone: {zone_facts['name']}")
     """
     try:
-
         zone_facts = ZoneFacts.get(client, zone)
 
         if zone_facts is None:
@@ -123,18 +135,24 @@ def get_zone_facts(client: str, zone: str) -> dict | None:
 
 def get_zone_facts_by_account_id(account_id: str) -> list[dict] | None:
     """
-    Uses the logic with the :class:`ZoneFacts` class to retrieve the Zone Details.
+    Uses the logic within the :class:`ZoneFacts` class to retrieve the Zone Details.
 
     This is a helper function and you can call ZoneFacts.query(account_id) directly
     without using this helper.
 
     zone_key = client + ':' + portfolio
 
-    Args:
-        account_id (str): The aws account ID
+    :param account_id: The AWS account ID
+    :type account_id: str
+    :returns: The list of Zone Facts that are registered with this AWS Account ID
+    :rtype: list[dict] | None
 
-    Returns:
-        list[dict] | None: The list of Zone Facts that are registered with this AWS Account ID.
+    Examples
+    --------
+    >>> zone_facts_list = get_zone_facts_by_account_id("123456789012")
+    >>> if zone_facts_list:
+    ...     for zone in zone_facts_list:
+    ...         print(f"Zone: {zone['name']}")
     """
     try:
         zone_facts = ZoneFacts.query(account_id)
@@ -147,34 +165,41 @@ def get_zone_facts_by_account_id(account_id: str) -> list[dict] | None:
         return None
 
 
-def get_app_facts(deployment_details: DeploymentDetails):
+def get_app_facts(deployment_details: DeploymentDetails) -> dict | None:
     """
-    Retreives the Facs for DeploymentDetails that can be used in the Jinja2 Renederer
-    to generate final Cloudformation Templates.
+    Retrieves the Facts for DeploymentDetails that can be used in the Jinja2 Renderer
+    to generate final CloudFormation Templates.
 
-    Args:
-        deployment_details (DeploymentDetails): The deployment Details of the TaskPayload
+    :param deployment_details: The deployment details of the TaskPayload
+    :type deployment_details: DeploymentDetails
+    :returns: The app facts dictionary or None if not found
+    :rtype: dict | None
+    :raises ValueError: If required fields are missing from deployment_details
 
-    Returns:
-        _type_: _description_
+    Examples
+    --------
+    >>> dd = DeploymentDetails(client="acme", portfolio="core", app="api", branch="master", build="1234")
+    >>> app_facts = get_app_facts(dd)
+    >>> if app_facts:
+    ...     print(f"App: {app_facts['name']}")
     """
-    client = deployment_details.Client
+    client = deployment_details.client
     if not client:
         raise ValueError("Client must be valid in DeploymentDetails")
 
-    portfolio = deployment_details.Portfolio
+    portfolio = deployment_details.portfolio
     if not portfolio:
         raise ValueError("Portfolio must be valid in DeploymentDetails")
 
-    app = deployment_details.App
+    app = deployment_details.app
     if not app:
-        raise ValueError("App field must be popluated in DeploymentDetails")
+        raise ValueError("App field must be populated in DeploymentDetails")
 
-    branch = deployment_details.BranchShortName
+    branch = deployment_details.branch_short_name
     if not branch:
         branch = "*"
 
-    build = deployment_details.Build
+    build = deployment_details.build
     if not build:
         build = "*"
 
@@ -191,37 +216,44 @@ def get_app_facts(deployment_details: DeploymentDetails):
     return None
 
 
-def derrive_environment_from_branch(branch: str) -> tuple[str, str]:
-    """Derrive the environmet and region alias from the branch name.
+def derive_environment_from_branch(branch: str) -> tuple[str, str]:
+    """
+    Derive the environment and region alias from the branch name.
 
     Example of a branch name is **dev-sin** or **feature1/dev-sin**
 
     Where *dev* is the environment and *sin* is the region alias.
 
-    Args:
-        branch (str): The application deployment git repository branch name.
+    :param branch: The application deployment git repository branch name
+    :type branch: str
+    :returns: The environment and region alias tuple
+    :rtype: tuple[str, str]
 
-    Returns:
-        (environmet, region_alias): The environment and region alias tuple
+    Examples
+    --------
+    >>> env, region = derive_environment_from_branch("dev-sin")
+    >>> # Returns: ("dev", "sin")
+
+    >>> env, region = derive_environment_from_branch("feature1/dev-sin")
+    >>> # Returns: ("dev", "sin")
+
+    >>> env, region = derive_environment_from_branch("master")
+    >>> # Returns: ("production", "use1")  # or whatever V_DEFAULT_ENVIRONMENT is
     """
     parts = branch.split("-")
 
     if len(parts) >= 2:
         branch = parts[0]
 
-        # split the branch by '/' and retreive the last part
+        # split the branch by '/' and retrieve the last part
         branch_parts = branch.split("/")
-        environment = branch_parts[
-            -1
-        ]  # in this format, the branch name is the environment (master, main, dev, feature1/dev, etc)
-        region_alias = parts[
-            1
-        ]  # override region_alias fact with the branch region alias definition
+        environment = branch_parts[-1]  # in this format, the branch name is the environment (master, main, dev, feature1/dev, etc)
+        region_alias = parts[1]  # override region_alias fact with the branch region alias definition
     else:
         environment = branch
         region_alias = V_DEFAULT_REGION_ALIAS
 
-    # If you are deploying a master branch, you are definitly PRODUCTION
+    # If you are deploying a master branch, you are definitely PRODUCTION
     if environment == "master" or environment == "main":
         environment = V_DEFAULT_ENVIRONMENT
 
@@ -232,11 +264,20 @@ def format_contact(contact: dict) -> str:
     """
     Format the contact details for the Jinja2 template context.
 
-    Args:
-        contact (dict): The contact details
+    :param contact: The contact details dictionary
+    :type contact: dict
+    :returns: The formatted contact string
+    :rtype: str
 
-    Returns:
-        dict: The formatted contact details
+    Examples
+    --------
+    >>> contact = {"Name": "John Doe", "Email": "john@example.com"}
+    >>> formatted = format_contact(contact)
+    >>> # Returns: "John Doe <john@example.com>"
+
+    >>> contact = {"Email": "john@example.com"}
+    >>> formatted = format_contact(contact)
+    >>> # Returns: "john@example.com"
     """
     name = contact.get("Name", "")
     email = contact.get("Email", "")
@@ -249,24 +290,46 @@ def format_contact(contact: dict) -> str:
     return f"{name} <{email}>"
 
 
-def get_store_url(
-    bucket_name: str,
-    bucket_region: str,
-) -> str:
+def get_store_url(bucket_name: str, bucket_region: str) -> str:
+    """
+    Get the storage URL for the specified bucket and region.
 
+    :param bucket_name: The S3 bucket name
+    :type bucket_name: str
+    :param bucket_region: The AWS region for the bucket
+    :type bucket_region: str
+    :returns: The storage URL
+    :rtype: str
+
+    Examples
+    --------
+    >>> url = get_store_url("my-bucket", "us-east-1")
+    >>> # Returns: "s3://my-bucket" or "/path/to/my-bucket" depending on storage type
+    """
     store = util.get_storage_volume(bucket_region)
-
     sep = "/" if util.is_use_s3() else os.path.sep
-
     return sep.join([store, bucket_name])
 
 
 def get_compiler_facts(dd: DeploymentDetails) -> dict:
+    """
+    Get compiler-specific facts for artifact and file storage.
 
+    :param dd: The deployment details
+    :type dd: DeploymentDetails
+    :returns: Dictionary containing compiler facts for template rendering
+    :rtype: dict
+
+    Examples
+    --------
+    >>> dd = DeploymentDetails(client="acme", portfolio="core", app="api")
+    >>> facts = get_compiler_facts(dd)
+    >>> print(facts['ArtefactsBucketName'])
+    """
     # Shared Files path separator
     sep = "/" if util.is_use_s3() else os.path.sep
 
-    client = dd.Client
+    client = dd.client
 
     artefacts_bucket_name = util.get_artefact_bucket_name(client)
     artefacts_bucket_region = util.get_artefact_bucket_region()
@@ -280,6 +343,7 @@ def get_compiler_facts(dd: DeploymentDetails) -> dict:
         "ArtefactsBucketRegion": artefacts_bucket_region,
         "ArtefactsBucketUrl": s3_bucket_url,
         "ArtefactsPrefix": dd.get_artefacts_key(),
+        "ArtefactKeyBuildPrefix": dd.get_artefacts_key(scope=SCOPE_BUILD),
         # Artifacts (spelling)
         "ArtifactBucketName": artefacts_bucket_name,
         "ArtifactBucketRegion": artefacts_bucket_region,
@@ -308,23 +372,30 @@ def get_compiler_facts(dd: DeploymentDetails) -> dict:
 
 def get_facts(deployment_details: DeploymentDetails) -> dict:  # noqa: C901
     """
-    Get the facts for a given app, portfolio, and zone.
+    Get the facts for a given deployment context.
 
-    Args:
-        client (str): The client FACTS database to query.
-        portfolio (str): BizApp (Business Applicatino) slug/id
-        app (str): BizApp Deployment unit slug/id
-        branch (str | None, optional): Repository branch name of the Deployment Unit. Defaults to None.
-        build (str | None, optional): Repository Tag or Commit ID of the Deployment Unit. Defaults to None.
-        zone (str | None, optional): Landing Zone for the Deployment. Defaults to None.
+    Combines facts from multiple sources (client, portfolio, app, zone) to create
+    a complete Jinja2 template context for CloudFormation generation.
 
-    Raises:
-        ValueError: For any inconsistency
+    :param deployment_details: The deployment details containing client, portfolio, app, etc.
+    :type deployment_details: DeploymentDetails
+    :returns: The Jinja2 template context dictionary (a.k.a FACTS)
+    :rtype: dict
+    :raises ValueError: For any inconsistency or missing required facts
 
-    Returns:
-        dict: The Jinja2 template context dictionary. (a.k.a FACTS)
+    Examples
+    --------
+    >>> dd = DeploymentDetails(
+    ...     client="acme",
+    ...     portfolio="core",
+    ...     app="api",
+    ...     branch="master",
+    ...     build="1234"
+    ... )
+    >>> facts = get_facts(dd)
+    >>> # Returns merged facts from all sources
     """
-    client = deployment_details.Client
+    client = deployment_details.client
 
     # Get the dictionary of client facts dictionary for this deployment
     client_facts = get_client_facts(client)
@@ -332,7 +403,7 @@ def get_facts(deployment_details: DeploymentDetails) -> dict:  # noqa: C901
         raise ValueError(f"Client facts not found for {client}")
 
     # Get the portfolio facts dictionary for this deployment
-    portfolio = deployment_details.Portfolio
+    portfolio = deployment_details.portfolio
     portfolio_facts = get_portfolio_facts(client, portfolio)
     if not portfolio_facts:
         raise ValueError(f"Portfolio facts not found for {client}:{portfolio}")
@@ -341,9 +412,7 @@ def get_facts(deployment_details: DeploymentDetails) -> dict:  # noqa: C901
     identity = deployment_details.get_identity()
     app_facts = get_app_facts(deployment_details)
     if app_facts is None:
-        raise ValueError(
-            f"App facts not found for {identity}.  Contact DevOps to register this app."
-        )
+        raise ValueError(f"App facts not found for {identity}. Contact DevOps to register this app.")
 
     # If the app facts do not contain a zone, throw an error
     zone = app_facts.get(ZONE_KEY, None)
@@ -355,15 +424,13 @@ def get_facts(deployment_details: DeploymentDetails) -> dict:  # noqa: C901
     if not region_alias:
         raise ValueError(f"Region alias not found for {identity}")
 
-    # if environment is not set, try to derrive it from the branch.  But facts ALWAYS come first.
+    # if environment is not set, try to derive it from the branch. But facts ALWAYS come first.
     environment = app_facts.get(ENVIRONMENT, None)
     branch_region_alias = V_DEFAULT_REGION_ALIAS
     if not environment:
-        environment, branch_region_alias = derrive_environment_from_branch(
-            deployment_details.Branch or V_DEFAULT_REGION_ALIAS
-        )
+        environment, branch_region_alias = derive_environment_from_branch(deployment_details.branch or V_DEFAULT_REGION_ALIAS)
 
-    # FACTS always override user input.  So, don't use the user input if FACTS are present.
+    # FACTS always override user input. So, don't use the user input if FACTS are present.
     if region_alias is None:
         region_alias = branch_region_alias
 
@@ -383,7 +450,7 @@ def get_facts(deployment_details: DeploymentDetails) -> dict:  # noqa: C901
 
     compiler_facts = get_compiler_facts(deployment_details)
 
-    # Now that we ALL the facts, let's gather all the Tags for this deployment starting top down
+    # Now that we have ALL the facts, let's gather all the Tags for this deployment starting top down
     # Client -> Zone -> Region -> Portfolio -> App
     tags = ChainMap(
         client_facts.get(FACTS_TAGS, {}),
@@ -395,9 +462,7 @@ def get_facts(deployment_details: DeploymentDetails) -> dict:  # noqa: C901
             TAG_ENVIRONMENT: environment,
             TAG_REGION: region_alias,
             TAG_OWNER: format_contact(portfolio_facts.get("Owner", {})),
-            TAG_CONTACTS: ",".join(
-                [format_contact(c) for c in portfolio_facts["Contacts"]]
-            ),
+            TAG_CONTACTS: ",".join([format_contact(c) for c in portfolio_facts.get("Contacts", [])]),
         },
     )
     app_facts[FACTS_TAGS] = dict(tags)
@@ -420,33 +485,3 @@ def get_facts(deployment_details: DeploymentDetails) -> dict:  # noqa: C901
     facts = util.merge.deep_merge_in_place(facts, compiler_facts, merge_lists=True)
 
     return facts
-
-
-def get_facts_flatend(deploymet_details: DeploymentDetails) -> dict[str, Any]:
-    """
-    Flatten the nested dictionary into a flat dictionary.
-
-    NEW: TODO: This function is not used.  It is in incubtion to evaluate if it is needed.
-
-    Args:
-        facts (dict): The nested dictionary
-
-    Returns:
-        dict: The flat dictionary
-    """
-    flat_facts: dict[str, Any] = {}
-
-    def flatten(d: dict, parent_key: str = ""):
-        for k, v in d.items():
-            new_key = f"{parent_key}.{k}" if parent_key else k
-            if isinstance(v, dict):
-                flatten(v, new_key)
-            elif isinstance(v, list):
-                for i, item in enumerate(v):
-                    flatten(item, f"{new_key}.{i}")
-            else:
-                flat_facts[new_key] = v
-
-    flatten(get_facts(deploymet_details))
-
-    return flat_facts

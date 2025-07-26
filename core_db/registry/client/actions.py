@@ -25,48 +25,38 @@ from .models import ClientFacts
 
 
 class ClientActions(RegistryAction):
+    """Actions for managing client FACTS records in the registry."""
 
     @classmethod
     def get_client_name(cls, kwargs: dict) -> str:
         """
-        Get the client name from the input arguments.dict
+        Get the client name from the input arguments dict.
 
         Mutates **kwargs by removing the client name and returning the client name.
 
-        Args:
-            **kwargs (dict): Dictionary containing:
-                client (str): The client name (required)
-
-        Returns:
-            str: The client name
-
-        Raises:
-            BadRequestException: If client name is missing from **kwargs
+        :param kwargs: Dictionary containing client identifier
+        :type kwargs: dict
+        :returns: The client name
+        :rtype: str
+        :raises BadRequestException: If client name is missing from kwargs
         """
         client = kwargs.pop("client", kwargs.pop(CLIENT_KEY, None))
 
         if not client:
-            raise BadRequestException(
-                'Client name is required in content: { "client": "<name>", ...}'
-            )
+            raise BadRequestException('Client name is required in content: { "client": "<name>", ...}')
 
         return client
 
     @classmethod
     def list(cls, **kwargs) -> Response:
         """
-        list all client FACTS records in a list of client names
+        List all client FACTS records in a list of client names.
 
-        Args:
-            **kwargs (dict): Dictionary containing:
-                Nothing
-
-        Returns:
-            Response:
-                SuccessResponse: containing the updated client details
-
-        Raises:
-            UnknownException: If database operations fail
+        :param kwargs: Dictionary containing no required parameters
+        :type kwargs: dict
+        :returns: SuccessResponse containing list of client names
+        :rtype: Response
+        :raises UnknownException: If database operations fail
         """
         try:
             items = ClientFacts.scan(attributes_to_get=[CLIENT_KEY])
@@ -75,9 +65,7 @@ class ClientActions(RegistryAction):
             raise UnknownException("Failed to scan clients: Database table error")
         except ScanError:
             # Permissions or other AWS-specific scan operation failures
-            raise UnknownException(
-                "Failed to scan clients: Permission denied or AWS error"
-            )
+            raise UnknownException("Failed to scan clients: Permission denied or AWS error")
         except Exception as e:
             # Catch-all for unexpected errors
             raise UnknownException(f"Failed to scan clients: {str(e)}")
@@ -89,19 +77,13 @@ class ClientActions(RegistryAction):
     @classmethod
     def get(cls, **kwargs) -> Response:
         """
-        Get a client FACTS record
+        Get a client FACTS record.
 
-        Args:
-            **kwargs (dict): Dictionary containing:
-                client (str): The client name (required)
-
-        Returns:
-            Response:
-                SuccessResponse: containing the updated client details
-                NoContentResponse: if the client does not exist
-
-        Raises:
-            UnknownException: If database operations fail
+        :param kwargs: Dictionary containing client identifier
+        :type kwargs: dict
+        :returns: SuccessResponse containing client details or NoContentResponse if not found
+        :rtype: Response
+        :raises UnknownException: If database operations fail
         """
         client = cls.get_client_name(kwargs)
 
@@ -115,9 +97,7 @@ class ClientActions(RegistryAction):
             raise UnknownException(f"Database table error for client {client}")
         except GetError:
             # Permissions or other AWS-specific get operation failures
-            raise UnknownException(
-                f"Failed to access client {client}: Permission denied or AWS error"
-            )
+            raise UnknownException(f"Failed to access client {client}: Permission denied or AWS error")
         except Exception as e:
             # Catch-all for unexpected errors
             raise UnknownException(f"Failed to get client {client}: {str(e)}")
@@ -127,34 +107,26 @@ class ClientActions(RegistryAction):
     @classmethod
     def delete(cls, **kwargs) -> Response:
         """
-        Delete a client FACTS record
+        Delete a client FACTS record.
 
-        Args:
-            **kwargs (dict): Dictionary containing:
-                client (str): The client name (required)
-                [attribute_name] (Any): Any additional attributes to update for the client
-
-        Returns:
-            Response:
-                SuccessResponse: containing the updated client details
-                NoContentResponse: if the client does not exist
-
-        Raises:
-            UnknownException: If database operations fails
+        :param kwargs: Dictionary containing client identifier
+        :type kwargs: dict
+        :returns: SuccessResponse if deleted or NoContentResponse if not found
+        :rtype: Response
+        :raises UnknownException: If database operations fail
         """
         client = cls.get_client_name(kwargs)
 
         try:
-            fact = ClientFacts(client)
+            # Get the record first to verify it exists
+            fact = ClientFacts.get(client)
             fact.delete()
         except DoesNotExist:
-            # Item was deleted between get and delete (race condition)
+            # Item doesn't exist in the database
             return NoContentResponse(f"Client {client} does not exist")
         except DeleteError:
             # Specific delete operation failure (permissions, conditions, etc.)
-            raise UnknownException(
-                f"Failed to delete client {client}: Permission denied or condition check failed"
-            )
+            raise UnknownException(f"Failed to delete client {client}: Permission denied or condition check failed")
         except Exception as e:
             # Catch-all for unexpected errors
             raise UnknownException(f"Failed to delete client {client}: {str(e)}")
@@ -164,20 +136,15 @@ class ClientActions(RegistryAction):
     @classmethod
     def create(cls, **kwargs) -> Response:
         """
-        Create a client FACTS record
+        Create a client FACTS record.
 
-        Args:
-            **kwargs (dict): Dictionary containing:
-                client (str): The client name (required)
-                [attribute_name] (Any): Any additional attributes to update for the client
-
-        Returns:
-            Response: SuccessResponse containing the updated client details
-
-        Raises:
-            ConflictException: If client name already exists
-            BadRequestException: If client name is missing or data format is invalid
-            UnknownException: If database operations fails
+        :param kwargs: Dictionary containing client name and additional attributes
+        :type kwargs: dict
+        :returns: SuccessResponse containing the created client details
+        :rtype: Response
+        :raises ConflictException: If client name already exists
+        :raises BadRequestException: If client name is missing or data format is invalid
+        :raises UnknownException: If database operations fail
         """
         client = cls.get_client_name(kwargs)
 
@@ -189,9 +156,7 @@ class ClientActions(RegistryAction):
             raise ConflictException(f"Client {client} already exists")
         except TableError:
             # Table doesn't exist or is in a different state
-            raise UnknownException(
-                f"Failed to save client {client}: Database table error"
-            )
+            raise UnknownException(f"Failed to save client {client}: Database table error")
         except ValueError as e:
             # Invalid data format
             raise BadRequestException(f"Data error on create {client}: {str(e)}")
@@ -204,33 +169,37 @@ class ClientActions(RegistryAction):
     @classmethod
     def update(cls, **kwargs) -> Response:
         """
-        Handles the PUT method.  If the item does not exist, it will be created.
+        Handle the PUT method. If the item does not exist, it will be created.
 
-        Args:
-            kwargs (dict): The client name
+        :param kwargs: Dictionary containing client name and attributes to update
+        :type kwargs: dict
+        :returns: SuccessResponse containing the updated client details
+        :rtype: Response
+        :raises UnknownException: If database operations fail
         """
         client = cls.get_client_name(kwargs)
 
         try:
-            # Get the existing client record or create a new one if it doesn't exist
+            # Create or update the client record
             fact = ClientFacts(client, **kwargs)
             fact.save()
         except (TableError, PutError) as e:
             raise UnknownException(f"Failed to update client {client}: {str(e)}")
         except Exception as e:
-            raise UnknownException(
-                f"Unexpected error updating client {client}: {str(e)}"
-            )
+            raise UnknownException(f"Unexpected error updating client {client}: {str(e)}")
 
         return SuccessResponse(fact.to_simple_dict())
 
     @classmethod
     def patch(cls, **kwargs) -> Response:
         """
-        Handles the PATCH method.  If the item does not exist, it will be created or updated.
+        Handle the PATCH method. Updates specific attributes of existing client record.
 
-        Args:
-            kwargs (dict): Input arguments
+        :param kwargs: Dictionary containing client name and attributes to patch
+        :type kwargs: dict
+        :returns: SuccessResponse containing the updated client details
+        :rtype: Response
+        :raises UnknownException: If database operations fail
         """
         client = cls.get_client_name(kwargs)
 
@@ -248,7 +217,7 @@ class ClientActions(RegistryAction):
                     attr = attributes[key]
                     if value is None:
                         actions.append(attr.remove())
-                        attr.set(None)
+                        # Don't set None on the object - remove action handles this
                     elif value != getattr(fact, key):
                         actions.append(attr.set(value))
 
@@ -259,11 +228,12 @@ class ClientActions(RegistryAction):
 
             return SuccessResponse(fact.to_simple_dict())
 
+        except DoesNotExist:
+            # If client doesn't exist, create it
+            return cls.create(client=client, **kwargs)
         except TableError:
             raise UnknownException(f"Database table error while saving client {client}")
         except PutError:
-            raise UnknownException(
-                f"Failed to save client {client}: Permission denied or condition check failed"
-            )
+            raise UnknownException(f"Failed to save client {client}: Permission denied or condition check failed")
         except Exception as e:
             raise UnknownException(f"Unexpected error saving client {client}: {str(e)}")

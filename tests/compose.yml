@@ -1,0 +1,80 @@
+# DynamoDB Local for Simple Cloud Kit Database Testing
+# Provides local DynamoDB instance for development and testing
+
+services:
+  dynamodb-local:
+    image: amazon/dynamodb-local:latest
+    container_name: sck-dynamodb-local
+    ports:
+      - "8000:8000"
+    volumes:
+      - dynamodb-data:/home/dynamodblocal/data
+    working_dir: /home/dynamodblocal
+    command: [
+      "-jar", "DynamoDBLocal.jar",
+      "-sharedDb",           # Use shared database file
+      "-dbPath", "./data",   # Store data in persistent volume
+      "-port", "8000"        # Listen on port 8000
+    ]
+    environment:
+      - JAVA_OPTS=-Xmx1g    # Set max heap size to 1GB
+    networks:
+      - sck-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # Optional: DynamoDB Admin UI for easier table management
+  dynamodb-admin:
+    image: aaronshaf/dynamodb-admin:latest
+    container_name: sck-dynamodb-admin
+    ports:
+      - "8001:8001"
+    environment:
+      - DYNAMO_ENDPOINT=http://dynamodb-local:8000
+      - AWS_REGION=us-west-2
+      - AWS_ACCESS_KEY_ID=dummy
+      - AWS_SECRET_ACCESS_KEY=dummy
+    depends_on:
+      dynamodb-local:
+        condition: service_healthy
+    networks:
+      - sck-network
+
+  # Optional: AWS CLI container for database operations
+  aws-cli:
+    image: amazon/aws-cli:latest
+    container_name: sck-aws-cli
+    volumes:
+      - ./scripts:/scripts
+      - ./data:/data
+    environment:
+      - AWS_ACCESS_KEY_ID=dummy
+      - AWS_SECRET_ACCESS_KEY=dummy
+      - AWS_DEFAULT_REGION=us-west-2
+    networks:
+      - sck-network
+    depends_on:
+      dynamodb-local:
+        condition: service_healthy
+    profiles:
+      - tools  # Only start with --profile tools
+    entrypoint: ["/bin/sh"]
+    stdin_open: true
+    tty: true
+
+volumes:
+  dynamodb-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./dynamodb-data
+
+networks:
+  sck-network:
+    driver: bridge
+    name: sck-network

@@ -984,7 +984,7 @@ test_data = [
         {
             "status": "ok",
             "code": 200,
-            "data": "Zone deleted: zone-one",
+            "data": "Zone deleted: client:zone-one",
         },
     ),
 ]
