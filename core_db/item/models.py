@@ -461,7 +461,12 @@ class ClientItemModel:
         """
         return ItemModel
 
-    def create_table(self, read_capacity_units: int = 1, write_capacity_units: int = 1, wait: bool = False) -> bool:
+    def create_table(
+        self,
+        read_capacity_units: int = 1,
+        write_capacity_units: int = 1,
+        wait: bool = False,
+    ) -> bool:
         """
         Create the table for this client.
 
@@ -479,7 +484,11 @@ class ClientItemModel:
         >>> client_model = ClientItemModel("acme")
         >>> client_model.create_table(wait=True)
         """
-        return ItemModel.create_table(read_capacity_units=read_capacity_units, write_capacity_units=write_capacity_units, wait=wait)
+        return ItemModel.create_table(
+            read_capacity_units=read_capacity_units,
+            write_capacity_units=write_capacity_units,
+            wait=wait,
+        )
 
     def delete_table(self) -> bool:
         """

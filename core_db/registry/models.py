@@ -45,7 +45,9 @@ class ModelProtocol(Protocol):
         """
         ...
 
-    def update(self, actions: list, condition: Optional[Condition] = None, **kwargs) -> None:
+    def update(
+        self, actions: list, condition: Optional[Condition] = None, **kwargs
+    ) -> None:
         """
         Update the model instance in DynamoDB.
 
@@ -118,7 +120,9 @@ class ModelProtocol(Protocol):
 
     # Class methods
     @classmethod
-    def get(cls, hash_key: Any, range_key: Optional[Any] = None, **kwargs) -> "ModelProtocol":
+    def get(
+        cls, hash_key: Any, range_key: Optional[Any] = None, **kwargs
+    ) -> "ModelProtocol":
         """
         Get a single item from DynamoDB.
 
@@ -253,7 +257,9 @@ class ModelProtocol(Protocol):
         ...
 
     @classmethod
-    def get_operation_kwargs_from_instance(cls, instance: "ModelProtocol", **kwargs) -> dict:
+    def get_operation_kwargs_from_instance(
+        cls, instance: "ModelProtocol", **kwargs
+    ) -> dict:
         """
         Get operation kwargs from a model instance.
 
@@ -295,7 +301,9 @@ class RegistryModel(Model):
         if not kwargs:
             return kwargs
         attributes = self.get_attributes()
-        return {self._convert_key_with_attrs(k, attributes): v for k, v in kwargs.items()}
+        return {
+            self._convert_key_with_attrs(k, attributes): v for k, v in kwargs.items()
+        }
 
     def _convert_key_with_attrs(self, key: str, attributes: dict) -> str:
         # Convert snake_case and kebab-case keys to PascalCase keys
@@ -326,7 +334,9 @@ class ExtendedMapAttribute(MapAttribute):
         if not kwargs:
             return kwargs
         attributes = self.get_attributes()
-        return {self._convert_key_with_attrs(k, attributes): v for k, v in kwargs.items()}
+        return {
+            self._convert_key_with_attrs(k, attributes): v for k, v in kwargs.items()
+        }
 
     def _convert_key_with_attrs(self, key: str, attributes: dict) -> str:
         # Convert snake_case and kebab-case keys to PascalCase keys

@@ -70,10 +70,13 @@ class FactsActions(TableActions):
         # Validation mapping: scope -> (validator_function, expected_parts_count)
         validators = {
             SCOPE_PORTFOLIO: (util.validate_portfolio_prn, 2),  # prn:portfolio
-            SCOPE_APP: (util.validate_app_prn, 3),              # prn:portfolio:app
-            SCOPE_BRANCH: (util.validate_branch_prn, 4),        # prn:portfolio:app:branch
-            SCOPE_BUILD: (util.validate_build_prn, 5),          # prn:portfolio:app:branch:build
-            SCOPE_COMPONENT: (util.validate_component_prn, 6),  # prn:portfolio:app:branch:build:component
+            SCOPE_APP: (util.validate_app_prn, 3),  # prn:portfolio:app
+            SCOPE_BRANCH: (util.validate_branch_prn, 4),  # prn:portfolio:app:branch
+            SCOPE_BUILD: (util.validate_build_prn, 5),  # prn:portfolio:app:branch:build
+            SCOPE_COMPONENT: (
+                util.validate_component_prn,
+                6,
+            ),  # prn:portfolio:app:branch:build:component
         }
 
         if prn is None:
@@ -146,7 +149,7 @@ class FactsActions(TableActions):
 
         # based on the scope, is the PRN valid? The PRN must be specified in the query parameters
         prn = str(kwargs.pop(PRN, kwargs.pop(SCOPE_ZONE, None)))
-        
+
         if not prn or prn == "None":
             raise BadRequestException("PRN must be provided to retrieve Facts")
 
@@ -154,7 +157,7 @@ class FactsActions(TableActions):
 
         if not client:
             raise BadRequestException("Client is required to retrieve Facts")
-        
+
         if not portfolio or not app:
             raise BadRequestException(
                 "Client, portfolio, and app are required in the PRN to retrieve Facts"

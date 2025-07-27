@@ -24,7 +24,9 @@ class PortfolioActions(RegistryAction):
     """Class container for Portfolio Item specific validations and actions"""
 
     @classmethod
-    def _get_client_portfolio(cls, kwargs: dict, default_portfolio: str | None = None) -> tuple[str, str]:
+    def _get_client_portfolio(
+        cls, kwargs: dict, default_portfolio: str | None = None
+    ) -> tuple[str, str]:
         """
         Extract client and portfolio from kwargs.
 
@@ -37,10 +39,16 @@ class PortfolioActions(RegistryAction):
         :raises BadRequestException: If client or portfolio are missing
         """
         client = kwargs.pop("client", kwargs.pop(CLIENT_KEY, None))
-        portfolio = kwargs.pop("portfolio", kwargs.pop(PORTFOLIO_KEY, default_portfolio))
+        portfolio = kwargs.pop(
+            "portfolio", kwargs.pop(PORTFOLIO_KEY, default_portfolio)
+        )
 
         if not portfolio or not client:
-            log.error("Missing required parameters: client=%s, portfolio=%s", client, portfolio)
+            log.error(
+                "Missing required parameters: client=%s, portfolio=%s",
+                client,
+                portfolio,
+            )
             raise BadRequestException(
                 'Client and Portfolio names are required in content: { "client": <name>, "portfolio": "<name>", ...}'
             )
@@ -77,12 +85,16 @@ class PortfolioActions(RegistryAction):
 
         if not client:
             log.error("Client name missing in list request")
-            raise BadRequestException('Client name is required in content: { "client": "<name>", ...}')
+            raise BadRequestException(
+                'Client name is required in content: { "client": "<name>", ...}'
+            )
 
         try:
             model_class = cls._get_model_class(client)
             log.debug("Querying portfolios for client: %s", client)
-            facts = model_class.query(hash_key=client, attributes_to_get=[PORTFOLIO_KEY])
+            facts = model_class.query(
+                hash_key=client, attributes_to_get=[PORTFOLIO_KEY]
+            )
             result = [p.Portfolio for p in facts]
             log.info("Found %d portfolios for client: %s", len(result), client)
 
@@ -92,7 +104,9 @@ class PortfolioActions(RegistryAction):
                 log.warning("No portfolios found for client: %s", client)
                 result = []
             else:
-                log.error("Failed to query portfolios for client %s: %s", client, str(e))
+                log.error(
+                    "Failed to query portfolios for client %s: %s", client, str(e)
+                )
                 raise UnknownException(f"Failed to query portfolios - {str(e)}")
 
         return SuccessResponse(result)
@@ -122,7 +136,9 @@ class PortfolioActions(RegistryAction):
                 log.warning("Portfolio not found: %s:%s", client, portfolio)
                 raise NotFoundException(f"Portfolio [{client}:{portfolio}] not found")
             else:
-                log.error("Failed to get portfolio %s:%s: %s", client, portfolio, str(e))
+                log.error(
+                    "Failed to get portfolio %s:%s: %s", client, portfolio, str(e)
+                )
                 raise UnknownException(f"Failed to get portfolio: {str(e)}")
 
         return SuccessResponse(item.to_simple_dict())
@@ -148,11 +164,22 @@ class PortfolioActions(RegistryAction):
             item: PortfolioFacts = model_class.get(client, portfolio)
         except Exception as e:
             if "DoesNotExist" in str(type(e)):
-                log.warning("Portfolio not found for deletion: %s:%s", client, portfolio)
-                raise NotFoundException(f"Portfolio {client}:{portfolio} does not exist")
+                log.warning(
+                    "Portfolio not found for deletion: %s:%s", client, portfolio
+                )
+                raise NotFoundException(
+                    f"Portfolio {client}:{portfolio} does not exist"
+                )
             else:
-                log.error("Failed to get portfolio for deletion %s:%s: %s", client, portfolio, str(e))
-                raise UnknownException(f"Failed to get portfolio for deletion: {str(e)}")
+                log.error(
+                    "Failed to get portfolio for deletion %s:%s: %s",
+                    client,
+                    portfolio,
+                    str(e),
+                )
+                raise UnknownException(
+                    f"Failed to get portfolio for deletion: {str(e)}"
+                )
 
         try:
             log.debug("Deleting portfolio: %s:%s", client, portfolio)
@@ -162,7 +189,12 @@ class PortfolioActions(RegistryAction):
             log.error("Failed to delete portfolio %s:%s: %s", client, portfolio, str(e))
             raise UnknownException(f"Failed to delete - {str(e)}")
         except Exception as e:
-            log.error("Unexpected error deleting portfolio %s:%s: %s", client, portfolio, str(e))
+            log.error(
+                "Unexpected error deleting portfolio %s:%s: %s",
+                client,
+                portfolio,
+                str(e),
+            )
             raise UnknownException(f"Failed to delete - {str(e)}")
 
         return SuccessResponse(f"Portfolio deleted: {client}:{portfolio}")
@@ -184,7 +216,9 @@ class PortfolioActions(RegistryAction):
 
         try:
             model_class = cls._get_model_class(client)
-            log.debug("Creating portfolio: %s:%s with data: %s", client, portfolio, kwargs)
+            log.debug(
+                "Creating portfolio: %s:%s with data: %s", client, portfolio, kwargs
+            )
             fact: PortfolioFacts = model_class(client, portfolio, **kwargs)
 
             # Use the dynamic class's Portfolio attribute for the condition
@@ -194,7 +228,9 @@ class PortfolioActions(RegistryAction):
             log.error("Invalid portfolio data for %s:%s: %s", client, portfolio, str(e))
             raise BadRequestException(f"Invalid portfolio data: {kwargs}: {str(e)}")
         except PutError as e:
-            log.warning("Portfolio already exists: %s:%s - %s", client, portfolio, str(e))
+            log.warning(
+                "Portfolio already exists: %s:%s - %s", client, portfolio, str(e)
+            )
             raise ConflictException(f"Portfolio {client}:{portfolio} already exists")
         except Exception as e:
             log.error("Failed to create portfolio %s:%s: %s", client, portfolio, str(e))
@@ -225,18 +261,31 @@ class PortfolioActions(RegistryAction):
                 log.info("Portfolio exists, will be replaced: %s:%s", client, portfolio)
         except Exception as e:
             if "DoesNotExist" in str(type(e)):
-                log.info("Portfolio does not exist, will be created: %s:%s", client, portfolio)
+                log.info(
+                    "Portfolio does not exist, will be created: %s:%s",
+                    client,
+                    portfolio,
+                )
             else:
-                log.error("Failed to check existing portfolio %s:%s: %s", client, portfolio, str(e))
+                log.error(
+                    "Failed to check existing portfolio %s:%s: %s",
+                    client,
+                    portfolio,
+                    str(e),
+                )
                 raise UnknownException(f"Failed to check existing portfolio: {str(e)}")
 
         try:
-            log.debug("Updating portfolio: %s:%s with data: %s", client, portfolio, kwargs)
+            log.debug(
+                "Updating portfolio: %s:%s with data: %s", client, portfolio, kwargs
+            )
             item: PortfolioFacts = model_class(client, portfolio, **kwargs)
             item.save()
             log.info("Successfully updated portfolio: %s:%s", client, portfolio)
         except PutError as e:
-            log.error("Put error updating portfolio %s:%s: %s", client, portfolio, str(e))
+            log.error(
+                "Put error updating portfolio %s:%s: %s", client, portfolio, str(e)
+            )
             raise ConflictException(f"Portfolio {client}:{portfolio} already exists")
         except Exception as e:
             log.error("Failed to update portfolio %s:%s: %s", client, portfolio, str(e))
@@ -278,13 +327,28 @@ class PortfolioActions(RegistryAction):
                         attr = attributes[key]
                         actions.append(attr.remove())
                         attr.set(None)
-                        log.debug("Removing attribute %s from portfolio %s:%s", key, client, portfolio)
+                        log.debug(
+                            "Removing attribute %s from portfolio %s:%s",
+                            key,
+                            client,
+                            portfolio,
+                        )
                     elif value != getattr(item, key):
                         actions.append(attributes[key].set(value))
-                        log.debug("Updating attribute %s in portfolio %s:%s", key, client, portfolio)
+                        log.debug(
+                            "Updating attribute %s in portfolio %s:%s",
+                            key,
+                            client,
+                            portfolio,
+                        )
 
             if len(actions) > 0:
-                log.debug("Applying %d updates to portfolio %s:%s", len(actions), client, portfolio)
+                log.debug(
+                    "Applying %d updates to portfolio %s:%s",
+                    len(actions),
+                    client,
+                    portfolio,
+                )
                 item.update(actions=actions)
                 item.refresh()
                 log.info("Successfully patched portfolio: %s:%s", client, portfolio)
@@ -294,13 +358,22 @@ class PortfolioActions(RegistryAction):
             return SuccessResponse(item.to_simple_dict())
 
         except AttributeNullError as e:
-            log.error("Required attribute missing for portfolio %s:%s: %s", client, portfolio, str(e))
+            log.error(
+                "Required attribute missing for portfolio %s:%s: %s",
+                client,
+                portfolio,
+                str(e),
+            )
             raise BadRequestException(f"Required attribute missing: {str(e)}")
 
         except Exception as e:
             if "DoesNotExist" in str(type(e)):
                 log.warning("Portfolio not found for patch: %s:%s", client, portfolio)
-                raise NotFoundException(f"Portfolio {client}:{portfolio} does not exist")
+                raise NotFoundException(
+                    f"Portfolio {client}:{portfolio} does not exist"
+                )
             else:
-                log.error("Failed to patch portfolio %s:%s: %s", client, portfolio, str(e))
+                log.error(
+                    "Failed to patch portfolio %s:%s: %s", client, portfolio, str(e)
+                )
                 raise UnknownException(f"Failed to patch portfolio: {str(e)}")

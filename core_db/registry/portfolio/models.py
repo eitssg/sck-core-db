@@ -296,13 +296,16 @@ class PortfolioFacts(ModelProtocol):
         """
         ...
 
+
 class PortfolioFactsFactory:
     """Factory to create client-specific PortfolioFacts models with dynamic table names."""
 
     _model_cache = {}
 
     @classmethod
-    def get_model(cls, client: str, auto_create_table: bool = True) -> type[PortfolioFacts]:
+    def get_model(
+        cls, client: str, auto_create_table: bool = True
+    ) -> type[PortfolioFacts]:
         """
         Get a PortfolioFacts model class for a specific client.
 
@@ -352,7 +355,9 @@ class PortfolioFactsFactory:
         """Create a new PortfolioFacts model class for a specific client."""
 
         class Meta:
-            table_name = get_table_name(PORTFOLIO_FACTS, client)  # Client-specific table
+            table_name = get_table_name(
+                PORTFOLIO_FACTS, client
+            )  # Client-specific table
             region = util.get_dynamodb_region()
             host = util.get_dynamodb_host()
             read_capacity_units = 1
@@ -402,6 +407,8 @@ class PortfolioFactsFactory:
         }
 
         # Create the dynamic class
-        ClientPortfolioFacts = type(f"PortfolioFacts_{client}", (RegistryModel,), model_attrs)
+        ClientPortfolioFacts = type(
+            f"PortfolioFacts_{client}", (RegistryModel,), model_attrs
+        )
 
         return ClientPortfolioFacts

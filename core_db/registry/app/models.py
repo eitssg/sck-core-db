@@ -153,7 +153,9 @@ class AppFactsFactory:
         # Create dynamic class
         model_attrs = {
             "Meta": Meta,
-            "ClientPortfolio": UnicodeAttribute(attr_name=CLIENT_PORTFOLIO_KEY, hash_key=True),
+            "ClientPortfolio": UnicodeAttribute(
+                attr_name=CLIENT_PORTFOLIO_KEY, hash_key=True
+            ),
             "AppRegex": UnicodeAttribute(attr_name=APP_KEY, range_key=True),
             "Name": UnicodeAttribute(null=True),
             "Environment": UnicodeAttribute(null=True),

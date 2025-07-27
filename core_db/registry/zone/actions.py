@@ -26,7 +26,9 @@ class ZoneActions(RegistryAction):
     """
 
     @classmethod
-    def _get_client_zone(cls, kwargs: dict, default_zone: str | None = None) -> tuple[str, str]:
+    def _get_client_zone(
+        cls, kwargs: dict, default_zone: str | None = None
+    ) -> tuple[str, str]:
         """
         Extract client and zone from kwargs.
 
@@ -43,7 +45,9 @@ class ZoneActions(RegistryAction):
 
         if not zone or not client:
             log.error("Missing required parameters: client=%s, zone=%s", client, zone)
-            raise BadRequestException('Client and Zone names are required in content: { "client": <name>, "zone": "<name>", ...}')
+            raise BadRequestException(
+                'Client and Zone names are required in content: { "client": <name>, "zone": "<name>", ...}'
+            )
 
         log.debug("Extracted client=%s, zone=%s", client, zone)
         return client, zone
@@ -77,7 +81,9 @@ class ZoneActions(RegistryAction):
 
         if not client:
             log.error("Client name missing in list request")
-            raise BadRequestException('Client name is required in content: { "client": "<name>", ...}')
+            raise BadRequestException(
+                'Client name is required in content: { "client": "<name>", ...}'
+            )
 
         try:
             model_class = cls._get_model_class(client)
@@ -151,7 +157,9 @@ class ZoneActions(RegistryAction):
                 log.warning("Zone not found for deletion: %s:%s", client, zone)
                 raise NotFoundException(f"Zone {client}:{zone} does not exist")
             else:
-                log.error("Failed to get zone for deletion %s:%s: %s", client, zone, str(e))
+                log.error(
+                    "Failed to get zone for deletion %s:%s: %s", client, zone, str(e)
+                )
                 raise UnknownException(f"Failed to get zone for deletion: {str(e)}")
 
         try:
@@ -225,7 +233,9 @@ class ZoneActions(RegistryAction):
             if "DoesNotExist" in str(type(e)):
                 log.info("Zone does not exist, will be created: %s:%s", client, zone)
             else:
-                log.error("Failed to check existing zone %s:%s: %s", client, zone, str(e))
+                log.error(
+                    "Failed to check existing zone %s:%s: %s", client, zone, str(e)
+                )
                 raise UnknownException(f"Failed to check existing zone: {str(e)}")
 
         try:
@@ -273,13 +283,19 @@ class ZoneActions(RegistryAction):
                         attr = attributes[key]
                         actions.append(attr.remove())
                         attr.set(None)
-                        log.debug("Removing attribute %s from zone %s:%s", key, client, zone)
+                        log.debug(
+                            "Removing attribute %s from zone %s:%s", key, client, zone
+                        )
                     elif value != getattr(item, key):
                         actions.append(attributes[key].set(value))
-                        log.debug("Updating attribute %s in zone %s:%s", key, client, zone)
+                        log.debug(
+                            "Updating attribute %s in zone %s:%s", key, client, zone
+                        )
 
             if len(actions) > 0:
-                log.debug("Applying %d updates to zone %s:%s", len(actions), client, zone)
+                log.debug(
+                    "Applying %d updates to zone %s:%s", len(actions), client, zone
+                )
                 item.update(actions=actions)
                 item.refresh()
                 log.info("Successfully patched zone: %s:%s", client, zone)

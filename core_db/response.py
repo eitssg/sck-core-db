@@ -50,7 +50,9 @@ class ErrorDetail(BaseModel):
 
     type: str = Field(..., description="The type of the exception", alias="Type")
     message: str = Field(..., description="The error message", alias="Message")
-    track: str | None = Field(None, description="The stack trace of the error", alias="Track")
+    track: str | None = Field(
+        None, description="The stack trace of the error", alias="Track"
+    )
 
     def model_dump(self, **kwargs) -> dict:
         """
@@ -129,7 +131,9 @@ class Response(BaseModel):
     )
 
     status: Literal["ok", "error"] = Field(
-        "ok", description="The status of the response: 'ok' for success, 'error' for failure", alias="Status"
+        "ok",
+        description="The status of the response: 'ok' for success, 'error' for failure",
+        alias="Status",
     )
     code: int | None = Field(HTTP_OK, description="The HTTP status code", alias="Code")
     data: dict | list | str | None = Field(
@@ -137,8 +141,16 @@ class Response(BaseModel):
         description="The main response data (DynamoDB object or composite response)",
         alias="Data",
     )
-    links: list[dict] | None = Field(None, description="Links to related resources following REST API conventions", alias="Links")
-    metadata: dict | None = Field(None, description="Additional metadata about the response or operation", alias="Metadata")
+    links: list[dict] | None = Field(
+        None,
+        description="Links to related resources following REST API conventions",
+        alias="Links",
+    )
+    metadata: dict | None = Field(
+        None,
+        description="Additional metadata about the response or operation",
+        alias="Metadata",
+    )
     errors: list[ErrorDetail] | None = Field(
         None,
         description="List of errors that occurred during processing with traceback information",
@@ -242,7 +254,13 @@ class SuccessResponse(Response):
     ... )
     """
 
-    def __init__(self, data: Any = None, links: list[dict[str, Any]] | None = None, additional_data: dict | None = None, **kwargs):
+    def __init__(
+        self,
+        data: Any = None,
+        links: list[dict[str, Any]] | None = None,
+        additional_data: dict | None = None,
+        **kwargs,
+    ):
         """
         Initialize a SuccessResponse.
 
@@ -263,7 +281,15 @@ class SuccessResponse(Response):
         if "Metadata" in kwargs and additional_data is None:
             additional_data = kwargs.pop("Metadata")
 
-        super().__init__(status="ok", code=HTTP_OK, data=data, links=links, metadata=additional_data, errors=None, **kwargs)
+        super().__init__(
+            status="ok",
+            code=HTTP_OK,
+            data=data,
+            links=links,
+            metadata=additional_data,
+            errors=None,
+            **kwargs,
+        )
 
     def __repr__(self) -> str:
         """
@@ -309,7 +335,13 @@ class NoContentResponse(Response):
     ... )
     """
 
-    def __init__(self, data: Any, links: list[dict[str, Any]] | None = None, additional_data: dict | None = None, **kwargs):
+    def __init__(
+        self,
+        data: Any,
+        links: list[dict[str, Any]] | None = None,
+        additional_data: dict | None = None,
+        **kwargs,
+    ):
         """
         Initialize a NoContentResponse.
 
@@ -330,7 +362,15 @@ class NoContentResponse(Response):
         if "Metadata" in kwargs and additional_data is None:
             additional_data = kwargs.pop("Metadata")
 
-        super().__init__(status="ok", code=HTTP_NO_CONTENT, data=data, links=links, metadata=additional_data, errors=None, **kwargs)
+        super().__init__(
+            status="ok",
+            code=HTTP_NO_CONTENT,
+            data=data,
+            links=links,
+            metadata=additional_data,
+            errors=None,
+            **kwargs,
+        )
 
     def __repr__(self) -> str:
         """
@@ -378,7 +418,9 @@ def _build_error_chain(exc: Exception) -> list[ErrorDetail]:
         error_detail = ErrorDetail(
             type=type(exc).__name__,
             message=str(exc),
-            track="".join(traceback.format_exception(type(exc), exc, exc.__traceback__)),
+            track="".join(
+                traceback.format_exception(type(exc), exc, exc.__traceback__)
+            ),
         )
         error_chain.append(error_detail)
         exc = exc.__cause__ or exc.__context__  # type: ignore
@@ -444,7 +486,13 @@ class ErrorResponse(Response):
     """
 
     def __init__(
-        self, e: Exception, *, code: int | None = None, message: str | None = None, additional_data: dict | None = None, **kwargs
+        self,
+        e: Exception,
+        *,
+        code: int | None = None,
+        message: str | None = None,
+        additional_data: dict | None = None,
+        **kwargs,
     ):
         """
         Initialize an ErrorResponse from an exception.

@@ -247,8 +247,12 @@ def derive_environment_from_branch(branch: str) -> tuple[str, str]:
 
         # split the branch by '/' and retrieve the last part
         branch_parts = branch.split("/")
-        environment = branch_parts[-1]  # in this format, the branch name is the environment (master, main, dev, feature1/dev, etc)
-        region_alias = parts[1]  # override region_alias fact with the branch region alias definition
+        environment = branch_parts[
+            -1
+        ]  # in this format, the branch name is the environment (master, main, dev, feature1/dev, etc)
+        region_alias = parts[
+            1
+        ]  # override region_alias fact with the branch region alias definition
     else:
         environment = branch
         region_alias = V_DEFAULT_REGION_ALIAS
@@ -412,7 +416,9 @@ def get_facts(deployment_details: DeploymentDetails) -> dict:  # noqa: C901
     identity = deployment_details.get_identity()
     app_facts = get_app_facts(deployment_details)
     if app_facts is None:
-        raise ValueError(f"App facts not found for {identity}. Contact DevOps to register this app.")
+        raise ValueError(
+            f"App facts not found for {identity}. Contact DevOps to register this app."
+        )
 
     # If the app facts do not contain a zone, throw an error
     zone = app_facts.get(ZONE_KEY, None)
@@ -428,7 +434,9 @@ def get_facts(deployment_details: DeploymentDetails) -> dict:  # noqa: C901
     environment = app_facts.get(ENVIRONMENT, None)
     branch_region_alias = V_DEFAULT_REGION_ALIAS
     if not environment:
-        environment, branch_region_alias = derive_environment_from_branch(deployment_details.branch or V_DEFAULT_REGION_ALIAS)
+        environment, branch_region_alias = derive_environment_from_branch(
+            deployment_details.branch or V_DEFAULT_REGION_ALIAS
+        )
 
     # FACTS always override user input. So, don't use the user input if FACTS are present.
     if region_alias is None:
@@ -462,7 +470,9 @@ def get_facts(deployment_details: DeploymentDetails) -> dict:  # noqa: C901
             TAG_ENVIRONMENT: environment,
             TAG_REGION: region_alias,
             TAG_OWNER: format_contact(portfolio_facts.get("Owner", {})),
-            TAG_CONTACTS: ",".join([format_contact(c) for c in portfolio_facts.get("Contacts", [])]),
+            TAG_CONTACTS: ",".join(
+                [format_contact(c) for c in portfolio_facts.get("Contacts", [])]
+            ),
         },
     )
     app_facts[FACTS_TAGS] = dict(tags)
