@@ -7,7 +7,7 @@ from .config import (
     get_events_table_name,
 )
 
-__version__ = "0.0.5"
+__version__ = "0.0.8-pre.1+8afc5c4"
 
 __all__ = [
     "get_clients_table_name",
