@@ -1,18 +1,15 @@
 """Classes defining the Apps record model for the core-automation-apps table"""
 
-from typing import Protocol, Optional, Any, Iterator
 from pynamodb.attributes import MapAttribute, UnicodeAttribute
-from pynamodb.expressions.condition import Condition
 
-import core_framework as util
 import core_logging as log
 
 from ...constants import CLIENT_PORTFOLIO_KEY, APP_KEY
 from ...config import get_table_name, APP_FACTS
-from ..models import RegistryModel, ModelProtocol
+from ..models import RegistryModel
 
 
-class AppFacts(ModelProtocol):
+class AppFacts(RegistryModel):
     """
     Protocol defining the Apps record model interface for the core-automation-apps table.
 
@@ -52,20 +49,25 @@ class AppFacts(ModelProtocol):
     in an Account. A zone can have multiple region definitions.
     """
 
-    # Attribute definitions
-    ClientPortfolio: UnicodeAttribute
-    AppRegex: UnicodeAttribute
-    Name: UnicodeAttribute
-    Environment: UnicodeAttribute
-    Account: UnicodeAttribute
-    Zone: UnicodeAttribute
-    ImageAliases: MapAttribute
-    Repository: UnicodeAttribute
-    Region: UnicodeAttribute
-    Tags: MapAttribute
-    EnforceValidation: UnicodeAttribute
-    Metadata: MapAttribute
-    UserInstantiated: UnicodeAttribute
+    class Meta(RegistryModel.Meta):
+        pass
+
+    ClientPortfolio = UnicodeAttribute(attr_name=CLIENT_PORTFOLIO_KEY, hash_key=True)
+    AppRegex = UnicodeAttribute(attr_name=APP_KEY, range_key=True)
+    Name = UnicodeAttribute(null=True)
+    Environment = UnicodeAttribute(null=True)
+    Account = UnicodeAttribute(null=True)
+    Zone = UnicodeAttribute(null=False)
+    ImageAliases = MapAttribute(null=True)
+    Repository = UnicodeAttribute(null=True)
+    Region = UnicodeAttribute(null=False)
+    Tags = MapAttribute(null=True)
+    EnforceValidation = UnicodeAttribute(null=True)
+    Metadata = MapAttribute(null=True)
+    UserInstantiated = UnicodeAttribute(null=True)
+
+
+AppFactsType = type[AppFacts]
 
 
 class AppFactsFactory:
@@ -74,7 +76,7 @@ class AppFactsFactory:
     _model_cache = {}
 
     @classmethod
-    def get_model(cls, client: str, auto_create_table: bool = True) -> type[AppFacts]:
+    def get_model(cls, client: str, auto_create_table: bool = True) -> AppFactsType:
         """
         Get an AppFacts model class for a specific client.
 
@@ -91,12 +93,12 @@ class AppFactsFactory:
 
             # Auto-create table if requested
             if auto_create_table:
-                cls._ensure_table_exists(model_class, client)
+                cls._ensure_table_exists(model_class)
 
         return cls._model_cache[client]
 
     @classmethod
-    def _ensure_table_exists(cls, model_class: type, client: str) -> None:
+    def _ensure_table_exists(cls, model_class: AppFacts) -> None:
         """
         Ensure the table exists, create it if it doesn't.
 
@@ -107,15 +109,15 @@ class AppFactsFactory:
         """
         try:
             if not model_class.exists():
-                log.info("Creating app table for client: %s", client)
+                log.info("Creating app table: %s", model_class.Meta.table_name)
                 model_class.create_table(wait=True)
-                log.info("Successfully created app table for client: %s", client)
+                log.info("Successfully created app table: %s", model_class.Meta.table_name)
         except Exception as e:
-            log.error("Failed to create app table for client %s: %s", client, str(e))
+            log.error("Failed to create app table %s: %s", model_class.Meta.table_name, str(e))
             # Don't raise - let the operation proceed and fail naturally
 
     @classmethod
-    def _create_client_model(cls, client: str):
+    def _create_client_model(cls, client: str) -> AppFactsType:
         """
         Create a new AppFacts model class for a specific client.
 
@@ -125,55 +127,8 @@ class AppFactsFactory:
         :rtype: type
         """
 
-        class Meta:
-            table_name = get_table_name(APP_FACTS, client)  # Client-specific table
-            region = util.get_dynamodb_region()
-            host = util.get_dynamodb_host()
-            read_capacity_units = 1
-            write_capacity_units = 1
+        class AppFactsModel(AppFacts):
+            class Meta(AppFacts.Meta):
+                table_name = get_table_name(APP_FACTS, client)
 
-        def __init__(self, *args, **kwargs):
-            """
-            Initialize an AppFacts instance.
-
-            :param args: Positional arguments for model initialization
-            :param kwargs: Keyword arguments for model attributes
-            """
-            RegistryModel.__init__(self, *args, **kwargs)
-
-        def __repr__(self) -> str:
-            """
-            Return string representation of AppFacts.
-
-            :returns: String representation showing ClientPortfolio and AppRegex
-            :rtype: str
-            """
-            return f"AppFacts({self.ClientPortfolio}, {self.AppRegex})"
-
-        # Create dynamic class
-        model_attrs = {
-            "Meta": Meta,
-            "ClientPortfolio": UnicodeAttribute(
-                attr_name=CLIENT_PORTFOLIO_KEY, hash_key=True
-            ),
-            "AppRegex": UnicodeAttribute(attr_name=APP_KEY, range_key=True),
-            "Name": UnicodeAttribute(null=True),
-            "Environment": UnicodeAttribute(null=True),
-            "Account": UnicodeAttribute(null=True),
-            "Zone": UnicodeAttribute(null=False),
-            "ImageAliases": MapAttribute(null=True),
-            "Repository": UnicodeAttribute(null=True),
-            "Region": UnicodeAttribute(null=False),
-            "Tags": MapAttribute(null=True),
-            "EnforceValidation": UnicodeAttribute(null=True),
-            "Metadata": MapAttribute(null=True),
-            "UserInstantiated": UnicodeAttribute(null=True),
-            # Add methods directly
-            "__init__": __init__,
-            "__repr__": __repr__,
-        }
-
-        # Create the dynamic class
-        ClientAppFacts = type(f"AppFacts_{client}", (RegistryModel,), model_attrs)
-
-        return ClientAppFacts
+        return AppFactsModel

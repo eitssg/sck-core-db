@@ -7,11 +7,11 @@ from core_db.dbhelper import actions_routes
 
 from .test_table_actions_data import test_data
 
-from core_db.event.models import EventModel
-from core_db.item.models import ItemModel
-from core_db.registry.client.models import ClientFacts
+from core_db.event.models import EventModelFactory
+from core_db.item.models import ItemModelFactory
+from core_db.registry.client.models import ClientFactsFactory
 from core_db.registry.portfolio.models import PortfolioFactsFactory
-from core_db.registry.app.models import AppFacts
+from core_db.registry.app.models import AppFactsFactory
 from core_db.registry.zone.models import ZoneFactsFactory
 
 import logging
@@ -27,11 +27,11 @@ def bootstrap_dynamo():
     # see environment variables in .env
     host = util.get_dynamodb_host()
 
-    assert (
-        host == "http://localhost:8000"
-    ), "DYNAMODB_HOST must be set to http://localhost:8000"
+    assert host == "http://localhost:8000", "DYNAMODB_HOST must be set to http://localhost:8000"
 
     try:
+
+        client_name = "test-client"
 
         # use boto3 to connect to DynamoDB, get a list of all tables, then delete all tables
         import boto3
@@ -47,19 +47,23 @@ def bootstrap_dynamo():
                 table.wait_until_not_exists()
                 logging.debug(f"Table {table.name} deleted successfully.")
 
-        EventModel.create_table(wait=True)
-        ItemModel.create_table(wait=True)
+        ClientFacts = ClientFactsFactory.get_model(client_name)
         ClientFacts.create_table(wait=True)
 
-        PortfolioFacts = PortfolioFactsFactory.get_model("client")
-        assert PortfolioFacts is not None, "PortfolioFacts model should not be None"
+        PortfolioFacts = PortfolioFactsFactory.get_model(client_name)
         PortfolioFacts.create_table(wait=True)
 
+        AppFacts = AppFactsFactory.get_model(client_name)
         AppFacts.create_table(wait=True)
 
-        ZoneFacts = ZoneFactsFactory.get_model("client")
-        assert ZoneFacts is not None, "ZoneFacts model should not be None"
+        ZoneFacts = ZoneFactsFactory.get_model(client_name)
         ZoneFacts.create_table(wait=True)
+
+        ItemModel = ItemModelFactory.get_model(client_name)
+        ItemModel.create_table(wait=True)
+
+        EventModel = EventModelFactory.get_model(client_name)
+        EventModel.create_table(wait=True)
 
     except Exception as e:
         print(e)

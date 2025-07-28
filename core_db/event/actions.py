@@ -36,7 +36,7 @@ from ..config import get_table_name
 from ..constants import EVENTS
 from ..response import Response, SuccessResponse
 
-from .models import EventModel, EventModelSchema
+from .models import EventModelFactory, EventModelSchema
 
 from core_framework.constants import (
     SCOPE_PORTFOLIO,
@@ -49,7 +49,8 @@ from core_framework.constants import (
 
 class EventActions(TableActions):
 
-    item_model = EventModel
+    event_model = EventModelFactory.get_model(util.get_client())
+
     item_types = [
         SCOPE_PORTFOLIO,
         SCOPE_APP,
@@ -83,10 +84,8 @@ class EventActions(TableActions):
         try:
             kwargs.pop(PRN, prn)
             kwargs[ITEM_TYPE] = item_type
-            kwargs[EVENT_TYPE] = kwargs.get(
-                EVENT_TYPE, log.getLevelName(log.STATUS)
-            ).upper()
-            event = EventModel(prn, **kwargs)
+            kwargs[EVENT_TYPE] = kwargs.get(EVENT_TYPE, log.getLevelName(log.STATUS)).upper()
+            event = cls.event_model(prn, **kwargs)
 
             log.debug("Saving event {}".format(event))
 
@@ -107,7 +106,7 @@ class EventActions(TableActions):
         # Load the requested event
         try:
             prn = util.generate_build_prn(kwargs)
-            event = EventModel(prn)
+            event = cls.event_model(prn)
             event.delete()
         except DeleteError as e:
             raise BadRequestException(f"Failed to delete - {str(e)}") from e
@@ -142,13 +141,11 @@ class EventActions(TableActions):
 
         # Generate our range key condition
         if earliest_time and latest_time:
-            range_key_condition = EventModel.timestamp.between(
-                earliest_time, latest_time
-            )
+            range_key_condition = cls.event_model.timestamp.between(earliest_time, latest_time)
         elif earliest_time:
-            range_key_condition = EventModel.timestamp >= earliest_time
+            range_key_condition = cls.event_model.timestamp >= earliest_time
         elif latest_time:
-            range_key_condition = EventModel.timestamp <= latest_time
+            range_key_condition = cls.event_model.timestamp <= latest_time
         else:
             range_key_condition = None
 
@@ -163,7 +160,7 @@ class EventActions(TableActions):
         sort_forward = kwargs.get(SORT, ASCENDING) == ASCENDING
         limit = kwargs.get(LIMIT, 100)
 
-        results = EventModel.query(
+        results = cls.event_model.query(
             hash_key=prn,
             range_key_condition=range_key_condition,
             scan_index_forward=sort_forward,
@@ -174,9 +171,7 @@ class EventActions(TableActions):
         events = [i.attribute_values for i in results]
         last_evaluated_key = results.last_evaluated_key
         if last_evaluated_key:
-            kwargs[DATA_PAGINATOR] = base64.b64encode(
-                json.dumps(last_evaluated_key).encode()
-            ).decode()
+            kwargs[DATA_PAGINATOR] = base64.b64encode(json.dumps(last_evaluated_key).encode()).decode()
         else:
             kwargs[DATA_PAGINATOR] = None
 
@@ -231,9 +226,7 @@ class EventService(TableActions):
             prn = kwargs.get("prn")
             timestamp = kwargs.get("timestamp")
             if not prn or not timestamp:
-                raise ValueError(
-                    "Both 'prn' and 'timestamp' are required to get an item."
-                )
+                raise ValueError("Both 'prn' and 'timestamp' are required to get an item.")
             if isinstance(timestamp, datetime):
                 timestamp = timestamp.isoformat()
             instance = cls()
@@ -262,9 +255,7 @@ class EventService(TableActions):
             prn = kwargs.get("prn")
             timestamp = kwargs.get("timestamp")
             if not prn or not timestamp:
-                raise ValueError(
-                    "Both 'prn' and 'timestamp' are required to update an item."
-                )
+                raise ValueError("Both 'prn' and 'timestamp' are required to update an item.")
             # Remove primary key fields from update parameters.
             update_data = kwargs.copy()
             update_data.pop("prn", None)
@@ -273,10 +264,7 @@ class EventService(TableActions):
                 raise ValueError("No update fields provided.")
             update_expression = "SET " + ", ".join(f"#{k} = :{k}" for k in update_data)
             expression_attribute_names = {f"#{k}": k for k in update_data}
-            expression_attribute_values = {
-                f":{k}": v.isoformat() if isinstance(v, datetime) else v
-                for k, v in update_data.items()
-            }
+            expression_attribute_values = {f":{k}": v.isoformat() if isinstance(v, datetime) else v for k, v in update_data.items()}
             if isinstance(timestamp, datetime):
                 timestamp = timestamp.isoformat()
             instance = cls()
@@ -303,9 +291,7 @@ class EventService(TableActions):
             prn = kwargs.get("prn")
             timestamp = kwargs.get("timestamp")
             if not prn or not timestamp:
-                raise ValueError(
-                    "Both 'prn' and 'timestamp' are required to delete an item."
-                )
+                raise ValueError("Both 'prn' and 'timestamp' are required to delete an item.")
             if isinstance(timestamp, datetime):
                 timestamp = timestamp.isoformat()
 

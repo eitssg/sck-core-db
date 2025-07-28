@@ -19,15 +19,17 @@ def get_table_name(name: str, client: str = None, default: Optional[str] = None)
     prefix = util.get_automation_scope() or ""
 
     tables = {
-        # These tables or for the CORE system automation engine
+        # Client Facts is the base tenant registration table (no "client" prefix)
         CLIENT_FACTS: f"{prefix}{V_CORE_AUTOMATION}-clients",
-        PORTFOLIO_FACTS: f"{prefix}{V_CORE_AUTOMATION}-portfolios",
-        ZONE_FACTS: f"{prefix}{V_CORE_AUTOMATION}-zones",
-        APP_FACTS: f"{prefix}{V_CORE_AUTOMATION}-apps",
-        # WARNING:You must isolate item/events by client and each client
-        # must have their own table.  Cilent should come in on the API
-        # call.  So, you don't want to use these defaults.
+        # AWS Account(s) and zone names
+        ZONE_FACTS: f"{prefix}{client}-{V_CORE_AUTOMATION}-zones",
+        # Portflio BizApps / Deploypment App targets
+        PORTFOLIO_FACTS: f"{prefix}{client}-{V_CORE_AUTOMATION}-portfolios",
+        # The application zone selectors (App Registry)
+        APP_FACTS: f"{prefix}{client}-{V_CORE_AUTOMATION}-apps",
+        # Components and Items deployed to AWS
         ITEMS: f"{prefix}{client}-{V_CORE_AUTOMATION}-items",
+        # All the events that are generated duing deployment
         EVENTS: f"{prefix}{client}-{V_CORE_AUTOMATION}-events",
     }
 
@@ -39,33 +41,3 @@ def get_table_name(name: str, client: str = None, default: Optional[str] = None)
         raise ValueError(f"Table name not found for {name}")
 
     return table
-
-
-def get_clients_table_name() -> str:
-    """Get the name of the client table"""
-    return get_table_name(CLIENT_FACTS)
-
-
-def get_apps_table_name() -> str:
-    """Get the name of the app table"""
-    return get_table_name(APP_FACTS)
-
-
-def get_zones_table_name() -> str:
-    """Get the name of the zone table"""
-    return get_table_name(ZONE_FACTS)
-
-
-def get_portfolios_table_name() -> str:
-    """Get the name of the portfolio table"""
-    return get_table_name(PORTFOLIO_FACTS)
-
-
-def get_items_table_name() -> str:
-    """Get the name of the item table"""
-    return get_table_name(ITEMS)
-
-
-def get_events_table_name() -> str:
-    """Get the name of the event table"""
-    return get_table_name(EVENTS)

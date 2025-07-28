@@ -1,6 +1,5 @@
 """Definition of the Portfolio Facts in the core-automation-portfolios table"""
 
-from typing import Optional, Protocol, Dict, List, Any
 from pynamodb.attributes import (
     UnicodeAttribute,
     BooleanAttribute,
@@ -9,12 +8,12 @@ from pynamodb.attributes import (
     NumberAttribute,
 )
 
-import core_framework as util
+import core_logging as log
 
 from ...config import get_table_name, PORTFOLIO_FACTS
 from ...constants import CLIENT_KEY, PORTFOLIO_KEY
 
-from ..models import RegistryModel, ExtendedMapAttribute, ModelProtocol
+from ..models import RegistryModel, ExtendedMapAttribute
 
 
 class ContactFacts(ExtendedMapAttribute):
@@ -177,7 +176,7 @@ class ProjectFacts(ExtendedMapAttribute):
     UserInstantiated = UnicodeAttribute(null=True)  # Internal PynamoDB field
 
 
-class PortfolioFacts(ModelProtocol):
+class PortfolioFacts(RegistryModel):
     """
     Protocol defining the interface for PortfolioFacts models.
 
@@ -273,28 +272,24 @@ class PortfolioFacts(ModelProtocol):
     >>> portfolio.save()
     """
 
-    # Attributes
-    Client: str
-    Portfolio: str
-    Contacts: Optional[List[ContactFacts]]
-    Approvers: Optional[List[ApproverFacts]]
-    Project: Optional[ProjectFacts]
-    Domain: Optional[str]
-    Bizapp: Optional[ProjectFacts]
-    Owner: Optional[OwnerFacts]
-    Tags: Optional[Dict[str, str]]
-    Metadata: Optional[Dict[str, str]]
-    Attributes: Optional[Dict[str, str]]
-    UserInstantiated: UnicodeAttribute
+    class Meta(RegistryModel.Meta):
+        pass
 
-    def get_client_portfolio_key(self) -> str:
-        """
-        Get the client portfolio key.
+    Client = UnicodeAttribute(attr_name=CLIENT_KEY, hash_key=True)
+    Portfolio = UnicodeAttribute(attr_name=PORTFOLIO_KEY, range_key=True)
+    Contacts = ListAttribute(of=ContactFacts, null=True)
+    Approvers = ListAttribute(of=ApproverFacts, null=True)
+    Project = ProjectFacts(null=True)
+    Domain = UnicodeAttribute(null=True)
+    Bizapp = ProjectFacts(null=True)
+    Owner = OwnerFacts(null=True)
+    Tags = MapAttribute(of=UnicodeAttribute, null=True)
+    Metadata = MapAttribute(of=UnicodeAttribute, null=True)
+    Attributes = MapAttribute(of=UnicodeAttribute, null=True)
+    UserInstantiated = UnicodeAttribute(null=True)
 
-        :returns: The client portfolio key in format "client:portfolio"
-        :rtype: str
-        """
-        ...
+
+PortfolioFactsType = type[PortfolioFacts]
 
 
 class PortfolioFactsFactory:
@@ -303,9 +298,7 @@ class PortfolioFactsFactory:
     _model_cache = {}
 
     @classmethod
-    def get_model(
-        cls, client: str, auto_create_table: bool = True
-    ) -> type[PortfolioFacts]:
+    def get_model(cls, client: str, auto_create_table: bool = True) -> PortfolioFactsType:
         """
         Get a PortfolioFacts model class for a specific client.
 
@@ -327,12 +320,12 @@ class PortfolioFactsFactory:
 
             # Auto-create table if requested
             if auto_create_table:
-                cls._ensure_table_exists(model_class, client)
+                cls._ensure_table_exists(model_class)
 
         return cls._model_cache[client]
 
     @classmethod
-    def _ensure_table_exists(cls, model_class: type, client: str) -> None:
+    def _ensure_table_exists(cls, model_class: PortfolioFactsType) -> None:
         """
         Ensure the table exists, create it if it doesn't.
 
@@ -345,70 +338,30 @@ class PortfolioFactsFactory:
         """
         try:
             if not model_class.exists():
+                log.info("Creating portfolio table: %s", model_class.Meta.table_name)
                 model_class.create_table(wait=True)
+                log.info("Successfully created portfolio table: %s", model_class.Meta.table_name)
         except Exception as e:
+            log.error("Failed to create portfolio table %s: %s", model_class.Meta.table_name, str(e))
             # Don't raise - let the operation proceed and fail naturally
             pass
 
     @classmethod
-    def _create_client_model(cls, client: str):
-        """Create a new PortfolioFacts model class for a specific client."""
+    def _create_client_model(cls, client: str) -> PortfolioFactsType:
+        """
+        Create a new PortfolioFacts model class for a specific client.
+        Parameters
+        ----------
+        client : str
+            The client name for table configuration.
+        Returns
+        -------
+        type[PortfolioFacts]
+            Dynamic PortfolioFacts model class.
+        """
 
-        class Meta:
-            table_name = get_table_name(
-                PORTFOLIO_FACTS, client
-            )  # Client-specific table
-            region = util.get_dynamodb_region()
-            host = util.get_dynamodb_host()
-            read_capacity_units = 1
-            write_capacity_units = 1
+        class PortfolioFactsModel(PortfolioFacts):
+            class Meta(PortfolioFacts.Meta):
+                table_name = get_table_name(PORTFOLIO_FACTS, client)
 
-        def __init__(self, *args, **kwargs):
-            """Initialize a PortfolioFacts instance."""
-            # Use RegistryModel directly instead of super()
-            RegistryModel.__init__(self, *args, **kwargs)
-
-        def __repr__(self) -> str:
-            """Return string representation of PortfolioFacts."""
-            # Access attributes at runtime when method is called
-            return f"PortfolioFacts(Client={self.Client}, Portfolio={self.Portfolio})"
-
-        def get_client_portfolio_key(self) -> str:
-            """
-            Get the client portfolio key.
-
-            Returns
-            -------
-            str
-                The client portfolio key in format "{Client}:{Portfolio}".
-            """
-            # Access attributes at runtime when method is called
-            return f"{self.Client}:{self.Portfolio}"
-
-        # Create dynamic class
-        model_attrs = {
-            "Meta": Meta,
-            "Client": UnicodeAttribute(attr_name=CLIENT_KEY, hash_key=True),
-            "Portfolio": UnicodeAttribute(attr_name=PORTFOLIO_KEY, range_key=True),
-            "Contacts": ListAttribute(of=ContactFacts, null=True),
-            "Approvers": ListAttribute(of=ApproverFacts, null=True),
-            "Project": ProjectFacts(null=True),
-            "Domain": UnicodeAttribute(null=True),
-            "Bizapp": ProjectFacts(null=True),
-            "Owner": OwnerFacts(null=True),
-            "Tags": MapAttribute(of=UnicodeAttribute, null=True),
-            "Metadata": MapAttribute(of=UnicodeAttribute, null=True),
-            "Attributes": MapAttribute(of=UnicodeAttribute, null=True),
-            "UserInstantiated": UnicodeAttribute(null=True),
-            # Add methods directly
-            "__init__": __init__,
-            "__repr__": __repr__,
-            "get_client_portfolio_key": get_client_portfolio_key,
-        }
-
-        # Create the dynamic class
-        ClientPortfolioFacts = type(
-            f"PortfolioFacts_{client}", (RegistryModel,), model_attrs
-        )
-
-        return ClientPortfolioFacts
+        return PortfolioFactsModel

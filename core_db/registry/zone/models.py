@@ -1,6 +1,5 @@
 """Classes defining the ZoneFacts record model for the core-automation-zones table"""
 
-from typing import Optional, Dict, List, Union, Protocol, Any
 from pynamodb.attributes import (
     UnicodeAttribute,
     MapAttribute,
@@ -9,12 +8,11 @@ from pynamodb.attributes import (
     BooleanAttribute,
 )
 
-import core_framework as util
 import core_logging as log
 
 from ...constants import CLIENT_KEY, ZONE_KEY, ZONE_FACTS
 from ...config import get_table_name
-from ..models import RegistryModel, ExtendedMapAttribute, ModelProtocol
+from ..models import RegistryModel, ExtendedMapAttribute
 
 
 class SecurityAliasFacts(ExtendedMapAttribute):
@@ -198,7 +196,7 @@ class RegionFacts(ExtendedMapAttribute):
     UserInstantiated = UnicodeAttribute(null=True)  # Internal PynamoDB field
 
 
-class ZoneFacts(ModelProtocol):
+class ZoneFacts(RegistryModel):
     """
     Protocol defining the interface for ZoneFacts models.
 
@@ -413,24 +411,19 @@ class ZoneFacts(ModelProtocol):
     ... }
     """
 
+    class Meta(RegistryModel.Meta):
+        pass
+
     # PynamoDB attribute definitions
-    Client: UnicodeAttribute
-    Zone: UnicodeAttribute
-    AccountFacts: AccountFacts
-    RegionFacts: MapAttribute
-    Tags: MapAttribute
-    UserInstantiated: UnicodeAttribute
+    Client = UnicodeAttribute(attr_name=CLIENT_KEY, hash_key=True)
+    Zone = UnicodeAttribute(attr_name=ZONE_KEY, range_key=True)
+    AccountFacts = AccountFacts(null=False)
+    RegionFacts = MapAttribute(of=RegionFacts, null=False)
+    Tags = MapAttribute(of=UnicodeAttribute, null=True)
+    UserInstantiated = UnicodeAttribute(null=True)
 
-    def get_attribute_class(self, key: str) -> Optional[type]:
-        """
-        Get the class of a model attribute by key.
 
-        :param key: The attribute key to look up
-        :type key: str
-        :returns: The class of the attribute if found, None otherwise
-        :rtype: type or None
-        """
-        ...
+ZoneFactsType = type[ZoneFacts]
 
 
 class ZoneFactsFactory:
@@ -439,7 +432,7 @@ class ZoneFactsFactory:
     _model_cache = {}
 
     @classmethod
-    def get_model(cls, client: str, auto_create_table: bool = True) -> type[ZoneFacts]:
+    def get_model(cls, client: str, auto_create_table: bool = True) -> ZoneFactsType:
         """
         Get a ZoneFacts model class for a specific client.
 
@@ -456,17 +449,17 @@ class ZoneFactsFactory:
             A ZoneFacts model class configured for the specified client.
         """
         if client not in cls._model_cache:
-            model_class = cls._create_client_model(client)
+            model_class: ZoneFactsType = cls._create_client_model(client)
             cls._model_cache[client] = model_class
 
             # Auto-create table if requested
             if auto_create_table:
-                cls._ensure_table_exists(model_class, client)
+                cls._ensure_table_exists(model_class)
 
         return cls._model_cache[client]
 
     @classmethod
-    def _ensure_table_exists(cls, model_class: type, client: str) -> None:
+    def _ensure_table_exists(cls, model_class: ZoneFactsType) -> None:
         """
         Ensure the table exists, create it if it doesn't.
 
@@ -479,67 +472,19 @@ class ZoneFactsFactory:
         """
         try:
             if not model_class.exists():
-                log.info("Creating zone table for client: %s", client)
+                log.info("Creating zone table : %s", model_class.Meta.table_name)
                 model_class.create_table(wait=True)
-                log.info("Successfully created zone table for client: %s", client)
+                log.info("Successfully created zone table: %s", model_class.Meta.table_name)
         except Exception as e:
-            log.error("Failed to create zone table for client %s: %s", client, str(e))
+            log.error("Failed to create zone table %s: %s", model_class.Meta.table_name, str(e))
             # Don't raise - let the operation proceed and fail naturally
 
     @classmethod
-    def _create_client_model(cls, client: str):
+    def _create_client_model(cls, client: str) -> ZoneFactsType:
         """Create a new ZoneFacts model class for a specific client."""
 
-        class Meta:
-            table_name = get_table_name(ZONE_FACTS, client)  # Client-specific table
-            region = util.get_dynamodb_region()
-            host = util.get_dynamodb_host()
-            read_capacity_units = 1
-            write_capacity_units = 1
+        class ZoneFactsModel(ZoneFacts):
+            class Meta(ZoneFacts.Meta):
+                table_name = get_table_name(ZONE_FACTS, client)
 
-        def __init__(self, *args, **kwargs):
-            """Initialize a ZoneFacts instance."""
-            RegistryModel.__init__(self, *args, **kwargs)
-
-        def __repr__(self) -> str:
-            """Return string representation of ZoneFacts."""
-            return f"ZoneFacts(Client={self.Client}, Zone={self.Zone})"
-
-        def get_attribute_class(self, key: str) -> Optional[type]:
-            """
-            Get the class of a model attribute by key.
-
-            Parameters
-            ----------
-            key : str
-                The attribute key to look up.
-
-            Returns
-            -------
-            type or None
-                The class of the attribute if found, None otherwise.
-            """
-            attribute = self.get_attributes().get(key)
-            if attribute:
-                return attribute.__class__
-            return None
-
-        # Create dynamic class
-        model_attrs = {
-            "Meta": Meta,
-            "Client": UnicodeAttribute(attr_name=CLIENT_KEY, hash_key=True),
-            "Zone": UnicodeAttribute(attr_name=ZONE_KEY, range_key=True),
-            "AccountFacts": AccountFacts(null=False),
-            "RegionFacts": MapAttribute(of=RegionFacts, null=False),
-            "Tags": MapAttribute(of=UnicodeAttribute, null=True),
-            "UserInstantiated": UnicodeAttribute(null=True),
-            # Add methods directly
-            "__init__": __init__,
-            "__repr__": __repr__,
-            "get_attribute_class": get_attribute_class,
-        }
-
-        # Create the dynamic class
-        ClientZoneFacts = type(f"ZoneFacts_{client}", (RegistryModel,), model_attrs)
-
-        return ClientZoneFacts
+        return ZoneFactsModel

@@ -406,127 +406,7 @@ class ItemModel(Model):
         super(ItemModel, self).update(actions=actions, condition=condition, **kwargs)
 
 
-class ClientItemModel:
-    """
-    Client-specific ItemModel factory.
-
-    This class provides client-specific table binding for ItemModel instances,
-    allowing each client to have their own isolated table while maintaining
-    the same model interface.
-
-    :param client: The client name for table binding
-    :type client: str
-
-    Examples
-    --------
-    >>> client_model = ClientItemModel("acme")
-    >>> ItemModel = client_model.get_model()
-    >>> item = ItemModel(prn="app:acme:core:api", parent_prn="portfolio:acme:core", item_type="app", name="API")
-    """
-
-    def __init__(self, client: str):
-        """
-        Initialize ClientItemModel for a specific client.
-
-        :param client: The client name for table binding
-        :type client: str
-        """
-        self.client = client
-        self._configure_model()
-
-    def _configure_model(self):
-        """
-        Configure the model class for this client.
-
-        Sets the client-specific table name in the ItemModel Meta class.
-        """
-        # Get the client-specific table name
-        table_name = get_table_name(ITEMS, client=self.client)
-
-        # Configure the model's Meta class
-        ItemModel.Meta.table_name = table_name
-
-    def get_model(self) -> Type[ItemModel]:
-        """
-        Get the configured ItemModel class.
-
-        :returns: ItemModel class configured for this client
-        :rtype: Type[ItemModel]
-
-        Examples
-        --------
-        >>> client_model = ClientItemModel("acme")
-        >>> ItemModel = client_model.get_model()
-        >>> item = ItemModel(prn="app:acme:core:api", parent_prn="portfolio:acme:core", item_type="app", name="API")
-        """
-        return ItemModel
-
-    def create_table(
-        self,
-        read_capacity_units: int = 1,
-        write_capacity_units: int = 1,
-        wait: bool = False,
-    ) -> bool:
-        """
-        Create the table for this client.
-
-        :param read_capacity_units: Read capacity units for the table
-        :type read_capacity_units: int
-        :param write_capacity_units: Write capacity units for the table
-        :type write_capacity_units: int
-        :param wait: Whether to wait for table creation to complete
-        :type wait: bool
-        :returns: True if table was created successfully
-        :rtype: bool
-
-        Examples
-        --------
-        >>> client_model = ClientItemModel("acme")
-        >>> client_model.create_table(wait=True)
-        """
-        return ItemModel.create_table(
-            read_capacity_units=read_capacity_units,
-            write_capacity_units=write_capacity_units,
-            wait=wait,
-        )
-
-    def delete_table(self) -> bool:
-        """
-        Delete the table for this client.
-
-        :returns: True if table was deleted successfully
-        :rtype: bool
-
-        Warning
-        -------
-        This operation is irreversible and will delete all data in the table.
-
-        Examples
-        --------
-        >>> client_model = ClientItemModel("acme")
-        >>> client_model.delete_table()
-        """
-        return ItemModel.delete_table()
-
-    def table_exists(self) -> bool:
-        """
-        Check if the table exists for this client.
-
-        :returns: True if table exists, False otherwise
-        :rtype: bool
-
-        Examples
-        --------
-        >>> client_model = ClientItemModel("acme")
-        >>> if client_model.table_exists():
-        ...     print("Table is ready")
-        ... else:
-        ...     client_model.create_table(wait=True)
-        """
-        try:
-            return ItemModel.exists()
-        except Exception:
-            return False
+ItemModelType = Type[ItemModel]
 
 
 class ItemModelFactory:
@@ -544,8 +424,10 @@ class ItemModelFactory:
     >>> item = ItemModel(prn="app:acme:core:api", parent_prn="portfolio:acme:core", item_type="app", name="API")
     """
 
-    @staticmethod
-    def get_model(client: str) -> ClientItemModel:
+    _cache_models = {}
+
+    @classmethod
+    def get_model(cls, client: str, auto_create_table: bool = True) -> ItemModelType:
         """
         Get a ClientItemModel configured for the specified client.
 
@@ -560,4 +442,50 @@ class ItemModelFactory:
         >>> ItemModel = client_model.get_model()
         >>> client_model.create_table(wait=True)
         """
-        return ClientItemModel(client)
+        if client not in cls._cache_models:
+            model_class = cls._create_model(client)
+            cls._cache_models[client] = model_class
+
+            if auto_create_table:
+                cls._ensure_table_exists(model_class)
+
+        return cls._cache_models[client]
+
+    @classmethod
+    def _ensure_table_exists(cls, model_class: ItemModelType):
+        """
+        Ensure the table exists for the given model class.
+
+        If the table does not exist, it will be created. This is useful for
+        ensuring that the model is ready for use without manual table creation.
+
+        :param model_class: The ItemModel class to check/create table for
+        :type model_class: ItemModelType
+        :param client: The client name for logging purposes
+        :type client: str
+
+        """
+        try:
+            if not model_class.exists():
+                model_class.create_table(wait=True)
+                print(f"Successfully created items table {model_class.Meta.table_name}")
+        except Exception as e:
+            print(f"Failed to create items table {model_class.Meta.table_name}: {str(e)}")
+
+    @classmethod
+    def _create_model(cls, client: str) -> ItemModelType:
+        """
+        Create a new ItemModel class configured for the specified client.
+
+        :param client: The client name
+        :type client: str
+        :returns: Configured ItemModel class
+        :rtype: ItemModelType
+
+        """
+
+        class ItemModelClass(ItemModel):
+            class Meta(ItemModel.Meta):
+                table_name = get_table_name(ITEMS, client)
+
+        return ItemModelClass

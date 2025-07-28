@@ -2,7 +2,7 @@
 
 from pynamodb.attributes import UnicodeAttribute
 
-import core_framework as util
+import core_logging as log
 
 from ...constants import CLIENT_FACTS
 from ...config import get_table_name
@@ -189,12 +189,8 @@ class ClientFacts(RegistryModel):
     AppFacts : Application configuration per client
     """
 
-    class Meta:
-        table_name = get_table_name(CLIENT_FACTS)
-        region = util.get_dynamodb_region()
-        host = util.get_dynamodb_host()
-        read_capacity_units = 1
-        write_capacity_units = 1
+    class Meta(RegistryModel.Meta):
+        pass
 
     # Primary key
     Client = UnicodeAttribute(hash_key=True)
@@ -304,3 +300,67 @@ class ClientFacts(RegistryModel):
         # Remove None values and check if more than one unique account
         accounts.discard(None)
         return len(accounts) > 1
+
+
+ClientFactsType = type[ClientFacts]
+
+
+class ClientFactsFactory:
+
+    _cache_models = {}
+
+    @classmethod
+    def get_model(cls, client: str = "global", auto_create_table: bool = True) -> ClientFactsType:
+        """
+        Get a ClientFacts model class for a specific client.
+
+        :param client: Client identifier (slug)
+        :type client: str
+        :param auto_create_table: Whether to auto-create the table if it doesn't exist
+        :type auto_create_table: bool
+        :returns: A ClientFacts model class configured for the specified client
+        :rtype: type[ClientFacts]
+        """
+
+        if not client in cls._cache_models:
+            model_class = cls._create_client_model(client)
+            cls._cache_models[client] = model_class
+
+            # Auto-create table if requested
+            if auto_create_table:
+                cls._ensure_table_exists(model_class)
+
+        return cls._cache_models[client]
+
+    @classmethod
+    def _ensure_table_exists(cls, model_class: ClientFactsType) -> None:
+        """
+        Ensure the table exists, create it if it doesn't.
+
+        :param model_class: The ClientFacts model class to check/create
+        :type model_class: type[ClientFacts]
+        """
+        try:
+            if not model_class.exists():
+                log.info("Creating client facts table: %s", model_class.Meta.table_name)
+                model_class.create_table(wait=True)
+                log.info("Successfully created client facts table: %s", model_class.Meta.table_name)
+        except Exception as e:
+            log.error("Failed to create client facts table %s: %s", model_class.Meta.table_name, str(e))
+
+    @classmethod
+    def _create_client_model(cls, client: str) -> ClientFactsType:
+        """
+        Create a new ClientFacts model class for a specific client.
+
+        :param client: Client identifier (slug)
+        :type client: str
+        :returns: A new ClientFacts model class configured for the specified client
+        :rtype: type[ClientFacts]
+        """
+
+        class ClientFactsModel(ClientFacts):
+            class Meta(ClientFacts.Meta):
+                table_name = get_table_name(CLIENT_FACTS)
+
+        return ClientFactsModel
