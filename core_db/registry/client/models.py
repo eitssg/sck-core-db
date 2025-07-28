@@ -310,7 +310,9 @@ class ClientFactsFactory:
     _cache_models = {}
 
     @classmethod
-    def get_model(cls, client: str = "global", auto_create_table: bool = True) -> ClientFactsType:
+    def get_model(
+        cls, client: str = "global", auto_create_table: bool = True
+    ) -> ClientFactsType:
         """
         Get a ClientFacts model class for a specific client.
 
@@ -344,9 +346,16 @@ class ClientFactsFactory:
             if not model_class.exists():
                 log.info("Creating client facts table: %s", model_class.Meta.table_name)
                 model_class.create_table(wait=True)
-                log.info("Successfully created client facts table: %s", model_class.Meta.table_name)
+                log.info(
+                    "Successfully created client facts table: %s",
+                    model_class.Meta.table_name,
+                )
         except Exception as e:
-            log.error("Failed to create client facts table %s: %s", model_class.Meta.table_name, str(e))
+            log.error(
+                "Failed to create client facts table %s: %s",
+                model_class.Meta.table_name,
+                str(e),
+            )
 
     @classmethod
     def _create_client_model(cls, client: str) -> ClientFactsType:

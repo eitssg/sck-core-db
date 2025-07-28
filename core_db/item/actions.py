@@ -205,7 +205,9 @@ class ItemTableActions(TableActions):
 
         # Generate our range key condition
         if earliest_time and latest_time:
-            range_key_condition = cls.item_model.created_at.between(earliest_time, latest_time)
+            range_key_condition = cls.item_model.created_at.between(
+                earliest_time, latest_time
+            )
         elif earliest_time:
             range_key_condition = cls.item_model.created_at >= earliest_time
         elif latest_time:
@@ -216,7 +218,9 @@ class ItemTableActions(TableActions):
         pagenator = kwargs.get(DATA_PAGINATOR, None)
 
         if pagenator:
-            last_evaluated_key = json.loads(base64.b64decode(pagenator).decode(encoding="utf-8"))
+            last_evaluated_key = json.loads(
+                base64.b64decode(pagenator).decode(encoding="utf-8")
+            )
         else:
             last_evaluated_key = None
 
@@ -234,9 +238,9 @@ class ItemTableActions(TableActions):
         items = [i.to_simple_dict() for i in results]
         last_evaluated_key = results.last_evaluated_key
         if last_evaluated_key:
-            kwargs[DATA_PAGINATOR] = base64.b64encode(json.dumps(last_evaluated_key).encode(encoding="utf-8")).decode(
-                encoding="utf-8"
-            )
+            kwargs[DATA_PAGINATOR] = base64.b64encode(
+                json.dumps(last_evaluated_key).encode(encoding="utf-8")
+            ).decode(encoding="utf-8")
         else:
             kwargs[DATA_PAGINATOR] = None
 

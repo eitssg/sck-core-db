@@ -470,7 +470,9 @@ class ItemModelFactory:
                 model_class.create_table(wait=True)
                 print(f"Successfully created items table {model_class.Meta.table_name}")
         except Exception as e:
-            print(f"Failed to create items table {model_class.Meta.table_name}: {str(e)}")
+            print(
+                f"Failed to create items table {model_class.Meta.table_name}: {str(e)}"
+            )
 
     @classmethod
     def _create_model(cls, client: str) -> ItemModelType:

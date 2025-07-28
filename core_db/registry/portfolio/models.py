@@ -298,7 +298,9 @@ class PortfolioFactsFactory:
     _model_cache = {}
 
     @classmethod
-    def get_model(cls, client: str, auto_create_table: bool = True) -> PortfolioFactsType:
+    def get_model(
+        cls, client: str, auto_create_table: bool = True
+    ) -> PortfolioFactsType:
         """
         Get a PortfolioFacts model class for a specific client.
 
@@ -340,9 +342,16 @@ class PortfolioFactsFactory:
             if not model_class.exists():
                 log.info("Creating portfolio table: %s", model_class.Meta.table_name)
                 model_class.create_table(wait=True)
-                log.info("Successfully created portfolio table: %s", model_class.Meta.table_name)
+                log.info(
+                    "Successfully created portfolio table: %s",
+                    model_class.Meta.table_name,
+                )
         except Exception as e:
-            log.error("Failed to create portfolio table %s: %s", model_class.Meta.table_name, str(e))
+            log.error(
+                "Failed to create portfolio table %s: %s",
+                model_class.Meta.table_name,
+                str(e),
+            )
             # Don't raise - let the operation proceed and fail naturally
             pass
 

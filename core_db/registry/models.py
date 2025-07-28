@@ -37,7 +37,9 @@ class RegistryModel(Model):
         if not kwargs:
             return kwargs
         attributes = self.get_attributes()
-        return {self._convert_key_with_attrs(k, attributes): v for k, v in kwargs.items()}
+        return {
+            self._convert_key_with_attrs(k, attributes): v for k, v in kwargs.items()
+        }
 
     def _convert_key_with_attrs(self, key: str, attributes: dict) -> str:
         # Convert snake_case and kebab-case keys to PascalCase keys
@@ -68,7 +70,9 @@ class ExtendedMapAttribute(MapAttribute):
         if not kwargs:
             return kwargs
         attributes = self.get_attributes()
-        return {self._convert_key_with_attrs(k, attributes): v for k, v in kwargs.items()}
+        return {
+            self._convert_key_with_attrs(k, attributes): v for k, v in kwargs.items()
+        }
 
     def _convert_key_with_attrs(self, key: str, attributes: dict) -> str:
         # Convert snake_case and kebab-case keys to PascalCase keys

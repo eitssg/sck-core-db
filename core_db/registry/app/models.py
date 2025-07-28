@@ -111,9 +111,13 @@ class AppFactsFactory:
             if not model_class.exists():
                 log.info("Creating app table: %s", model_class.Meta.table_name)
                 model_class.create_table(wait=True)
-                log.info("Successfully created app table: %s", model_class.Meta.table_name)
+                log.info(
+                    "Successfully created app table: %s", model_class.Meta.table_name
+                )
         except Exception as e:
-            log.error("Failed to create app table %s: %s", model_class.Meta.table_name, str(e))
+            log.error(
+                "Failed to create app table %s: %s", model_class.Meta.table_name, str(e)
+            )
             # Don't raise - let the operation proceed and fail naturally
 
     @classmethod
