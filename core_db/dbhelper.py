@@ -74,7 +74,7 @@ actions_routes: TableActionType = {
     "registry:app": RegAppActions,
     "registry:zone": RegZoneActions,
 }
-""" TabelActionType: A dictionary that maps the action prefix to the class that will handle the action
+""" TableActionType: A dictionary that maps the action prefix to the class that will handle the action
 
 Values are classes that implement the TableActions interface:
 
@@ -112,20 +112,20 @@ Values are classes that implement the TableActions interface:
 """
 
 
-def update_status(
-    prn: str, status: str, message: str | None = None, details={}
-) -> dict:
+def update_status(prn: str, status: str, message: str | None = None, details={}) -> dict:
     """
-    Updates the status of a PRN in the DB
+    Updates the status of a PRN in the DB.
 
-    Args:
-        prn (str): Pipeline Reference Number
-        status (str): Status Code from :class:`BuildStatus`
-        message (str | None, optional): Text Message. Defaults to None.
-        details (dict, optional): Item Details. Defaults to {}.
-
-    Returns:
-        dict: The items details after the update
+    :param prn: Pipeline Reference Number.
+    :type prn: str
+    :param status: Status Code from :class:`BuildStatus`.
+    :type status: str
+    :param message: Text Message. Defaults to None.
+    :type message: str or None
+    :param details: Item Details. Defaults to {}.
+    :type details: dict
+    :return: The item's details after the update.
+    :rtype: dict
     """
     environment = os.getenv(ENV_ENVIRONMENT)
 
@@ -151,17 +151,15 @@ def update_status(
 
 def update_item(prn: str, **kwargs) -> dict:
     """
-    Add or update an item in the DB
+    Add or update an item in the DB.
 
-    Args:
-        prn (str): The Pipeline Reference Number
-        **kwargs: The item details
-
-    Raises:
-        ValueError: If the data is invalid
-
-    Returns:
-        dict: The item after it ahs been updated/saved.
+    :param prn: The Pipeline Reference Number.
+    :type prn: str
+    :param kwargs: The item details.
+    :type kwargs: dict
+    :raises ValueError: If the data is invalid.
+    :return: The item after it has been updated/saved.
+    :rtype: dict
     """
     try:
         scope = util.get_prn_scope(prn)
@@ -189,17 +187,17 @@ def update_item(prn: str, **kwargs) -> dict:
 
 def register_item(prn: str, name: str, **kwargs) -> dict:
     """
-    Creates a new item in the DB
+    Creates a new item in the DB.
 
-    Args:
-        prn (str): The Pipeline Reference Number
-        name (str): The Name of the item
-
-    Raises:
-        ValueError: If the item data is invalid
-
-    Returns:
-        dict: The item after it has been created.
+    :param prn: The Pipeline Reference Number.
+    :type prn: str
+    :param name: The Name of the item.
+    :type name: str
+    :param kwargs: Additional item data.
+    :type kwargs: dict
+    :raises ValueError: If the item data is invalid.
+    :return: The item after it has been created.
+    :rtype: dict
     """
     try:
         scope = util.get_prn_scope(prn)
@@ -217,17 +215,13 @@ def register_item(prn: str, name: str, **kwargs) -> dict:
                 "component_type": kwargs["component_type"],
             }
         else:
-            raise ValueError(
-                f"Unsupported SCOPE '{scope}'. Must be branch, build or component"
-            )
+            raise ValueError(f"Unsupported SCOPE '{scope}'. Must be branch, build or component")
 
         if kwargs:
             data = {**data, **kwargs}
 
         # Register the branch (may not be required)
-        log.debug(
-            f"(API) registering {scope} '{prn}' {kwargs.get(STATUS, "")}", identity=prn
-        )
+        log.debug(f"(API) registering {scope} '{prn}' {kwargs.get(STATUS, '')}", identity=prn)
 
         klazz = actions_routes.get(scope)
         if not klazz:
@@ -237,9 +231,7 @@ def register_item(prn: str, name: str, **kwargs) -> dict:
         result = klazz.create(**data)
 
         if result.status != OK:
-            log.error(
-                f"Failed to register item '{prn}':", details=result.data, identity=prn
-            )
+            log.error(f"Failed to register item '{prn}':", details=result.data, identity=prn)
 
         return result.model_dump()
 
@@ -253,7 +245,18 @@ def register_item(prn: str, name: str, **kwargs) -> dict:
 
 
 def __api_update_status(prn: str, status: str, message: str | None = None) -> dict:
+    """
+    Internal helper to update the status of an item via the API.
 
+    :param prn: Pipeline Reference Number.
+    :type prn: str
+    :param status: Status Code.
+    :type status: str
+    :param message: Optional message.
+    :type message: str or None
+    :return: The result of the update.
+    :rtype: dict
+    """
     try:
         scope = util.get_prn_scope(prn)
         if not scope:
@@ -277,9 +280,7 @@ def __api_update_status(prn: str, status: str, message: str | None = None) -> di
         result = klazz.update(**data)
 
         if result.status != OK:
-            log.error(
-                f"Failed to update status of '{prn}': {result.data}", identity=prn
-            )
+            log.error(f"Failed to update status of '{prn}': {result.data}", identity=prn)
 
         return result.model_dump()
 
@@ -293,7 +294,18 @@ def __api_update_status(prn: str, status: str, message: str | None = None) -> di
 
 
 def __api_put_event(prn: str, status: str, message: str | None = None) -> dict:
+    """
+    Internal helper to create a new event in the DB via the API.
 
+    :param prn: Pipeline Reference Number.
+    :type prn: str
+    :param status: Status Code.
+    :type status: str
+    :param message: Optional message.
+    :type message: str or None
+    :return: The result of the event creation.
+    :rtype: dict
+    """
     try:
         log.debug(f"(API) New event: {prn} - {status} - {message}", identity=prn)
 
@@ -304,9 +316,7 @@ def __api_put_event(prn: str, status: str, message: str | None = None) -> dict:
         result = klazz.create(**data)
 
         if result.status != OK:
-            log.error(
-                f"Failed to create event '{prn}':", details=result.data, identity=prn
-            )
+            log.error(f"Failed to create event '{prn}':", details=result.data, identity=prn)
 
         return result.model_dump()
 

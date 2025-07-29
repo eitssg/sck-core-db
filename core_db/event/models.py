@@ -1,4 +1,4 @@
-"""Defines the data model and attributes stored in DynamoDB using the pynamdb interface"""
+"""Defines the data model and attributes stored in DynamoDB using the pynamdb interface."""
 
 from typing import Type, Union
 from datetime import datetime
@@ -22,11 +22,10 @@ def convert_level_name(value: Union[int, str]) -> str:
     """
     Convert numeric log levels to their string names.
 
-    Args:
-        value (Union[int, str]): Integer log level or string level name
-
-    Returns:
-        str: String representation of the log level
+    :param value: Integer log level or string level name.
+    :type value: Union[int, str]
+    :return: String representation of the log level.
+    :rtype: str
     """
     if isinstance(value, int):
         return log.getLevelName(value)
@@ -36,6 +35,21 @@ def convert_level_name(value: Union[int, str]) -> str:
 class EventModel(Model):
     """
     DynamoDB model for storing event records.
+
+    Attributes
+    ----------
+    prn : UnicodeAttribute
+        Pipeline Reference Number (PRN) of the event (a.k.a identity).
+    timestamp : UTCDateTimeAttribute
+        Timestamp of the event. Let the system auto-generate.
+    event_type : UnicodeAttribute
+        Type of event (e.g., 'INFO', 'ERROR', 'STATUS') like a LogLevel.
+    item_type : UnicodeAttribute
+        Type of item this event relates to such as portfolio, app, branch, build, component, account, etc.
+    status : UnicodeAttribute
+        The status name. Two possible values "ok" or "error".
+    message : UnicodeAttribute
+        Event message details.
     """
 
     class Meta:
@@ -46,23 +60,31 @@ class EventModel(Model):
 
     # Keys for events
     prn = UnicodeAttribute(hash_key=True)
-    """str: Pipeline Reference Number (PRN) of the event (a.k.a identity) """
     timestamp = UTCDateTimeAttribute(range_key=True, default_for_new=make_default_time)
-    """datetime: Timestamp of the event.  Let the system auto-generate """
     # Event details
     event_type = UnicodeAttribute(default_for_new="STATUS")
-    """str: Type of event (e.g., 'INFO', 'ERROR', 'STATUS') like a LogLevel """
     item_type = UnicodeAttribute(null=True)
-    """str: Type of item this event relates to such as portfolio, app, branch, build, component, account, etc. """
     status = UnicodeAttribute(null=True)
-    """str: The status name.  Two possible values "ok" or "error" """
     message = UnicodeAttribute(null=True)
-    """str: Event message details """
 
     def __init__(self, *args, **kwargs):
+        """
+        Initialize the EventModel instance.
+
+        :param args: Positional arguments.
+        :type args: tuple
+        :param kwargs: Keyword arguments.
+        :type kwargs: dict
+        """
         super().__init__(*args, **kwargs)
 
     def __repr__(self):
+        """
+        Return a string representation of the EventModel instance.
+
+        :return: String representation of the event.
+        :rtype: str
+        """
         return f"<Event(prn={self.prn},timestamp={self.timestamp},item_type={self.item_type},status={self.status},message={self.message})>"
 
 
@@ -71,7 +93,12 @@ EventModelType = Type[EventModel]
 
 class EventModelFactory:
     """
-    Factory class to create EventModel instances.
+    Factory class to create EventModel instances with client-specific table names.
+
+    Attributes
+    ----------
+    _model_cache : dict
+        Cache for storing created model classes by client.
     """
 
     _model_cache = {}
@@ -79,10 +106,14 @@ class EventModelFactory:
     @classmethod
     def get_model(cls, client: str, auto_create_table: bool = True) -> EventModelType:
         """
-        Get the EventModel class.
+        Get the EventModel class for a specific client.
 
-        Returns:
-            EventModel: The EventModel class.
+        :param client: The client name to use for table naming.
+        :type client: str
+        :param auto_create_table: Whether to automatically create the table if it doesn't exist.
+        :type auto_create_table: bool
+        :return: The EventModel class configured for the client.
+        :rtype: EventModelType
         """
         if client not in cls._model_cache:
             model_class = cls._create_model(client)
@@ -97,17 +128,16 @@ class EventModelFactory:
         """
         Ensure that the DynamoDB table for the model exists.
 
-        Args:
-            model_class (EventModelType): The model class to check.
-            client (str): The client name.
+        :param model_class: The model class to check.
+        :type model_class: EventModelType
+        :param client: The client name.
+        :type client: str
         """
         try:
             if not model_class.exists():
                 log.info("Creating events table: %s", model_class.Meta.table_name)
                 model_class.create_table(wait=True)
-                log.info(
-                    "Successfully created events table: %s", model_class.Meta.table_name
-                )
+                log.info("Successfully created events table: %s", model_class.Meta.table_name)
         except Exception as e:
             log.error("Error creating events table: %s", e)
 
@@ -116,11 +146,10 @@ class EventModelFactory:
         """
         Create an EventModel class with a specific table name based on the client.
 
-        Args:
-            client (str): The client name to use for the table name.
-
-        Returns:
-            EventModelType: A new EventModel class with the specified table name.
+        :param client: The client name to use for the table name.
+        :type client: str
+        :return: A new EventModel class with the specified table name.
+        :rtype: EventModelType
         """
 
         class EventModelClass(EventModel):
@@ -134,44 +163,59 @@ class EventModelFactory:
         """
         Create the events table if it does not exist.
 
-        Args:
-            wait (bool): Whether to wait for the table creation to complete.
+        :param wait: Whether to wait for the table creation to complete.
+        :type wait: bool
         """
         model_class = cls.get_model()
         if not model_class.exists():
             log.info("Creating events table: %s", model_class.Meta.table_name)
             model_class.create_table(wait=wait)
-            log.info(
-                "Successfully created events table: %s", model_class.Meta.table_name
-            )
+            log.info("Successfully created events table: %s", model_class.Meta.table_name)
 
 
 class EventModelSchema(BaseModel):
     """
     Pydantic model representing an Event.
+
+    Attributes
+    ----------
+    prn : str
+        Pipeline Reference Number (PRN) of the event (a.k.a identity).
+    timestamp : datetime
+        Timestamp of the event. Let the system auto-generate.
+    event_type : str
+        Type of event (e.g., 'INFO', 'ERROR', 'STATUS').
+    item_type : Optional[str]
+        Type of item this event relates to such as portfolio, app, branch, build, component, account, etc.
+    status : Optional[str]
+        The status name. Two possible values "ok" or "error".
+    message : Optional[str]
+        Event message details.
     """
 
-    prn: str = Field(
-        ..., description="Pipeline Reference Number (PRN) of the event (a.k.a identity)"
-    )
+    prn: str = Field(..., description="Pipeline Reference Number (PRN) of the event (a.k.a identity)")
     timestamp: datetime = Field(
         description="Timestamp of the event. Let the system auto-generate",
         default_factory=datetime.now,
     )
-    event_type: str = Field(
-        description="Type of event (e.g., 'INFO', 'ERROR', 'STATUS')", default="STATUS"
-    )
+    event_type: str = Field(description="Type of event (e.g., 'INFO', 'ERROR', 'STATUS')", default="STATUS")
     item_type: Optional[str] = Field(
         None,
         description="Type of item this event relates to such as portfolio, app, branch, build, component, account, etc.",
     )
-    status: Optional[str] = Field(
-        None, description='The status name. Two possible values "ok" or "error"'
-    )
+    status: Optional[str] = Field(None, description='The status name. Two possible values "ok" or "error"')
     message: Optional[str] = Field(None, description="Event message details")
 
     class Config:
+        """Pydantic configuration class."""
+
         orm_mode = True
 
     def __repr__(self):
+        """
+        Return a string representation of the EventModelSchema instance.
+
+        :return: String representation of the event schema.
+        :rtype: str
+        """
         return f"<Event(prn={self.prn},timestamp={self.timestamp},item_type={self.item_type},status={self.status},message={self.message})>"

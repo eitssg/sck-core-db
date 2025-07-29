@@ -1,10 +1,12 @@
-"""Defines the list, get, create, update, delete methods for the Event table core-automation-events"""
+"""Defines the list, get, create, update, delete methods for the Event table core-automation-events.
+
+This module provides CRUD operations and utilities for managing events in the Core Automation Event table.
+"""
 
 from typing import Any
 
 from datetime import datetime
 import base64
-import json
 
 from pynamodb.exceptions import DeleteError, PutError
 
@@ -48,6 +50,16 @@ from core_framework.constants import (
 
 
 class EventActions(TableActions):
+    """
+    Implements CRUD operations for the Event table using the PynamoDB model.
+
+    Attributes
+    ----------
+    event_model : EventModel
+        The PynamoDB model for the event table.
+    item_types : list
+        List of supported item types for events.
+    """
 
     event_model = EventModelFactory.get_model(util.get_client())
 
@@ -61,6 +73,15 @@ class EventActions(TableActions):
 
     @classmethod
     def get_item_type(cls, **kwargs) -> str:
+        """
+        Determines the item type for an event based on keyword arguments.
+
+        :param kwargs: Keyword arguments containing ITEM_TYPE or PRN.
+        :type kwargs: dict
+        :raises ValueError: If PRN is invalid.
+        :return: The item type string.
+        :rtype: str
+        """
         item_type = kwargs.get(ITEM_TYPE)
         if not item_type:
             prn = kwargs.get(PRN, "")
@@ -73,7 +94,17 @@ class EventActions(TableActions):
 
     @classmethod
     def create(cls, **kwargs) -> Response:
+        """
+        Creates a new event in the event table.
 
+        :param kwargs: Event attributes.
+        :type kwargs: dict
+        :raises BadRequestException: If event data is invalid.
+        :raises ConflictException: If creation fails due to a conflict.
+        :raises UnknownException: For other errors.
+        :return: Success response containing event data.
+        :rtype: SuccessResponse
+        """
         prn = util.generate_build_prn(kwargs)
         if not prn:
             raise ValueError(f"prn not specified: {kwargs}")
@@ -84,9 +115,7 @@ class EventActions(TableActions):
         try:
             kwargs.pop(PRN, prn)
             kwargs[ITEM_TYPE] = item_type
-            kwargs[EVENT_TYPE] = kwargs.get(
-                EVENT_TYPE, log.getLevelName(log.STATUS)
-            ).upper()
+            kwargs[EVENT_TYPE] = kwargs.get(EVENT_TYPE, log.getLevelName(log.STATUS)).upper()
             event = cls.event_model(prn, **kwargs)
 
             log.debug("Saving event {}".format(event))
@@ -104,7 +133,15 @@ class EventActions(TableActions):
 
     @classmethod
     def delete(cls, **kwargs) -> Response:
+        """
+        Deletes an event from the event table.
 
+        :param kwargs: Event identifying attributes.
+        :type kwargs: dict
+        :raises BadRequestException: If deletion fails.
+        :return: Success response confirming deletion.
+        :rtype: SuccessResponse
+        """
         # Load the requested event
         try:
             prn = util.generate_build_prn(kwargs)
@@ -118,8 +155,12 @@ class EventActions(TableActions):
     @classmethod
     def NoneIfEmpty(cls, value: Any) -> Any:
         """
-        If the value is an empty string, return None, otherwise return the value
-        but, first check to see if it isa valid iso8601 timestamp, if not, then return None
+        Returns None if the value is an empty string or not a valid ISO8601 timestamp.
+
+        :param value: Value to check.
+        :type value: Any
+        :return: None or the parsed datetime value.
+        :rtype: Any
         """
         if isinstance(value, str):
             if len(value) > 0:
@@ -132,7 +173,15 @@ class EventActions(TableActions):
 
     @classmethod
     def list(cls, **kwargs) -> Response:
+        """
+        Lists events for a given PRN and optional time range.
 
+        :param kwargs: Filtering and pagination options.
+        :type kwargs: dict
+        :raises BadRequestException: If PRN is not specified.
+        :return: Success response containing a list of events.
+        :rtype: SuccessResponse
+        """
         prn = util.generate_build_prn(kwargs)
         if not prn:
             raise BadRequestException(f"prn not specified: {kwargs}")
@@ -143,9 +192,7 @@ class EventActions(TableActions):
 
         # Generate our range key condition
         if earliest_time and latest_time:
-            range_key_condition = cls.event_model.timestamp.between(
-                earliest_time, latest_time
-            )
+            range_key_condition = cls.event_model.timestamp.between(earliest_time, latest_time)
         elif earliest_time:
             range_key_condition = cls.event_model.timestamp >= earliest_time
         elif latest_time:
@@ -155,7 +202,7 @@ class EventActions(TableActions):
 
         date_paginator = kwargs.get(DATA_PAGINATOR)
         if date_paginator:
-            last_evaluated_key = json.loads(base64.b64decode(date_paginator).decode())
+            last_evaluated_key = util.from_json(base64.b64decode(date_paginator).decode())
         else:
             last_evaluated_key = None
 
@@ -175,9 +222,7 @@ class EventActions(TableActions):
         events = [i.attribute_values for i in results]
         last_evaluated_key = results.last_evaluated_key
         if last_evaluated_key:
-            kwargs[DATA_PAGINATOR] = base64.b64encode(
-                json.dumps(last_evaluated_key).encode()
-            ).decode()
+            kwargs[DATA_PAGINATOR] = base64.b64encode(util.to_json(last_evaluated_key).encode()).decode()
         else:
             kwargs[DATA_PAGINATOR] = None
 
@@ -194,6 +239,9 @@ class EventService(TableActions):
     """
 
     def __init__(self):
+        """
+        Initializes the EventService with a DynamoDB resource and event table.
+        """
         # Get the DynamoDB resource and table name from utility methods.
         region_name = util.get_dynamodb_region()
         self.dynamodb = aws.dynamodb_resource(region_name=region_name)
@@ -203,7 +251,12 @@ class EventService(TableActions):
     def create(cls, **kwargs) -> Response:
         """
         Creates a new event record in DynamoDB.
-        Expects all event fields as keyword arguments.
+
+        :param kwargs: Event attributes.
+        :type kwargs: dict
+        :raises BadRequestException: If event creation fails.
+        :return: Success response containing event data.
+        :rtype: SuccessResponse
         """
         try:
             instance = cls()
@@ -226,15 +279,20 @@ class EventService(TableActions):
     def get(cls, **kwargs) -> Response:
         """
         Retrieves an event by its primary key.
-        Expects at least 'prn' and 'timestamp' as keyword arguments.
+
+        :param kwargs: Must include 'prn' and 'timestamp'.
+        :type kwargs: dict
+        :raises ValueError: If required keys are missing.
+        :raises NotFoundException: If item is not found.
+        :raises UnknownException: For other errors.
+        :return: Success response containing event data.
+        :rtype: SuccessResponse
         """
         try:
             prn = kwargs.get("prn")
             timestamp = kwargs.get("timestamp")
             if not prn or not timestamp:
-                raise ValueError(
-                    "Both 'prn' and 'timestamp' are required to get an item."
-                )
+                raise ValueError("Both 'prn' and 'timestamp' are required to get an item.")
             if isinstance(timestamp, datetime):
                 timestamp = timestamp.isoformat()
             instance = cls()
@@ -256,16 +314,19 @@ class EventService(TableActions):
     def update(cls, **kwargs) -> Response:
         """
         Updates specified attributes of an event.
-        Expects 'prn' and 'timestamp' to identify the record.
-        Other provided keyword arguments specify the fields to update.
+
+        :param kwargs: Must include 'prn', 'timestamp', and fields to update.
+        :type kwargs: dict
+        :raises ValueError: If required keys or update fields are missing.
+        :raises BadRequestException: If update fails.
+        :return: Success response containing updated data.
+        :rtype: SuccessResponse
         """
         try:
             prn = kwargs.get("prn")
             timestamp = kwargs.get("timestamp")
             if not prn or not timestamp:
-                raise ValueError(
-                    "Both 'prn' and 'timestamp' are required to update an item."
-                )
+                raise ValueError("Both 'prn' and 'timestamp' are required to update an item.")
             # Remove primary key fields from update parameters.
             update_data = kwargs.copy()
             update_data.pop("prn", None)
@@ -274,10 +335,7 @@ class EventService(TableActions):
                 raise ValueError("No update fields provided.")
             update_expression = "SET " + ", ".join(f"#{k} = :{k}" for k in update_data)
             expression_attribute_names = {f"#{k}": k for k in update_data}
-            expression_attribute_values = {
-                f":{k}": v.isoformat() if isinstance(v, datetime) else v
-                for k, v in update_data.items()
-            }
+            expression_attribute_values = {f":{k}": v.isoformat() if isinstance(v, datetime) else v for k, v in update_data.items()}
             if isinstance(timestamp, datetime):
                 timestamp = timestamp.isoformat()
             instance = cls()
@@ -298,15 +356,19 @@ class EventService(TableActions):
     def delete(cls, **kwargs) -> Response:
         """
         Deletes an event from the DynamoDB table.
-        Expects 'prn' and 'timestamp' as keyword arguments.
+
+        :param kwargs: Must include 'prn' and 'timestamp'.
+        :type kwargs: dict
+        :raises ValueError: If required keys are missing.
+        :raises UnknownException: If deletion fails.
+        :return: Success response confirming deletion.
+        :rtype: SuccessResponse
         """
         try:
             prn = kwargs.get("prn")
             timestamp = kwargs.get("timestamp")
             if not prn or not timestamp:
-                raise ValueError(
-                    "Both 'prn' and 'timestamp' are required to delete an item."
-                )
+                raise ValueError("Both 'prn' and 'timestamp' are required to delete an item.")
             if isinstance(timestamp, datetime):
                 timestamp = timestamp.isoformat()
 
@@ -324,8 +386,12 @@ class EventService(TableActions):
     def patch(cls, **kwargs) -> Response:
         """
         Partially updates an event record.
-        This method fetches the existing record, updates the specified fields, and saves it back.
-        Expects 'prn' and 'timestamp' to identify the record.
+
+        :param kwargs: Must include 'prn', 'timestamp', and fields to update.
+        :type kwargs: dict
+        :raises UnknownException: If patch fails.
+        :return: Success response containing updated data.
+        :rtype: SuccessResponse
         """
         try:
             # Retrieve the existing record.
@@ -355,7 +421,12 @@ class EventService(TableActions):
     def list(cls, **kwargs) -> Response:
         """
         Lists all events in the table.
-        This implementation performs a full table scan.
+
+        :param kwargs: Optional filtering parameters.
+        :type kwargs: dict
+        :raises UnknownException: If listing fails.
+        :return: Success response containing a list of events.
+        :rtype: SuccessResponse
         """
         try:
             instance = cls()

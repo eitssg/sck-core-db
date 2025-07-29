@@ -1695,14 +1695,14 @@ reference = "nexus"
 
 [[package]]
 name = "sck-core-framework"
-version = "0.0.8"
+version = "0.0.9"
 description = "Core-Framework for Core-Automation"
 optional = false
 python-versions = ">=3.12,<4.0"
 groups = ["main"]
 files = [
-    {file = "sck_core_framework-0.0.8-py3-none-any.whl", hash = "sha256:faa4ec5731feb3a6d3a5b35c47024ddd88aef79609f2d735ee4f34b521d4fd21"},
-    {file = "sck_core_framework-0.0.8.tar.gz", hash = "sha256:0cbc8eb53e9e7b1f8e760822931845d4bdce0abf8e655fd895b5aee7ac1d996e"},
+    {file = "sck_core_framework-0.0.9-py3-none-any.whl", hash = "sha256:f395bbba73068807547a78f3d79805f1d51147bc22d4ea8c707308b7a700d7eb"},
+    {file = "sck_core_framework-0.0.9.tar.gz", hash = "sha256:f2eb2f87913309a74fbd6c6244d3e6148a4c41ebf8b1e32d09593bcec5e8167a"},
 ]
 
 [package.dependencies]
@@ -1869,4 +1869,4 @@ reference = "nexus"
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.12"
-content-hash = "87048cd1d49029e36ef5225ca953093fe300b2bab2a3e9b69b8d9c3124b004ac"
+content-hash = "8c4ae095c81b41b45e16801ee07ac779f83c06b78a0e84f4e0dd6a5479e2f99a"
