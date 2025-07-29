@@ -112,7 +112,9 @@ Values are classes that implement the TableActions interface:
 """
 
 
-def update_status(prn: str, status: str, message: str | None = None, details={}) -> dict:
+def update_status(
+    prn: str, status: str, message: str | None = None, details={}
+) -> dict:
     """
     Updates the status of a PRN in the DB.
 
@@ -215,13 +217,17 @@ def register_item(prn: str, name: str, **kwargs) -> dict:
                 "component_type": kwargs["component_type"],
             }
         else:
-            raise ValueError(f"Unsupported SCOPE '{scope}'. Must be branch, build or component")
+            raise ValueError(
+                f"Unsupported SCOPE '{scope}'. Must be branch, build or component"
+            )
 
         if kwargs:
             data = {**data, **kwargs}
 
         # Register the branch (may not be required)
-        log.debug(f"(API) registering {scope} '{prn}' {kwargs.get(STATUS, '')}", identity=prn)
+        log.debug(
+            f"(API) registering {scope} '{prn}' {kwargs.get(STATUS, '')}", identity=prn
+        )
 
         klazz = actions_routes.get(scope)
         if not klazz:
@@ -231,7 +237,9 @@ def register_item(prn: str, name: str, **kwargs) -> dict:
         result = klazz.create(**data)
 
         if result.status != OK:
-            log.error(f"Failed to register item '{prn}':", details=result.data, identity=prn)
+            log.error(
+                f"Failed to register item '{prn}':", details=result.data, identity=prn
+            )
 
         return result.model_dump()
 
@@ -280,7 +288,9 @@ def __api_update_status(prn: str, status: str, message: str | None = None) -> di
         result = klazz.update(**data)
 
         if result.status != OK:
-            log.error(f"Failed to update status of '{prn}': {result.data}", identity=prn)
+            log.error(
+                f"Failed to update status of '{prn}': {result.data}", identity=prn
+            )
 
         return result.model_dump()
 
@@ -316,7 +326,9 @@ def __api_put_event(prn: str, status: str, message: str | None = None) -> dict:
         result = klazz.create(**data)
 
         if result.status != OK:
-            log.error(f"Failed to create event '{prn}':", details=result.data, identity=prn)
+            log.error(
+                f"Failed to create event '{prn}':", details=result.data, identity=prn
+            )
 
         return result.model_dump()
 

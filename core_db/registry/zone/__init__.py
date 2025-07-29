@@ -7,6 +7,7 @@ from .models import (
     KmsFacts,
     SecurityAliasFacts,
     ProxyFacts,
+    ZoneFactsFactory,
 )
 from .actions import ZoneActions
 
@@ -18,4 +19,5 @@ __all__ = [
     "SecurityAliasFacts",
     "ProxyFacts",
     "ZoneActions",
+    "ZoneFactsFactory",
 ]

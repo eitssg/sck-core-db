@@ -6,6 +6,7 @@ from .models import (
     ApproverFacts,
     OwnerFacts,
     ProjectFacts,
+    PortfolioFactsFactory,
 )
 from .actions import PortfolioActions
 
@@ -16,4 +17,5 @@ __all__ = [
     "OwnerFacts",
     "ProjectFacts",
     "PortfolioActions",
+    "PortfolioFactsFactory",
 ]

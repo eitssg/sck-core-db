@@ -1,6 +1,6 @@
 """The Item module contains the function and classes to create a CRUD interface to core-automation-items DynamoDB table."""
 
-from .models import ItemModel
+from .models import ItemModel, ItemModelFactory
 from .actions import ItemTableActions as ItemActions
 
-__all__ = ["ItemModel", "ItemActions"]
+__all__ = ["ItemModel", "ItemActions", "ItemModelFactory"]
