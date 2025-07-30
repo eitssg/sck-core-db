@@ -299,7 +299,7 @@ class PortfolioFactsFactory:
 
     @classmethod
     def get_model(
-        cls, client: str, auto_create_table: bool = True
+        cls, client: str, auto_create_table: bool = False
     ) -> PortfolioFactsType:
         """
         Get a PortfolioFacts model class for a specific client.

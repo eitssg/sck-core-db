@@ -432,7 +432,7 @@ class ZoneFactsFactory:
     _model_cache = {}
 
     @classmethod
-    def get_model(cls, client: str, auto_create_table: bool = True) -> ZoneFactsType:
+    def get_model(cls, client: str, auto_create_table: bool = False) -> ZoneFactsType:
         """
         Get a ZoneFacts model class for a specific client.
 

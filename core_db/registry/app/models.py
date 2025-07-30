@@ -66,6 +66,8 @@ class AppFacts(RegistryModel):
     Metadata = MapAttribute(null=True)
     UserInstantiated = UnicodeAttribute(null=True)
 
+    def __repr__(self) -> str:
+        return f"<AppFacts({self.ClientPortfolio},AppRegex={self.AppRegex})>"
 
 AppFactsType = type[AppFacts]
 
@@ -76,7 +78,7 @@ class AppFactsFactory:
     _model_cache = {}
 
     @classmethod
-    def get_model(cls, client: str, auto_create_table: bool = True) -> AppFactsType:
+    def get_model(cls, client: str, auto_create_table: bool = False) -> AppFactsType:
         """
         Get an AppFacts model class for a specific client.
 

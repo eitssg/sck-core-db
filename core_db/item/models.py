@@ -427,7 +427,7 @@ class ItemModelFactory:
     _cache_models = {}
 
     @classmethod
-    def get_model(cls, client: str, auto_create_table: bool = True) -> ItemModelType:
+    def get_model(cls, client: str, auto_create_table: bool = False) -> ItemModelType:
         """
         Get a ClientItemModel configured for the specified client.
 

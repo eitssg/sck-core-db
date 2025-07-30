@@ -104,7 +104,7 @@ class EventModelFactory:
     _model_cache = {}
 
     @classmethod
-    def get_model(cls, client: str, auto_create_table: bool = True) -> EventModelType:
+    def get_model(cls, client: str, auto_create_table: bool = False) -> EventModelType:
         """
         Get the EventModel class for a specific client.
 
