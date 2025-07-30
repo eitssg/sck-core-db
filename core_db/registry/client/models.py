@@ -311,7 +311,7 @@ class ClientFactsFactory:
 
     @classmethod
     def get_model(
-        cls, client: str = "global", auto_create_table: bool = True
+        cls, client: str = "global", auto_create_table: bool = False
     ) -> ClientFactsType:
         """
         Get a ClientFacts model class for a specific client.
