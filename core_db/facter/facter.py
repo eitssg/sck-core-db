@@ -33,10 +33,42 @@ from core_framework.models import DeploymentDetails
 
 from ..constants import REGION, ENVIRONMENT, ZONE_KEY
 
-from ..registry.client.models import ClientFacts
-from ..registry.portfolio.models import PortfolioFacts
-from ..registry.zone.models import ZoneFacts
-from ..registry.app.models import AppFacts
+from ..registry.client.models import ClientFacts, ClientFactsFactory
+from ..registry.portfolio.models import PortfolioFacts, PortfolioFactsFactory
+from ..registry.zone.models import ZoneFacts, ZoneFactsFactory
+from ..registry.app.models import AppFacts, AppFactsFactory
+
+
+def get_client_model(client) -> ClientFacts:
+    """
+    Returns the ClientFacts class from the ClientFactsFactory.
+    This is a helper function to avoid circular imports.
+    """
+    return ClientFactsFactory.get_model(client)
+
+
+def get_portfolio_model(client) -> PortfolioFacts:
+    """
+    Returns the PortfolioFacts class from the PortfolioFactsFactory.
+    This is a helper function to avoid circular imports.
+    """
+    return PortfolioFactsFactory.get_model(client)
+
+
+def get_zone_model(client) -> ZoneFacts:
+    """
+    Returns the ZoneFacts class.
+    This is a helper function to avoid circular imports.
+    """
+    return ZoneFactsFactory.get_model(client)
+
+
+def get_app_model(client) -> AppFacts:
+    """
+    Returns the AppFacts class.
+    This is a helper function to avoid circular imports.
+    """
+    return AppFactsFactory.get_model(client)
 
 
 def get_client_facts(client: str) -> dict | None:
@@ -58,7 +90,8 @@ def get_client_facts(client: str) -> dict | None:
     ...     print(f"Client: {client_facts['name']}")
     """
     try:
-        facts = ClientFacts.get(client)
+        model = get_client_model(client)
+        facts = model.get(client)
         if facts is None:
             return None
         return facts.to_simple_dict()
@@ -89,7 +122,8 @@ def get_portfolio_facts(client: str, portfolio: str) -> dict | None:
     ...     print(f"Portfolio: {portfolio_facts['name']}")
     """
     try:
-        portfolio_facts = PortfolioFacts.get(client, portfolio)
+        model = get_portfolio_model(client)
+        portfolio_facts = model.get(client, portfolio)
         if portfolio_facts is None:
             return None
         return portfolio_facts.to_simple_dict()
@@ -122,8 +156,8 @@ def get_zone_facts(client: str, zone: str) -> dict | None:
     ...     print(f"Zone: {zone_facts['name']}")
     """
     try:
-        zone_facts = ZoneFacts.get(client, zone)
-
+        model = get_zone_model(client)
+        zone_facts = model.get(client, zone)
         if zone_facts is None:
             return None
         return zone_facts.to_simple_dict()
@@ -155,7 +189,8 @@ def get_zone_facts_by_account_id(account_id: str) -> list[dict] | None:
     ...         print(f"Zone: {zone['name']}")
     """
     try:
-        zone_facts = ZoneFacts.query(account_id)
+        model = get_zone_model(client)
+        zone_facts = model.query(account_id)
         if zone_facts is None:
             return None
         return [zf.to_simple_dict() for zf in zone_facts]
@@ -206,7 +241,8 @@ def get_app_facts(deployment_details: DeploymentDetails) -> dict | None:
     portfolio_key = deployment_details.get_client_portfolio_key()
     app_test_string = f"prn:{portfolio}:{app}:{branch}:{build}"
 
-    app_facts_list = AppFacts.query(portfolio_key)
+    model = get_app_model(client)
+    app_facts_list = model.query(portfolio_key)
 
     for app_facts in app_facts_list:
         arx = app_facts.AppRegex
@@ -247,12 +283,8 @@ def derive_environment_from_branch(branch: str) -> tuple[str, str]:
 
         # split the branch by '/' and retrieve the last part
         branch_parts = branch.split("/")
-        environment = branch_parts[
-            -1
-        ]  # in this format, the branch name is the environment (master, main, dev, feature1/dev, etc)
-        region_alias = parts[
-            1
-        ]  # override region_alias fact with the branch region alias definition
+        environment = branch_parts[-1]  # in this format, the branch name is the environment (master, main, dev, feature1/dev, etc)
+        region_alias = parts[1]  # override region_alias fact with the branch region alias definition
     else:
         environment = branch
         region_alias = V_DEFAULT_REGION_ALIAS
@@ -416,9 +448,7 @@ def get_facts(deployment_details: DeploymentDetails) -> dict:  # noqa: C901
     identity = deployment_details.get_identity()
     app_facts = get_app_facts(deployment_details)
     if app_facts is None:
-        raise ValueError(
-            f"App facts not found for {identity}. Contact DevOps to register this app."
-        )
+        raise ValueError(f"App facts not found for {identity}. Contact DevOps to register this app.")
 
     # If the app facts do not contain a zone, throw an error
     zone = app_facts.get(ZONE_KEY, None)
@@ -434,9 +464,7 @@ def get_facts(deployment_details: DeploymentDetails) -> dict:  # noqa: C901
     environment = app_facts.get(ENVIRONMENT, None)
     branch_region_alias = V_DEFAULT_REGION_ALIAS
     if not environment:
-        environment, branch_region_alias = derive_environment_from_branch(
-            deployment_details.branch or V_DEFAULT_REGION_ALIAS
-        )
+        environment, branch_region_alias = derive_environment_from_branch(deployment_details.branch or V_DEFAULT_REGION_ALIAS)
 
     # FACTS always override user input. So, don't use the user input if FACTS are present.
     if region_alias is None:
@@ -470,9 +498,7 @@ def get_facts(deployment_details: DeploymentDetails) -> dict:  # noqa: C901
             TAG_ENVIRONMENT: environment,
             TAG_REGION: region_alias,
             TAG_OWNER: format_contact(portfolio_facts.get("Owner", {})),
-            TAG_CONTACTS: ",".join(
-                [format_contact(c) for c in portfolio_facts.get("Contacts", [])]
-            ),
+            TAG_CONTACTS: ",".join([format_contact(c) for c in portfolio_facts.get("Contacts", [])]),
         },
     )
     app_facts[FACTS_TAGS] = dict(tags)
