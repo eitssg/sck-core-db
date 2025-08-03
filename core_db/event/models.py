@@ -88,9 +88,6 @@ class EventModel(Model):
         return f"<Event(prn={self.prn},timestamp={self.timestamp},item_type={self.item_type},status={self.status},message={self.message})>"
 
 
-EventModelType = Type[EventModel]
-
-
 class EventModelFactory:
     """
     Factory class to create EventModel instances with client-specific table names.
@@ -104,7 +101,7 @@ class EventModelFactory:
     _model_cache = {}
 
     @classmethod
-    def get_model(cls, client: str, auto_create_table: bool = False) -> EventModelType:
+    def get_model(cls, client: str, auto_create_table: bool = False) -> Type[EventModel]:
         """
         Get the EventModel class for a specific client.
 
@@ -124,7 +121,7 @@ class EventModelFactory:
         return cls._model_cache[client]
 
     @classmethod
-    def _ensure_exists(cls, model_class: EventModelType, client: str):
+    def _ensure_exists(cls, model_class: EventModel, client: str):
         """
         Ensure that the DynamoDB table for the model exists.
 
@@ -137,14 +134,12 @@ class EventModelFactory:
             if not model_class.exists():
                 log.info("Creating events table: %s", model_class.Meta.table_name)
                 model_class.create_table(wait=True)
-                log.info(
-                    "Successfully created events table: %s", model_class.Meta.table_name
-                )
+                log.info("Successfully created events table: %s", model_class.Meta.table_name)
         except Exception as e:
             log.error("Error creating events table: %s", e)
 
     @classmethod
-    def _create_model(cls, client: str) -> EventModelType:
+    def _create_model(cls, client: str) -> EventModel:
         """
         Create an EventModel class with a specific table name based on the client.
 
@@ -161,25 +156,24 @@ class EventModelFactory:
         return EventModelClass
 
     @classmethod
-    def create_table(cls, wait: bool = True):
+    def create_table(cls, client: str, wait: bool = True):
         """
         Create the events table if it does not exist.
 
         :param wait: Whether to wait for the table creation to complete.
         :type wait: bool
         """
-        model_class = cls.get_model()
+        model_class = cls.get_model(client)
         if not model_class.exists():
             log.info("Creating events table: %s", model_class.Meta.table_name)
             model_class.create_table(wait=wait)
-            log.info(
-                "Successfully created events table: %s", model_class.Meta.table_name
-            )
+            log.info("Successfully created events table: %s", model_class.Meta.table_name)
 
 
 class EventModelSchema(BaseModel):
     """
-    Pydantic model representing an Event.
+    Pydantic model representing an Event. NOT_IN_USE!!!  This is a placeholder for
+    future use with Pydantic validation.
 
     Attributes
     ----------
@@ -197,23 +191,17 @@ class EventModelSchema(BaseModel):
         Event message details.
     """
 
-    prn: str = Field(
-        ..., description="Pipeline Reference Number (PRN) of the event (a.k.a identity)"
-    )
+    prn: str = Field(..., description="Pipeline Reference Number (PRN) of the event (a.k.a identity)")
     timestamp: datetime = Field(
         description="Timestamp of the event. Let the system auto-generate",
         default_factory=datetime.now,
     )
-    event_type: str = Field(
-        description="Type of event (e.g., 'INFO', 'ERROR', 'STATUS')", default="STATUS"
-    )
+    event_type: str = Field(description="Type of event (e.g., 'INFO', 'ERROR', 'STATUS')", default="STATUS")
     item_type: Optional[str] = Field(
         None,
         description="Type of item this event relates to such as portfolio, app, branch, build, component, account, etc.",
     )
-    status: Optional[str] = Field(
-        None, description='The status name. Two possible values "ok" or "error"'
-    )
+    status: Optional[str] = Field(None, description='The status name. Two possible values "ok" or "error"')
     message: Optional[str] = Field(None, description="Event message details")
 
     class Config:

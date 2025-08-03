@@ -16,14 +16,21 @@ from ...constants import (
 from ...response import Response
 from ...exceptions import BadRequestException
 from ..actions import ItemTableActions
-from .models import AppModel
+from .models import AppModelFactory
 
 
 class AppActions(ItemTableActions):
     """Class container for App Item specific validations and actions"""
 
-    item_model = AppModel
-    """ItemModel: The :class:`core_db.item.models.ItemModel` class for the ``AppActions`` to work on.  Set to :class:`core_db.item.app.models.AppModel` """
+    @classmethod
+    def get_item_model(cls):
+        """
+        Get the ItemModel for App
+
+        Returns:
+            ItemModel: The ItemModel for App
+        """
+        return AppModelFactory.get_model(util.get_client())
 
     @classmethod
     def validate_prn(cls, prn: str) -> str:

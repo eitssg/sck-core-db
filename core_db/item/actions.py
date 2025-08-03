@@ -44,7 +44,7 @@ from ..exceptions import (
     UnknownException,
     NotFoundException,
 )
-from ..constants import ITEMS
+
 from .models import ItemModelFactory
 
 
@@ -53,7 +53,9 @@ class ItemTableActions(TableActions):
     Provides the implmentation of :class:`TableActions` for the Items table.
     """
 
-    item_model = ItemModelFactory.get_model(util.get_client())
+    @classmethod
+    def get_item_model(cls):
+        return ItemModelFactory.get_model(util.get_client())
 
     @classmethod
     def validate_date(cls, date: Any) -> Any:
@@ -126,11 +128,15 @@ class ItemTableActions(TableActions):
         kwargs.pop("created_at", None)
         kwargs.pop("updated_at", None)
 
-        item = cls.item_model(prn=prn, parent_prn=parent_prn, **kwargs)
-
         # Add the new item to the database, if it doesn't already exist
         try:
-            item.save(cls.item_model.prn.does_not_exist())
+
+            item_model = cls.get_item_model()
+
+            item = item_model(prn=prn, parent_prn=parent_prn, **kwargs)
+
+            item.save(item_model.prn.does_not_exist())
+
         except PutError as e:
             if e.cause_response_code == "ConditionalCheckFailedException":
                 raise ConflictException(f"Item [{item.prn}] already exists")
@@ -155,7 +161,8 @@ class ItemTableActions(TableActions):
 
         # Load the requested item.  If not found, it's not an error, but return 204
         try:
-            item = cls.item_model.get(prn)
+            item_model = cls.get_item_model()
+            item = item_model.get(prn)
         except DoesNotExist:
             return NoContentResponse(f"Item not found: {prn}")
 
@@ -176,7 +183,8 @@ class ItemTableActions(TableActions):
             raise BadRequestException(f"Invalid prn: {prn}")
 
         try:
-            item = cls.item_model.get(prn)
+            item_model = cls.get_item_model()
+            item = item_model.get(prn)
         except DoesNotExist:
             raise NotFoundException(f"Item not found: {prn}")
 
@@ -203,31 +211,29 @@ class ItemTableActions(TableActions):
         earliest_time = cls.validate_date(kwargs.get(EARLIEST_TIME, None))
         latest_time = cls.validate_date(kwargs.get(LATEST_TIME, None))
 
+        item_model = cls.get_item_model()
+
         # Generate our range key condition
         if earliest_time and latest_time:
-            range_key_condition = cls.item_model.created_at.between(
-                earliest_time, latest_time
-            )
+            range_key_condition = item_model.created_at.between(earliest_time, latest_time)
         elif earliest_time:
-            range_key_condition = cls.item_model.created_at >= earliest_time
+            range_key_condition = item_model.created_at >= earliest_time
         elif latest_time:
-            range_key_condition = cls.item_model.created_at <= latest_time
+            range_key_condition = item_model.created_at <= latest_time
         else:
             range_key_condition = None
 
         pagenator = kwargs.get(DATA_PAGINATOR, None)
 
         if pagenator:
-            last_evaluated_key = json.loads(
-                base64.b64decode(pagenator).decode(encoding="utf-8")
-            )
+            last_evaluated_key = json.loads(base64.b64decode(pagenator).decode(encoding="utf-8"))
         else:
             last_evaluated_key = None
 
         sort_forward = kwargs.get(SORT, ASCENDING) == ASCENDING
         request_limit = kwargs.get(LIMIT, 10)
 
-        results = cls.item_model.parent_created_at_index.query(
+        results = item_model.parent_created_at_index.query(
             hash_key=parent_prn,
             range_key_condition=range_key_condition,
             scan_index_forward=sort_forward,
@@ -238,9 +244,9 @@ class ItemTableActions(TableActions):
         items = [i.to_simple_dict() for i in results]
         last_evaluated_key = results.last_evaluated_key
         if last_evaluated_key:
-            kwargs[DATA_PAGINATOR] = base64.b64encode(
-                json.dumps(last_evaluated_key).encode(encoding="utf-8")
-            ).decode(encoding="utf-8")
+            kwargs[DATA_PAGINATOR] = base64.b64encode(json.dumps(last_evaluated_key).encode(encoding="utf-8")).decode(
+                encoding="utf-8"
+            )
         else:
             kwargs[DATA_PAGINATOR] = None
 
@@ -260,7 +266,8 @@ class ItemTableActions(TableActions):
 
         # Load the requested item
         try:
-            item = cls.item_model.get(prn)
+            item_model = cls.get_item_model()
+            item = item_model.get(prn)
         except DoesNotExist:
             raise NotFoundException("Item not found")
 

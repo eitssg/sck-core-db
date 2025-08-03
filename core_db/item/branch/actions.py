@@ -19,14 +19,21 @@ from ...exceptions import BadRequestException
 
 from ..actions import ItemTableActions
 
-from .models import BranchModel
+from .models import BranchModelFactory
 
 
 class BranchActions(ItemTableActions):
     """Class container for Branch Item specific validations and actions"""
 
-    item_model = BranchModel
-    """ItemModel: The :class:`core_db.item.models.ItemModel` class for the ``BranchActions`` to work on.  Set to :class:`core_db.item.branch.models.BranchModel` """
+    @classmethod
+    def get_item_model(cls):
+        """
+        Get the ItemModel for Branch
+
+        Returns:
+            ItemModel: The ItemModel for Branch
+        """
+        return BranchModelFactory.get_model(util.get_client())
 
     @classmethod
     def validate_prn(cls, prn: str) -> str:
@@ -130,7 +137,8 @@ class BranchActions(ItemTableActions):
         Returns:
             Response: The updated build item
         """
-        released_build = BranchModel.construct_released_build(**kwargs)
+        item_model = cls.get_item_model()
+        released_build = item_model.construct_released_build(**kwargs)
         if released_build:
             prn = released_build.get(PRN)
             if not prn or not util.validate_build_prn(prn):

@@ -27,13 +27,11 @@ def bootstrap_dynamo():
     # see environment variables in .env
     host = util.get_dynamodb_host()
 
-    assert (
-        host == "http://localhost:8000"
-    ), "DYNAMODB_HOST must be set to http://localhost:8000"
+    assert host == "http://localhost:8000", "DYNAMODB_HOST must be set to http://localhost:8000"
 
     try:
 
-        client_name = "test-client"
+        client_name = "client"
 
         # use boto3 to connect to DynamoDB, get a list of all tables, then delete all tables
         import boto3

@@ -16,15 +16,21 @@ from ...constants import (
 
 from ..actions import ItemTableActions
 
-from .models import ComponentModel
+from .models import ComponentModelFactory
 
 
 class ComponentActions(ItemTableActions):
     """Class container for Component Item specific validations and actions"""
 
-    item_model = ComponentModel
-    """ItemModel: The :class:`core_db.item.models.ItemModel` class for the ``ComponentActions`` to work on.
-    Set to :class:`core_db.item.component.models.ComponentModel` """
+    @classmethod
+    def get_item_model(cls):
+        """
+        Get the ItemModel for Component
+
+        Returns:
+            ItemModel: The ItemModel for Component
+        """
+        return ComponentModelFactory.get_model(util.get_client())
 
     @classmethod
     def validate_prn(cls, prn: str) -> str:

@@ -4,6 +4,8 @@ from pynamodb.attributes import UnicodeAttribute
 
 from ...constants import PRN, RELEASED_BUILD_PRN
 
+from ...constants import ITEMS
+from ...config import get_table_name
 from ..models import ItemModel
 
 
@@ -47,3 +49,34 @@ class BranchModel(ItemModel):
         if released_build_prn:
             return {PRN: released_build_prn}
         return {}
+
+
+class BranchModelFactory:
+    """
+    Factory class to create the BranchModel
+    """
+
+    _model_cache = {}
+
+    @classmethod
+    def get_model(cls, client_name: str) -> BranchModel:
+        """
+        Get the BranchModel for the given client
+
+        Args:
+            client_name (str): The name of the client
+
+        Returns:
+            BranchModel: The BranchModel for the given client
+        """
+        if client_name not in cls._model_cache:
+            cls._model_cache[client_name] = cls._create_model(client_name)
+        return cls._model_cache[client_name]
+
+    @classmethod
+    def _create_model(cls, client_name: str) -> BranchModel:
+        class BranchModelClass(BranchModel):
+            class Meta(BranchModel.Meta):
+                table_name = get_table_name(ITEMS, client_name)
+
+        return BranchModelClass

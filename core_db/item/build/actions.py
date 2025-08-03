@@ -1,4 +1,5 @@
-""" This module contains the actions list, get, create, delete, update for the Items.Build object in core-automation-items """
+"""This module contains the actions list, get, create, delete, update for the Items.Build object in core-automation-items"""
+
 import core_framework as util
 
 from core_framework.status import BuildStatus, INIT
@@ -18,14 +19,21 @@ from ...exceptions import BadRequestException
 
 from ..actions import ItemTableActions
 
-from .models import BuildModel
+from .models import BuildModelFactory
 
 
 class BuildActions(ItemTableActions):
-    """ Class container for Build Item specific validations and actions"""
+    """Class container for Build Item specific validations and actions"""
 
-    item_model = BuildModel
-    """ItemModel: The :class:`core_db.item.models.ItemModel` class for the ``BuildActions`` to work on.  Set to :class:`core_db.item.build.models.BuildModel` """
+    @classmethod
+    def get_item_model(cls):
+        """
+        Get the ItemModel for Build
+
+        Returns:
+            ItemModel: The ItemModel for Build
+        """
+        return BuildModelFactory.get_model(util.get_client())
 
     @classmethod
     def validate_prn(cls, prn: str) -> str:

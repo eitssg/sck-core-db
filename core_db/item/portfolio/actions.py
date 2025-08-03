@@ -3,21 +3,28 @@ This module contains the actions list, get, create, delete, update for the Items
 """
 
 import core_framework as util
+from core_framework.constants import SCOPE_PORTFOLIO
 
 from ...response import Response
 from ...exceptions import BadRequestException
 from ...constants import PRN, PORTFOLIO_PRN, ITEM_TYPE, CONTACT_EMAIL
 from ..actions import ItemTableActions
 
-from .models import PortfolioModel
+from .models import PortfolioModelFactory
 
 
 class PortfolioActions(ItemTableActions):
     """Class container for Portfolio Item specific validations and actions"""
 
-    item_model = PortfolioModel
-    """ItemModel: The :class:`core_db.item.models.ItemModel` class for the ``PortfolioActions`` to work on.
-        Set to :class:`core_db.item.portfolio.models.PortfolioModel` """
+    @classmethod
+    def get_item_model(cls):
+        """
+        Get the ItemModel for Portfolio
+
+        Returns:
+            ItemModel: The ItemModel for Portfolio
+        """
+        return PortfolioModelFactory.get_model(util.get_client())
 
     @classmethod
     def validate_prn(cls, prn: str) -> str:
@@ -61,7 +68,7 @@ class PortfolioActions(ItemTableActions):
         if not portfolio_prn:
             portfolio_prn = util.generate_portfolio_prn(kwargs)
         kwargs[PRN] = cls.validate_prn(portfolio_prn)
-        kwargs[ITEM_TYPE] = util.constants.SCOPE_PORTFOLIO
+        kwargs[ITEM_TYPE] = SCOPE_PORTFOLIO
         if CONTACT_EMAIL not in kwargs:
             raise BadRequestException("Contact email is required for portfolo create")
 
