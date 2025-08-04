@@ -170,3 +170,4 @@ sck.egg-info
 /.vscode/
 .idea
 credentials.ini
+tests/dynamodb-data/shared-local-instance.db
