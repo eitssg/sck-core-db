@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "sck-core-db"
-version = "0.0.10"
+version = "0.0.11-pre.5+9d887fe"
 description = "Core Database Library to access DynamoDB for Core-Automation"
 authors = ["James Barwick <jbarwick@me.com>"]
 readme = "README.md"

@@ -288,6 +288,23 @@ class PortfolioFacts(RegistryModel):
     Attributes = MapAttribute(of=UnicodeAttribute, null=True)
     UserInstantiated = UnicodeAttribute(null=True)
 
+    def get_client_portfolio_key(self) -> str:
+        """
+        Get formatted client:portfolio key.
+
+        Returns the composite key combining client and portfolio identifiers,
+        useful for logging, caching, and identification purposes.
+
+        :returns: Formatted key as "client:portfolio"
+        :rtype: str
+
+        Example:
+            >>> portfolio = PortfolioFacts("acme", "web-services")
+            >>> key = portfolio.get_client_portfolio_key()
+            >>> print(key)  # "acme:web-services"
+        """
+        return f"{self.Client}:{self.Portfolio}"
+
 
 PortfolioFactsType = type[PortfolioFacts]
 
@@ -298,9 +315,7 @@ class PortfolioFactsFactory:
     _model_cache = {}
 
     @classmethod
-    def get_model(
-        cls, client: str, auto_create_table: bool = False
-    ) -> PortfolioFactsType:
+    def get_model(cls, client: str, auto_create_table: bool = False) -> PortfolioFactsType:
         """
         Get a PortfolioFacts model class for a specific client.
 

@@ -1,5 +1,8 @@
 import os
 import pytest
+
+import boto3
+
 import core_framework as util
 
 from core_db.response import Response
@@ -14,9 +17,7 @@ from core_db.registry.portfolio.models import PortfolioFactsFactory
 from core_db.registry.app.models import AppFactsFactory
 from core_db.registry.zone.models import ZoneFactsFactory
 
-import logging
-
-logging.basicConfig(level=logging.DEBUG)
+import core_logging as logging
 
 
 @pytest.fixture(scope="module")
@@ -32,9 +33,6 @@ def bootstrap_dynamo():
     try:
 
         client_name = "client"
-
-        # use boto3 to connect to DynamoDB, get a list of all tables, then delete all tables
-        import boto3
 
         dynamodb = boto3.resource("dynamodb", endpoint_url=host)
 

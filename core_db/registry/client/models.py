@@ -310,9 +310,7 @@ class ClientFactsFactory:
     _cache_models = {}
 
     @classmethod
-    def get_model(
-        cls, client: str = "global", auto_create_table: bool = False
-    ) -> ClientFactsType:
+    def get_model(cls, client: str = "global", auto_create_table: bool = False) -> ClientFactsType:
         """
         Get a ClientFacts model class for a specific client.
 
@@ -333,6 +331,20 @@ class ClientFactsFactory:
                 cls._ensure_table_exists(model_class)
 
         return cls._cache_models[client]
+
+    @classmethod
+    def create_table(cls, client: str = None) -> None:
+        """
+        Create the ClientFacts table if it does not exist.
+
+        :param cls: The ClientFacts model class to create the table for
+        :type cls: type[ClientFacts]
+        :param wait: Whether to wait until the table is created
+        :type wait: bool
+        """
+        if not client:
+            client = "global"
+        model = cls.get_model(client, True)
 
     @classmethod
     def _ensure_table_exists(cls, model_class: ClientFactsType) -> None:

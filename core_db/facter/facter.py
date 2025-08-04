@@ -5,7 +5,6 @@ This FACTS database should come from DynamoDB. Not 'accounts.yaml' and 'apps.yam
 (In re-rewrite. We need to use DynamoDB instead of FACTS YAML files)
 """
 
-from typing import Any
 from collections import ChainMap
 import os
 import re
@@ -167,7 +166,7 @@ def get_zone_facts(client: str, zone: str) -> dict | None:
         return None
 
 
-def get_zone_facts_by_account_id(account_id: str) -> list[dict] | None:
+def get_zone_facts_by_account_id(client: str, account_id: str) -> list[dict] | None:
     """
     Uses the logic within the :class:`ZoneFacts` class to retrieve the Zone Details.
 
@@ -183,7 +182,7 @@ def get_zone_facts_by_account_id(account_id: str) -> list[dict] | None:
 
     Examples
     --------
-    >>> zone_facts_list = get_zone_facts_by_account_id("123456789012")
+    >>> zone_facts_list = get_zone_facts_by_account_id(client, "123456789012")
     >>> if zone_facts_list:
     ...     for zone in zone_facts_list:
     ...         print(f"Zone: {zone['name']}")
