@@ -3,7 +3,7 @@
 from typing import Type, Union
 from datetime import datetime
 from typing import Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 import core_logging as log
 
@@ -191,6 +191,8 @@ class EventModelSchema(BaseModel):
         Event message details.
     """
 
+    model_config = ConfigDict(from_attributes=True)
+
     prn: str = Field(..., description="Pipeline Reference Number (PRN) of the event (a.k.a identity)")
     timestamp: datetime = Field(
         description="Timestamp of the event. Let the system auto-generate",
@@ -203,11 +205,6 @@ class EventModelSchema(BaseModel):
     )
     status: Optional[str] = Field(None, description='The status name. Two possible values "ok" or "error"')
     message: Optional[str] = Field(None, description="Event message details")
-
-    class Config:
-        """Pydantic configuration class."""
-
-        orm_mode = True
 
     def __repr__(self):
         """
