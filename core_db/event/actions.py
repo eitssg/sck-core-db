@@ -136,7 +136,7 @@ class EventActions(TableActions):
             raise UnknownException(f"Creation failed - {str(e)}") from e
 
         # Return the new event
-        return SuccessResponse(event.attribute_values)
+        return SuccessResponse(data=event.to_simple_dict())
 
     @classmethod
     def delete(cls, **kwargs) -> Response:
@@ -159,7 +159,7 @@ class EventActions(TableActions):
         except DeleteError as e:
             raise BadRequestException(f"Failed to delete - {str(e)}") from e
 
-        return SuccessResponse(f"Event deleted: {prn}")
+        return SuccessResponse(message=f"Event deleted: {prn}")
 
     @classmethod
     def NoneIfEmpty(cls, value: Any) -> Any:
@@ -237,7 +237,4 @@ class EventActions(TableActions):
         else:
             kwargs[DATA_PAGINATOR] = None
 
-        return SuccessResponse(
-            events,
-            additional_data=dict(kwargs),
-        )
+        return SuccessResponse(data=events, metadata=dict(kwargs))

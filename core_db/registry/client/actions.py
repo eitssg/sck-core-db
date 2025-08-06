@@ -43,9 +43,7 @@ class ClientActions(RegistryAction):
         client = kwargs.pop("client", kwargs.pop(CLIENT_KEY, None))
 
         if not client:
-            raise BadRequestException(
-                'Client name is required in content: { "client": "<name>", ...}'
-            )
+            raise BadRequestException('Client name is required in content: { "client": "<name>", ...}')
 
         return client
 
@@ -80,16 +78,14 @@ class ClientActions(RegistryAction):
             raise UnknownException("Failed to scan clients: Database table error")
         except ScanError:
             # Permissions or other AWS-specific scan operation failures
-            raise UnknownException(
-                "Failed to scan clients: Permission denied or AWS error"
-            )
+            raise UnknownException("Failed to scan clients: Permission denied or AWS error")
         except Exception as e:
             # Catch-all for unexpected errors
             raise UnknownException(f"Failed to scan clients: {str(e)}")
 
         result = [i.Client for i in items]  # return a simple list of client names
 
-        return SuccessResponse(result)
+        return SuccessResponse(data=result)
 
     @classmethod
     def get(cls, **kwargs) -> Response:
@@ -109,20 +105,18 @@ class ClientActions(RegistryAction):
             fact = model_class.get(client)
         except DoesNotExist:
             # Item doesn't exist in the database
-            return NoContentResponse(f"Client {client} does not exist")
+            return NoContentResponse(data={"message": f"Client {client} does not exist"})
         except TableError:
             # Table doesn't exist or is in a different state
             raise UnknownException(f"Database table error for client {client}")
         except GetError:
             # Permissions or other AWS-specific get operation failures
-            raise UnknownException(
-                f"Failed to access client {client}: Permission denied or AWS error"
-            )
+            raise UnknownException(f"Failed to access client {client}: Permission denied or AWS error")
         except Exception as e:
             # Catch-all for unexpected errors
             raise UnknownException(f"Failed to get client {client}: {str(e)}")
 
-        return SuccessResponse(fact.to_simple_dict())
+        return SuccessResponse(data=fact.to_simple_dict())
 
     @classmethod
     def delete(cls, **kwargs) -> Response:
@@ -144,17 +138,15 @@ class ClientActions(RegistryAction):
             fact.delete()
         except DoesNotExist:
             # Item doesn't exist in the database
-            return NoContentResponse(f"Client {client} does not exist")
+            return NoContentResponse(data={"message": f"Client {client} does not exist"})
         except DeleteError:
             # Specific delete operation failure (permissions, conditions, etc.)
-            raise UnknownException(
-                f"Failed to delete client {client}: Permission denied or condition check failed"
-            )
+            raise UnknownException(f"Failed to delete client {client}: Permission denied or condition check failed")
         except Exception as e:
             # Catch-all for unexpected errors
             raise UnknownException(f"Failed to delete client {client}: {str(e)}")
 
-        return SuccessResponse(f"Client {client} deleted")
+        return SuccessResponse(message=f"Client {client} deleted")
 
     @classmethod
     def create(cls, **kwargs) -> Response:
@@ -180,9 +172,7 @@ class ClientActions(RegistryAction):
             raise ConflictException(f"Client {client} already exists")
         except TableError:
             # Table doesn't exist or is in a different state
-            raise UnknownException(
-                f"Failed to save client {client}: Database table error"
-            )
+            raise UnknownException(f"Failed to save client {client}: Database table error")
         except ValueError as e:
             # Invalid data format
             raise BadRequestException(f"Data error on create {client}: {str(e)}")
@@ -190,7 +180,7 @@ class ClientActions(RegistryAction):
             # Catch-all for unexpected errors
             raise UnknownException(f"Failed to save client {client}: {str(e)}")
 
-        return SuccessResponse(fact.to_simple_dict())
+        return SuccessResponse(data=fact.to_simple_dict())
 
     @classmethod
     def update(cls, **kwargs) -> Response:
@@ -213,11 +203,9 @@ class ClientActions(RegistryAction):
         except (TableError, PutError) as e:
             raise UnknownException(f"Failed to update client {client}: {str(e)}")
         except Exception as e:
-            raise UnknownException(
-                f"Unexpected error updating client {client}: {str(e)}"
-            )
+            raise UnknownException(f"Unexpected error updating client {client}: {str(e)}")
 
-        return SuccessResponse(fact.to_simple_dict())
+        return SuccessResponse(data=fact.to_simple_dict())
 
     @classmethod
     def patch(cls, **kwargs) -> Response:
@@ -256,7 +244,7 @@ class ClientActions(RegistryAction):
                 fact.update(actions=actions)
                 fact.refresh()
 
-            return SuccessResponse(fact.to_simple_dict())
+            return SuccessResponse(data=fact.to_simple_dict())
 
         except DoesNotExist:
             # If client doesn't exist, create it
@@ -264,8 +252,6 @@ class ClientActions(RegistryAction):
         except TableError:
             raise UnknownException(f"Database table error while saving client {client}")
         except PutError:
-            raise UnknownException(
-                f"Failed to save client {client}: Permission denied or condition check failed"
-            )
+            raise UnknownException(f"Failed to save client {client}: Permission denied or condition check failed")
         except Exception as e:
             raise UnknownException(f"Unexpected error saving client {client}: {str(e)}")

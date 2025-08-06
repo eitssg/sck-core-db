@@ -148,7 +148,7 @@ class ItemTableActions(TableActions):
             raise UnknownException(f"Creation failed - {str(e)}")
 
         # Return the new item
-        return SuccessResponse(item.to_simple_dict())
+        return SuccessResponse(data=item.to_simple_dict())
 
     @classmethod
     def delete(cls, **kwargs) -> Response:
@@ -164,14 +164,14 @@ class ItemTableActions(TableActions):
             item_model = cls.get_item_model()
             item = item_model.get(prn)
         except DoesNotExist:
-            return NoContentResponse(f"Item not found: {prn}")
+            return NoContentResponse(message=f"Item not found: {prn}")
 
         try:
             item.delete()
         except DeleteError as e:
             raise UnknownException(f"Failed to delete - {str(e)}")
 
-        return SuccessResponse(f"Item deleted: {prn}")
+        return SuccessResponse(message=f"Item deleted: {prn}")
 
     @classmethod
     def get(cls, **kwargs) -> Response:
@@ -188,7 +188,7 @@ class ItemTableActions(TableActions):
         except DoesNotExist:
             raise NotFoundException(f"Item not found: {prn}")
 
-        return SuccessResponse(item.to_simple_dict())
+        return SuccessResponse(data=item.to_simple_dict())
 
     @classmethod
     def list(cls, **kwargs) -> Response:
@@ -250,7 +250,7 @@ class ItemTableActions(TableActions):
         else:
             kwargs[DATA_PAGINATOR] = None
 
-        return SuccessResponse(items)
+        return SuccessResponse(data=items)
 
     @classmethod
     def update(cls, **kwargs) -> Response:  # noqa: C901
@@ -295,7 +295,7 @@ class ItemTableActions(TableActions):
                 item.refresh()
 
             # Return the updated item
-            return SuccessResponse(item.to_simple_dict())
+            return SuccessResponse(data=item.to_simple_dict())
 
         except Exception as e:
             raise UnknownException(f"Failed to update - {e}")
