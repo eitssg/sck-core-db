@@ -1,114 +1,203 @@
-"""
-This module contains the actions list, get, create, delete, update for the Items.Portfolio object in core-automation-items
-"""
+"""Portfolio item management actions for the core-automation-items DynamoDB table.
 
-import core_framework as util
-from core_framework.constants import SCOPE_PORTFOLIO
+This module provides CRUD operations for portfolio items in the Configuration Management Database (CMDB).
+Portfolio items represent the highest level organizational units, serving as containers for applications
+and their associated infrastructure in the deployment hierarchy.
+
+The PortfolioActions class extends ItemTableActions to provide portfolio-specific CRUD operations
+while inheriting common item management functionality.
+"""
 
 from ...response import Response
-from ...exceptions import BadRequestException
-from ...constants import PRN, PORTFOLIO_PRN, ITEM_TYPE, CONTACT_EMAIL
 from ..actions import ItemTableActions
-
-from .models import PortfolioModelFactory
+from .models import PortfolioItem
 
 
 class PortfolioActions(ItemTableActions):
-    """Class container for Portfolio Item specific validations and actions"""
+    """Convenience wrapper for portfolio-specific CRUD operations in the CMDB.
 
-    @classmethod
-    def get_item_model(cls):
-        """
-        Get the ItemModel for Portfolio
+    This class provides a type-safe interface for portfolio item management by automatically
+    injecting the PortfolioItem type into the parent ItemTableActions methods. Portfolio items
+    represent top-level organizational units that contain applications and their infrastructure.
 
-        Returns:
-            ItemModel: The ItemModel for Portfolio
-        """
-        return PortfolioModelFactory.get_model(util.get_client())
-
-    @classmethod
-    def validate_prn(cls, prn: str) -> str:
-        """
-        Override the class validate_prn method to validate the Portfolio PRN
-
-        Args:
-            prn (str): A portfolio PRN
-
-        Raises:
-            BadRequestException: If the prn is not a portfolio prn
-
-        Returns:
-            str: the PRN provided
-        """
-        if not util.validate_portfolio_prn(prn):
-            raise BadRequestException(f"Invalid portfolio_prn: {prn}")
-        return prn
-
-    @classmethod
-    def create(cls, **kwargs) -> Response:
-        """
-        Create a Portfolio Item
-
-        Args:
-            **kwargs: The fields required to create a Portfolio
-                * prn: The Portfolio PRN
-                * portfolio_prn: The Portfolio PRN
-                * name: The Portfolio Name
-                * contact_email: The Portfolio Contact Email
-
-        Raises:
-            BadRequestException: if contact email is not provided
-
-        Returns:
-            Response: Standard Response object
-        """
-
-        # Portfolio Fields
-        portfolio_prn = kwargs.pop(PRN, kwargs.pop(PORTFOLIO_PRN, None))
-        if not portfolio_prn:
-            portfolio_prn = util.generate_portfolio_prn(kwargs)
-        kwargs[PRN] = cls.validate_prn(portfolio_prn)
-        kwargs[ITEM_TYPE] = SCOPE_PORTFOLIO
-        if CONTACT_EMAIL not in kwargs:
-            raise BadRequestException("Contact email is required for portfolo create")
-
-        return super().create(**kwargs)
+    All methods are convenience wrappers that delegate to the parent class with PortfolioItem
+    as the record type, ensuring type safety and reducing the chance of using incorrect item types.
+    """
 
     @classmethod
     def list(cls, **kwargs) -> Response:
-        """
-        List Portfolio Items
+        """List portfolio items with optional filtering and pagination.
+
+        Convenience method that automatically uses PortfolioItem type.
 
         Args:
-            **kwargs: The fields required to list Items. (ignored for portfolio lists)
+            **kwargs: Query parameters including:
+                - client (str): Client identifier for table isolation
+                - prn (str, optional): Specific portfolio PRN to query
+                - parent_prn (str, optional): Parent PRN for hierarchical queries
+                - limit (int, optional): Maximum number of items to return
+                - cursor (str, optional): Pagination cursor for next page
+                - earliest_time (datetime, optional): Filter by creation date range
+                - latest_time (datetime, optional): Filter by creation date range
+                - sort_forward (bool, optional): Sort order (default: True)
 
         Returns:
-            Response: Response data with the list of portfolio items
+            Response: SuccessResponse with structure:
+                - data (List[Dict]): List of portfolio item dictionaries, each containing:
+                    - prn (str): Portfolio PRN
+                    - parent_prn (str): Parent PRN (same as prn for top-level items)
+                    - item_type (str): "portfolio"
+                    - name (str): Portfolio name
+                    - contact_email (str): Contact email
+                    - metadata (dict): Portfolio metadata including description, tags, etc.
+                    - created_at (str): ISO timestamp
+                    - updated_at (str): ISO timestamp
+                - metadata (Dict): Pagination information containing:
+                    - cursor (str): Cursor token for next page (if more results exist)
+                    - total_count (int): Total number of items returned in this page
         """
-        kwargs.pop("parent_prn", None)
-        return super().list(parent_prn=PRN, **kwargs)
+        return super().list(record_type=PortfolioItem, **kwargs)
+
+    @classmethod
+    def get(cls, **kwargs) -> Response:
+        """Retrieve a specific portfolio item by PRN.
+
+        Convenience method that automatically uses PortfolioItem type.
+
+        Args:
+            **kwargs: Parameters including:
+                - client (str): Client identifier for table isolation
+                - prn (str): Portfolio PRN to retrieve (e.g., "prn:ecommerce-platform")
+
+        Returns:
+            Response: SuccessResponse with structure:
+                - data (Dict): Single portfolio item dictionary containing:
+                    - prn (str): Portfolio PRN
+                    - parent_prn (str): Parent PRN (same as prn for top-level items)
+                    - item_type (str): "portfolio"
+                    - name (str): Portfolio name
+                    - contact_email (str): Contact email
+                    - metadata (dict): Portfolio metadata including description, tags, etc.
+                    - created_at (str): ISO timestamp
+                    - updated_at (str): ISO timestamp
+
+        Raises:
+            NotFoundException: If the portfolio item does not exist
+            BadRequestException: If required parameters are missing
+        """
+        return super().get(record_type=PortfolioItem, **kwargs)
+
+    @classmethod
+    def create(cls, **kwargs) -> Response:
+        """Create a new portfolio item in the CMDB.
+
+        Convenience method that automatically uses PortfolioItem type.
+
+        Args:
+            **kwargs: Portfolio item attributes including:
+                - client (str): Client identifier for table isolation
+                - name (str): Portfolio name (used for PRN generation)
+                - contact_email (str): Primary contact email for the portfolio
+                - metadata (dict, optional): Additional portfolio information including:
+                    - description (str): Portfolio description
+                    - tags (dict): Key-value pairs for tagging
+                    - Any other custom metadata fields
+
+        Returns:
+            Response: SuccessResponse with structure:
+                - data (Dict): Created portfolio item dictionary containing:
+                    - prn (str): Generated portfolio PRN
+                    - parent_prn (str): Parent PRN (same as prn for top-level items)
+                    - item_type (str): "portfolio"
+                    - name (str): Portfolio name
+                    - contact_email (str): Contact email
+                    - metadata (dict): Portfolio metadata
+                    - created_at (str): ISO timestamp of creation
+                    - updated_at (str): ISO timestamp of last update
+
+        Raises:
+            BadRequestException: If required fields are missing or invalid
+            ConflictException: If portfolio with same PRN already exists
+        """
+        return super().create(record_type=PortfolioItem, **kwargs)
 
     @classmethod
     def update(cls, **kwargs) -> Response:
-        """
-        Update an existing portflio item
+        """Update an existing portfolio item using PUT semantics (full replacement).
 
-        Raises:
-            BadRequestException: If the PRN is not present, it's invalid, or the contact_email is mising
+        Convenience method that automatically uses PortfolioItem type.
+
+        Args:
+            **kwargs: Portfolio item attributes including:
+                - client (str): Client identifier for table isolation
+                - prn (str): Portfolio PRN to update
+                - contact_email (str): Updated contact email
+                - metadata (dict, optional): Updated metadata (replaces existing)
+                - Any other updatable portfolio fields
 
         Returns:
-            Response: Response data with the record updated
+            Response: SuccessResponse with structure:
+                - data (Dict): Updated portfolio item dictionary with all current values
+
+        Raises:
+            NotFoundException: If the portfolio item does not exist
+            BadRequestException: If required parameters are missing
+
+        Note:
+            This is a full replacement operation. All updatable fields should be provided.
+            Use patch() for partial updates.
         """
+        return super().update(record_type=PortfolioItem, **kwargs)
 
-        prn = kwargs.get(PRN, kwargs.get(PORTFOLIO_PRN, None))
-        if not prn:
-            raise BadRequestException(f"prn not specified: {kwargs}")
+    @classmethod
+    def delete(cls, **kwargs) -> Response:
+        """Delete a portfolio item from the CMDB.
 
-        if not util.validate_portfolio_prn(prn):
-            raise BadRequestException(f"Invalid prn: {prn}")
+        Convenience method that automatically uses PortfolioItem type.
 
-        contact_email = kwargs.get("contact_email")
-        if not contact_email:
-            raise BadRequestException("Contact email is required")
+        Args:
+            **kwargs: Parameters including:
+                - client (str): Client identifier for table isolation
+                - prn (str): Portfolio PRN to delete
 
-        return super().update(**kwargs)
+        Returns:
+            Response: SuccessResponse with structure:
+                - data (Dict): Confirmation containing deleted item information
+
+        Raises:
+            NotFoundException: If the portfolio item does not exist
+            BadRequestException: If required parameters are missing
+
+        Warning:
+            Deleting a portfolio may affect child items (apps, branches, builds, components).
+            Ensure proper cleanup of dependent resources before deletion.
+        """
+        return super().delete(record_type=PortfolioItem, **kwargs)
+
+    @classmethod
+    def patch(cls, **kwargs) -> Response:
+        """Partially update a portfolio item using PATCH semantics.
+
+        Convenience method that automatically uses PortfolioItem type.
+
+        Args:
+            **kwargs: Portfolio item attributes to modify including:
+                - client (str): Client identifier for table isolation
+                - prn (str): Portfolio PRN to update
+                - contact_email (str, optional): New contact email
+                - metadata (dict, optional): Metadata fields to merge/update
+                - Any other updatable portfolio fields
+
+        Returns:
+            Response: SuccessResponse with structure:
+                - data (Dict): Updated portfolio item dictionary with merged values
+
+        Raises:
+            NotFoundException: If the portfolio item does not exist
+            BadRequestException: If required parameters are missing
+
+        Note:
+            This performs a partial update, merging provided fields with existing data.
+            Only specified fields will be updated.
+        """
+        return super().patch(record_type=PortfolioItem, **kwargs)

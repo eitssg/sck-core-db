@@ -1,240 +1,597 @@
-"""Defines the list, get, create, update, delete methods for the Event table core-automation-events.
+"""Event management actions for the core-automation-events DynamoDB table.
 
 This module provides CRUD operations and utilities for managing events in the Core Automation Event table.
+Events serve as the primary audit trail for all deployment operations and status changes across the
+Simple Cloud Kit ecosystem.
+
+Key Components:
+    - **EventActions**: Main class providing CRUD operations for event management
+    - **Event validation**: Business rules and constraints for event data integrity
+    - **Time filtering**: Advanced querying with date ranges and pagination
+    - **PRN-based organization**: Events organized by Pipeline Reference Numbers
+
+Features:
+    - **CRUD Operations**: Complete create, read, update, delete functionality
+    - **Time Range Queries**: Filter events by earliest and latest timestamps
+    - **Pagination Support**: Handle large result sets with efficient pagination
+    - **PRN Validation**: Automatic PRN generation and validation
+    - **Item Type Detection**: Automatic scope detection from PRN structure
 """
 
-from typing import Any
-
-from datetime import datetime
-import base64
-
-from pynamodb.exceptions import DeleteError, PutError
+from pynamodb.expressions.update import Action
+from pynamodb.exceptions import (
+    DoesNotExist,
+    PutError,
+    UpdateError,
+    DeleteError,
+    GetError,
+    QueryError,
+    ScanError,
+    TableError,
+)
 
 import core_logging as log
 import core_framework as util
+from core_framework.time_utils import make_default_time
 
 from ..actions import TableActions
-
-from ..constants import (
-    PRN,
-    ITEM_TYPE,
-    EVENT_TYPE,
-    EARLIEST_TIME,
-    LATEST_TIME,
-    SORT,
-    LIMIT,
-    DATA_PAGINATOR,
+from ..models import Paginator
+from ..response import (
+    Response,
+    SuccessResponse,  # http 200
 )
-from ..item.actions import ASCENDING
+
+from .models import EventItem
+
 
 from ..exceptions import (
-    BadRequestException,
-    ConflictException,
-    UnknownException,
-    NotFoundException,
-)
-from ..response import Response, SuccessResponse
-
-from .models import EventModelFactory
-
-from core_framework.constants import (
-    SCOPE_PORTFOLIO,
-    SCOPE_APP,
-    SCOPE_BRANCH,
-    SCOPE_BUILD,
-    SCOPE_COMPONENT,
+    BadRequestException,  # http 400
+    NotFoundException,  # http 404
+    ConflictException,  # http 409
+    UnknownException,  # http 500
 )
 
 
 class EventActions(TableActions):
+    """Implements CRUD operations for the Event table using the PynamoDB model.
+
+    This class provides comprehensive event management functionality for the core-automation-events
+    DynamoDB table. Events serve as audit trails for all deployment operations, status changes,
+    and system activities across the Simple Cloud Kit ecosystem.
+
+    Attributes:
+        item_types (list[str]): List of supported item types for events, corresponding to
+            different PRN scopes (portfolio, app, branch, build, component).
     """
-    Implements CRUD operations for the Event table using the PynamoDB model.
-
-    Attributes
-    ----------
-    event_model : EventModel
-        The PynamoDB model for the event table.
-    item_types : list
-        List of supported item types for events.
-    """
-
-    @classmethod
-    def get_event_model(cls):
-        """
-        Returns the PynamoDB model for the event table.
-
-        :return: The EventModel class.
-        :rtype: EventModel
-        """
-        return EventModelFactory.get_model(util.get_client())
-
-    item_types = [
-        SCOPE_PORTFOLIO,
-        SCOPE_APP,
-        SCOPE_BRANCH,
-        SCOPE_BUILD,
-        SCOPE_COMPONENT,
-    ]
-
-    @classmethod
-    def get_item_type(cls, **kwargs) -> str:
-        """
-        Determines the item type for an event based on keyword arguments.
-
-        :param kwargs: Keyword arguments containing ITEM_TYPE or PRN.
-        :type kwargs: dict
-        :raises ValueError: If PRN is invalid.
-        :return: The item type string.
-        :rtype: str
-        """
-        item_type = kwargs.get(ITEM_TYPE)
-        if not item_type:
-            prn = kwargs.get(PRN, "")
-            num_sections = prn.count(":") - 1
-            if not 0 <= num_sections <= 4:
-                raise ValueError(f"Invalid prn: {prn}")
-            item_type = cls.item_types[num_sections]
-
-        return item_type
 
     @classmethod
     def create(cls, **kwargs) -> Response:
+        """Create a new event in the event table.
+
+        Creates a new audit event with the provided attributes. Automatically generates
+        PRN if not provided, determines item type from PRN structure, and sets default
+        event type if not specified.
+
+        Args:
+            **kwargs: Event attributes including:
+                - prn (str, optional): Pipeline Reference Number. Auto-generated if not provided.
+                - status (str, optional): Event status (success, failure, in_progress, etc.)
+                - message (str, optional): Human-readable event description
+                - event_type (str, optional): Event classification. Defaults to current log level.
+                - metadata (dict, optional): Additional event context and details
+                - item_type (str, optional): Explicit item type. Auto-detected if not provided.
+                - client (str, optional): Client identifier for table isolation.
+
+        Returns:
+            Response: SuccessResponse containing the created event data.
+
+        Raises:
+            BadRequestException: If event data is invalid or PRN cannot be generated.
+            ConflictException: If creation fails due to a database conflict (rare with UUID keys).
+            UnknownException: For other unexpected errors during event creation.
         """
-        Creates a new event in the event table.
+        client = kwargs.get("client") or util.get_client()
 
-        :param kwargs: Event attributes.
-        :type kwargs: dict
-        :raises BadRequestException: If event data is invalid.
-        :raises ConflictException: If creation fails due to a conflict.
-        :raises UnknownException: For other errors.
-        :return: Success response containing event data.
-        :rtype: SuccessResponse
-        """
-        prn = util.generate_build_prn(kwargs)
-        if not prn:
-            raise ValueError(f"prn not specified: {kwargs}")
+        if not client:
+            raise BadRequestException("Client identifier is required for event creation.")
 
-        item_type = cls.get_item_type(**kwargs)
-
-        # Load the request data
         try:
-            event_model = cls.get_event_model()
-
-            kwargs.pop(PRN, prn)
-            kwargs[ITEM_TYPE] = item_type
-            kwargs[EVENT_TYPE] = kwargs.get(EVENT_TYPE, log.getLevelName(log.STATUS)).upper()
-            event = event_model(prn, **kwargs)
-
-            log.debug("Saving event {}".format(event))
-
-            event.save()
-        except ValueError as e:
-            raise BadRequestException(f"Invalid Event Data- {str(e)}") from e
-        except PutError as e:
-            raise ConflictException(f"Creation failed - {str(e)}") from e
+            event_data = EventItem(**kwargs)
         except Exception as e:
-            raise UnknownException(f"Creation failed - {str(e)}") from e
+            log.error("Failed to construct EventItem", details=str(e))
+            raise BadRequestException("Invalid event data provided.") from e
 
-        # Return the new event
-        return SuccessResponse(data=event.to_simple_dict())
+        try:
+            # Convert to PynamoDB model instance
+            item = event_data.to_model(client)
+            item.save()
+            data = event_data.model_dump(mode="json")  # Serialize to JSON with ISO date strings
+            return SuccessResponse(data=data, message="Event created successfully")
+        except PutError as e:
+            log.error("Failed to save event to database", details=str(e))
+            raise ConflictException("Event already exists or database error occurred.") from e
+        except Exception as e:
+            log.error("Unexpected error during event creation", details=str(e))
+            raise UnknownException("An unexpected error occurred while creating the event.") from e
+
+    @classmethod
+    def get(cls, **kwargs) -> Response:
+        """Retrieve an event from the event table.
+
+        Fetches a single event by its PRN and timestamp. If only PRN is provided,
+        returns the latest event for that PRN.
+
+        Args:
+            **kwargs: Event identifying attributes including:
+                - prn (str, required): Pipeline Reference Number for the event.
+                - timestamp (str, optional): Specific timestamp to retrieve a single event.
+                  If not provided, retrieves the latest event for the PRN.
+                - client (str, optional): Client identifier for table access.
+
+        Returns:
+            Response: SuccessResponse with the requested event data.
+
+        Raises:
+            BadRequestException: If required parameters are missing.
+            NotFoundException: If no events found for the specified PRN or timestamp.
+            UnknownException: If database operation fails.
+        """
+        client = kwargs.get("client") or util.get_client()
+        prn = kwargs.get("prn")
+        timestamp = kwargs.get("timestamp")
+
+        if not client:
+            raise BadRequestException("Client identifier is required for event retrieval.")
+
+        if not prn:
+            raise BadRequestException("PRN is required to retrieve an event.")
+
+        if not timestamp:
+            raise BadRequestException("Timestamp is required to retrieve a specific event.")
+
+        try:
+            model_class = EventItem.model_class(client)
+
+            # Retrieve specific event by PRN and timestamp
+            item = model_class.get(prn, timestamp)
+            data = EventItem.from_model(item).model_dump(mode="json")
+
+            return SuccessResponse(data=data, message="Event retrieved successfully")
+
+        except DoesNotExist:
+            raise NotFoundException(f"Event with PRN {prn} and timestamp {timestamp} not found.")
+        except GetError as e:
+            log.error("Database error during event retrieval", details=str(e))
+            raise UnknownException(f"Database error during retrieval: {str(e)}") from e
+        except (BadRequestException, NotFoundException):
+            raise
+        except Exception as e:
+            log.error("Unexpected error during event retrieval", details=str(e))
+            raise UnknownException(f"Unexpected error during retrieval: {str(e)}") from e
+
+    @classmethod
+    def update(cls, **kwargs) -> Response:
+        return cls._update(remove_none=True, **kwargs)
+
+    @classmethod
+    def patch(cls, **kwargs) -> Response:
+        return cls._update(remove_none=False, **kwargs)
 
     @classmethod
     def delete(cls, **kwargs) -> Response:
-        """
-        Deletes an event from the event table.
+        """Delete event(s) from the event table.
 
-        :param kwargs: Event identifying attributes.
-        :type kwargs: dict
-        :raises BadRequestException: If deletion fails.
-        :return: Success response confirming deletion.
-        :rtype: SuccessResponse
+        Removes event record(s) from the database based on the provided PRN and optional timestamp.
+        If only PRN is provided, deletes ALL events for that PRN using pagination to handle large
+        result sets. If both PRN and timestamp are provided, deletes the specific event.
+
+        Args:
+            **kwargs: Event identifying attributes including:
+                - prn (str, required): Pipeline Reference Number for the event(s).
+                - timestamp (str, optional): Specific timestamp for single event deletion.
+                  If not provided, ALL events for the PRN will be deleted.
+                - client (str, optional): Client identifier for table access.
+
+        Returns:
+            Response: SuccessResponse with confirmation message about the deleted event(s).
+
+        Raises:
+            BadRequestException: If required parameters are missing.
+            NotFoundException: If no events found for the specified PRN.
+            UnknownException: If database operation fails.
+
+        Warning:
+            Deleting events removes audit trail information. This operation should
+            be used carefully and is primarily intended for testing and cleanup
+            scenarios rather than normal operational use.
         """
-        # Load the requested event
+        client = kwargs.get("client") or util.get_client()
+        prn = kwargs.get("prn")
+        timestamp = kwargs.get("timestamp")
+
+        if not client:
+            raise BadRequestException("Client identifier is required for event deletion.")
+
+        if not prn:
+            raise BadRequestException("PRN is required for event deletion.")
+
         try:
-            event_model = cls.get_event_model()
+            if timestamp:
+                return cls._delete_event(prn, timestamp, client)
+            else:
+                return cls._delete_events_for_prn(prn, client)
 
-            prn = util.generate_build_prn(kwargs)
-            event = event_model(prn)
-            event.delete()
-        except DeleteError as e:
-            raise BadRequestException(f"Failed to delete - {str(e)}") from e
-
-        return SuccessResponse(message=f"Event deleted: {prn}")
+        except DoesNotExist:
+            raise NotFoundException(f"Event with PRN {prn} and timestamp {timestamp} not found.")
+        except (DeleteError, GetError, TableError) as e:
+            log.error("Database error during event deletion: %s", str(e))
+            raise UnknownException(f"Database error during deletion: {str(e)}") from e
+        except (BadRequestException, NotFoundException):
+            raise
+        except Exception as e:
+            log.error("Unexpected error during event deletion: %s", str(e))
+            raise UnknownException(f"Unexpected error during deletion: {str(e)}") from e
 
     @classmethod
-    def NoneIfEmpty(cls, value: Any) -> Any:
-        """
-        Returns None if the value is an empty string or not a valid ISO8601 timestamp.
+    def _delete_event(cls, prn: str, timestamp: str, client: str) -> Response:
+        """Delete a specific event by PRN and timestamp.
 
-        :param value: Value to check.
-        :type value: Any
-        :return: None or the parsed datetime value.
-        :rtype: Any
+        Args:
+            prn (str): Pipeline Reference Number of the event.
+            timestamp (str): Timestamp of the event to delete.
+            client (str): Client identifier for table access.
+
+        Returns:
+            Response: SuccessResponse with confirmation message.
         """
-        if isinstance(value, str):
-            if len(value) > 0:
-                try:
-                    return datetime.strptime(value, "%Y-%m-%dT%H:%M:%S")
-                except Exception:
-                    pass
-            return None
-        return value
+        model_class = EventItem.model_class(client)
+        item = model_class.get(prn, timestamp)
+        item.delete()
+        return SuccessResponse(message=f"Event deleted: {prn} at {timestamp}")
+
+    @classmethod
+    def _delete_events_for_prn(cls, prn: str, client: str) -> Response:
+        """Helper method to delete all events for a given PRN.
+
+        Args:
+            prn (str): Pipeline Reference Number to delete events for.
+            client (str): Client identifier for table access.
+
+        Returns:
+            int: Total number of events deleted.
+        """
+        # Delete ALL events for the PRN using pagination
+        log.debug("Deleting all events for PRN: %s", prn)
+
+        paginator = Paginator(limit=100)
+        total_deleted_count = 0  # Track total across all pages
+        pages_processed = 0
+
+        model_class = EventItem.model_class(client)
+
+        while True:
+            # Build query kwargs properly
+            query_kwargs = {"limit": paginator.limit}
+            if paginator.cursor:
+                query_kwargs["last_evaluated_key"] = paginator.cursor
+
+            try:
+                # Fix: Remove extra parenthesis and use proper query syntax
+                result = model_class.query(prn, **query_kwargs)
+
+                # Convert result to list to get items
+                events = list(result)
+
+                if pages_processed == 0 and len(events) == 0:
+                    raise NotFoundException(f"No events found for PRN {prn}.")
+
+                # Update paginator cursor from results
+                paginator.cursor = getattr(result, "last_evaluated_key", None)
+
+                # Delete each event in this page
+                page_deleted_count = 0
+                for event in events:
+                    try:
+                        event.delete()
+                        page_deleted_count += 1
+                        total_deleted_count += 1  # Add to total count
+                    except Exception as e:
+                        log.warning("Failed to delete event %s at %s: %s", prn, getattr(event, "timestamp", "unknown"), str(e))
+
+                pages_processed += 1
+                log.debug("Deleted %d events from page %d for PRN %s", page_deleted_count, pages_processed, prn)
+
+                # Break if no more pages
+                if not paginator.cursor:
+                    break
+
+            except QueryError as e:
+                log.error("Failed to query events for PRN %s on page %d: %s", prn, pages_processed + 1, str(e))
+                raise UnknownException(f"Failed to query events for PRN {prn}") from e
+
+        if total_deleted_count == 0:
+            raise UnknownException(f"Failed to delete any events for PRN {prn}")
+
+        return SuccessResponse(message=f"Deleted {total_deleted_count} event(s) for PRN {prn} " f"across {pages_processed} page(s)")
 
     @classmethod
     def list(cls, **kwargs) -> Response:
-        """
-        Lists events for a given PRN and optional time range.
+        """List events with optional PRN filtering and time range constraints.
 
-        :param kwargs: Filtering and pagination options.
-        :type kwargs: dict
-        :raises BadRequestException: If PRN is not specified.
-        :return: Success response containing a list of events.
-        :rtype: SuccessResponse
+        Retrieves events from the database with support for PRN filtering, time-based filtering,
+        sorting, and pagination. When PRN is provided, uses efficient Query operation. When PRN
+        is not provided, performs table Scan to retrieve all events.
+
+        Args:
+            **kwargs: Filtering and pagination options including:
+                - prn (str, optional): Pipeline Reference Number. If not provided, scans all events.
+                - earliest_time (str, optional): ISO8601 timestamp for start of time range.
+                - latest_time (str, optional): ISO8601 timestamp for end of time range.
+                - sort_forward (bool, optional): Sort order (True for ascending, False for descending).
+                  Defaults to True.
+                - limit (int, optional): Maximum number of events to return. Defaults to 100.
+                - cursor (str, optional): Base64-encoded pagination token for continuing queries.
+                - client (str, optional): Client identifier for table isolation.
+
+        Returns:
+            Response: SuccessResponse containing:
+                - data: List of event dictionaries with all event attributes
+                - metadata: Dictionary with pagination cursor and total count
+
+        Raises:
+            BadRequestException: If client identifier is missing.
+            UnknownException: If an unexpected error occurs during event retrieval.
+
+        Performance Notes:
+            - Uses DynamoDB Query operation when PRN is specified (efficient)
+            - Uses DynamoDB Scan operation when PRN is not specified (less efficient)
+            - Time range filtering applied as conditions
+            - Pagination tokens allow efficient continuation of large result sets
+            - Sort order affects query performance and pagination behavior
         """
-        prn = util.generate_build_prn(kwargs)
+
+        try:
+            if "prn" in kwargs:
+                return cls._list_by_prn(**kwargs)
+            else:
+                return cls._list_all_events(**kwargs)
+
+        except (QueryError, ScanError) as e:
+            log.error("Database error during event listing: %s", str(e))
+            raise UnknownException(f"Database error during event retrieval: {str(e)}") from e
+        except Exception as e:
+            log.error("Unexpected error during event listing: %s", str(e))
+            raise UnknownException(f"Unexpected error during event retrieval: {str(e)}") from e
+
+    @classmethod
+    def _list_by_prn(cls, **kwargs) -> Response:
+        """List events filtered by Pipeline Reference Number (PRN).
+
+        Uses the Query operation to efficiently retrieve events associated with
+        the specified PRN with optional time range filtering and pagination.
+
+        Args:
+            client (str): Client identifier for table access
+            **kwargs: Additional filtering and pagination options including:
+                - prn (str): Pipeline Reference Number to filter by
+                - earliest_time (datetime, optional): Start of time range filter
+                - latest_time (datetime, optional): End of time range filter
+                - sort_forward (bool, optional): Sort direction for timestamp
+                - limit (int, optional): Maximum items to return
+                - cursor (str, optional): Pagination cursor
+
+        Returns:
+            Response: SuccessResponse containing the list of events for the specified PRN
+        """
+        client = kwargs.get("client") or util.get_client()
+        if not client:
+            raise BadRequestException("Client identifier is required for event listing.")
+
+        prn = kwargs.get("prn")
         if not prn:
-            raise BadRequestException(f"prn not specified: {kwargs}")
+            raise BadRequestException("PRN is required for listing events by PRN.")
 
-        # set earliest_time to kwargs['earliest_time'] and seet to None if not present or length is 0
-        earliest_time = cls.NoneIfEmpty(kwargs.get(EARLIEST_TIME))
-        latest_time = cls.NoneIfEmpty(kwargs.get(LATEST_TIME))
+        # Query by PRN (hash key) - efficient
+        log.debug("Querying events for PRN: %s", prn)
 
-        event_model = cls.get_event_model()
+        paginator = Paginator(**kwargs)
+        model_class = EventItem.model_class(client)
 
-        # Generate our range key condition
-        if earliest_time and latest_time:
-            range_key_condition = event_model.timestamp.between(earliest_time, latest_time)
-        elif earliest_time:
-            range_key_condition = event_model.timestamp >= earliest_time
-        elif latest_time:
-            range_key_condition = event_model.timestamp <= latest_time
+        # Build range key condition based on time filters
+        range_key_condition = None
+        if paginator.earliest_time and paginator.latest_time:
+            range_key_condition = model_class.timestamp.between(paginator.earliest_time, paginator.latest_time)
+        elif paginator.earliest_time:
+            range_key_condition = model_class.timestamp >= paginator.earliest_time
+        elif paginator.latest_time:
+            range_key_condition = model_class.timestamp <= paginator.latest_time
+
+        # range_key_condition: Optional[Condition] = None,
+        # filter_condition: Optional[Condition] = None,
+        # consistent_read: bool = False,
+        # index_name: Optional[str] = None,
+        # scan_index_forward: Optional[bool] = None,
+        # limit: Optional[int] = None,
+        # last_evaluated_key: Optional[Dict[str, Dict[str, Any]]] = None,
+        # attributes_to_get: Optional[Iterable[str]] = None,
+        # page_size: Optional[int] = None,
+        # rate_limit: Optional[float] = None,
+
+        # Build query kwargs
+        query_kwargs = {
+            "limit": paginator.limit,
+            "page_size": paginator.limit,
+            "scan_index_forward": paginator.sort_forward,
+        }
+
+        if range_key_condition is not None:
+            query_kwargs["range_key_condition"] = range_key_condition
+
+        if paginator.cursor is not None:
+            query_kwargs["last_evaluated_key"] = paginator.cursor
+
+        # Execute query
+        results = model_class.query(prn, **query_kwargs)
+
+        # Convert results to EventItem instances
+        data = []
+        for item in results:
+            try:
+                # Fix: Use proper model validation instead of from_model
+                event_item = EventItem.from_model(item)
+                data.append(event_item.model_dump(mode="json"))  # Serialize to JSON with ISO date strings
+            except Exception as e:
+                log.warning("Failed to convert event item: %s", str(e))
+                continue
+
+        # Update paginator with results metadata
+        paginator.cursor = getattr(results, "last_evaluated_key", None)
+        paginator.total_count = getattr(results, "total_count", len(data))
+
+        log.info("Retrieved %d events for PRN: %s", len(data), prn)
+
+        return SuccessResponse(data=data, metadata=paginator.get_metadata())
+
+    @classmethod
+    def _list_all_events(cls, **kwargs) -> Response:
+        """Scan all events for client with pagination."""
+        client = kwargs.get("client") or util.get_client()
+        if not client:
+            raise BadRequestException("Client identifier is required for event listing.")
+
+        log.debug("Scanning all events for client: %s", client)
+
+        paginator = Paginator(**kwargs)
+
+        model_class = EventItem.model_class(client)
+
+        # Build filter conditions for scan
+        filter_conditions = []
+        if paginator.earliest_time and paginator.latest_time:
+            filter_conditions.append(model_class.timestamp.between(paginator.earliest_time, paginator.latest_time))
+        elif paginator.earliest_time:
+            filter_conditions.append(model_class.timestamp >= paginator.earliest_time)
+        elif paginator.latest_time:
+            filter_conditions.append(model_class.timestamp <= paginator.latest_time)
+
+        # Build scan kwargs
+        scan_kwargs = {
+            "limit": paginator.limit,
+            "page_size": paginator.limit,
+        }
+
+        if filter_conditions:
+            if len(filter_conditions) == 1:
+                scan_kwargs["filter_condition"] = filter_conditions[0]
+            else:
+                combined_condition = filter_conditions[0]
+                for condition in filter_conditions[1:]:
+                    combined_condition = combined_condition & condition
+                scan_kwargs["filter_condition"] = combined_condition
+
+        # Add pagination cursor if available decoded automatically
+        if paginator.cursor:
+            scan_kwargs["last_evaluated_key"] = paginator.cursor
+
+        # Execute scan
+        results = model_class.scan(**scan_kwargs)
+
+        # Convert results to EventItem instances
+        data = []
+        for item in results:
+            try:
+                event_item = EventItem.from_model(item)
+                data.append(event_item.model_dump(mode="json"))  # Serialize to JSON with ISO date strings
+            except Exception as e:
+                log.warning("Failed to convert event item: %s", str(e))
+                continue
+
+        # Update paginator with results metadata
+        paginator.cursor = getattr(results, "last_evaluated_key", None)
+
+        return SuccessResponse(data=data, metadata=paginator.get_metadata())
+
+    @classmethod
+    def _update(cls, remove_none: bool = True, **kwargs) -> Response:
+        """Update an existing event in the database with Action statements.
+
+        Creates PynamoDB Action statements for efficient updates. By default,
+        performs complete replacement by removing None fields (PUT semantics).
+
+        Args:
+            remove_none: If True, fields set to None will be removed from the database.
+                        If False, None fields are skipped (not updated).
+
+        Returns:
+            Self: Updated event instance with fresh data from database
+
+        Raises:
+            BadRequestException: If prn or timestamp is missing
+            NotFoundException: If event doesn't exist
+            UnknownException: If database operation fails
+        """
+        client = kwargs.get("client") or util.get_client()
+        if not client:
+            raise BadRequestException("Client identifier is required for event update.")
+
+        if remove_none:
+            try:
+                update_data = EventItem(**kwargs)
+            except Exception as e:
+                log.error("Failed to construct EventItem for update", details=str(e))
+                raise BadRequestException("Invalid event data provided for update.") from e
         else:
-            range_key_condition = None
+            # If not removing None, we can use the existing instance
+            update_data = EventItem.model_construct(**kwargs)
 
-        date_paginator = kwargs.get(DATA_PAGINATOR)
-        if date_paginator:
-            last_evaluated_key = util.from_json(base64.b64decode(date_paginator).decode())
-        else:
-            last_evaluated_key = None
+        try:
+            model_class = EventItem.model_class(client)
 
-        log.debug(f"Retrieving events for prn '{prn}'")
+            # Get all field values from self
+            values = update_data.model_dump(by_alias=False, exclude_none=False)
 
-        sort_forward = kwargs.get(SORT, ASCENDING) == ASCENDING
-        limit = kwargs.get(LIMIT, 100)
+            attributes = model_class.get_attributes()
 
-        results = event_model.query(
-            hash_key=prn,
-            range_key_condition=range_key_condition,
-            scan_index_forward=sort_forward,
-            limit=limit,
-            last_evaluated_key=last_evaluated_key,
-        )
+            # Build update actions
+            actions: list[Action] = []
+            for key, value in values.items():
+                # Skip primary key fields (can't be updated) and system fields
+                if key in ["prn", "timestamp", "created_at", "updated_at"]:
+                    continue
 
-        events = [i.attribute_values for i in results]
-        last_evaluated_key = results.last_evaluated_key
-        if last_evaluated_key:
-            kwargs[DATA_PAGINATOR] = base64.b64encode(util.to_json(last_evaluated_key).encode()).decode()
-        else:
-            kwargs[DATA_PAGINATOR] = None
+                # Get the model attribute for this field
+                if key in attributes:
+                    attr = attributes[key]
+                    if value is None:
+                        if remove_none:
+                            # Remove the field from the database
+                            actions.append(attr.remove())
+                    else:
+                        # Set the field to the new value
+                        actions.append(attr.set(value))
 
-        return SuccessResponse(data=events, metadata=dict(kwargs))
+            actions.append(model_class.updated_at.set(make_default_time()))
+
+            # Create item instance for update operation
+            item = model_class(prn=update_data.prn, timestamp=update_data.timestamp)
+
+            # Perform the update with actions
+            item.update(actions=actions)
+
+            # Refresh to get the latest data from database
+            item.refresh()
+
+            data = EventItem.from_model(item).model_dump(mode="json")  # Serialize to JSON with ISO date strings
+
+            # Return updated instance
+            return SuccessResponse(
+                data=data,
+                message=f"Event updated successfully: prn={update_data.prn}, timestamp={update_data.timestamp}",
+            )
+        except UpdateError as e:
+            log.error("Failed to update event in database", details=str(e))
+            raise ConflictException(f"Event update failed: {str(e)}") from e
+        except DoesNotExist:
+            raise NotFoundException(f"Event not found: prn={update_data.prn}, timestamp={update_data.timestamp}")
+        except Exception as e:
+            raise UnknownException(f"Failed to update event: {str(e)}", exception=e) from e

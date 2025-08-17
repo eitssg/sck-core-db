@@ -810,8 +810,8 @@ test_data = [
             "data": {
                 "client-portfolio": "client:portfolio",
                 "app-regex": r"^app(.*)$",
-                "region": "sea",
-                "zone": "the-secondary-zone",
+                "Region": "sea",
+                "Zone": "the-secondary-zone",
             },
         },
         {
@@ -861,8 +861,8 @@ test_data = [
             "data": {
                 "client-portfolio": "client:portfolio",
                 "app-regex": r"^app(.*)$",
-                "region": "sin",
-                "zone": "the-primary-zone",
+                "Region": "sin",
+                "Zone": "the-primary-zone",
             },
         },
         {
@@ -881,16 +881,16 @@ test_data = [
         {
             "action": "registry:zone:create",
             "data": {
-                "client": "client",
-                "zone": "zone-one",
-                "account_facts": {
-                    "aws_account_id": "123456789012",
-                    "kms": {
-                        "aws_account_id": "123456789012",
-                        "delegate_aws_account_ids": ["123456789012"],
+                "Client": "client",
+                "Zone": "zone-one",
+                "AccountFacts": {
+                    "AwsAccountId": "123456789012",
+                    "Kms": {
+                        "AwsAccountId": "123456789012",
+                        "DelegateAwsAccountIds": ["123456789012"],
                     },
                 },
-                "region_facts": {"sin": {"aws_region": "ap-southeast-1", "az_count": 3}},
+                "RegionFacts": {"sin": {"AwsRegion": "ap-southeast-1", "AzCount": 3}},
             },
         },
         {

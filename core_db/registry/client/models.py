@@ -1,387 +1,498 @@
-"""Classes defining the Clients record model for the core-automation-clients table"""
+"""Client registry model for the core-automation-clients DynamoDB table.
+
+This module provides PynamoDB and Pydantic models for client organization configuration
+in the Core Automation platform. Client records store comprehensive organization information
+including AWS account details, regional configurations, bucket names, and automation settings.
+
+Key Components:
+    - **ClientFactsModel**: PynamoDB model for client organization data stored in global table
+    - **ClientFactsFactory**: Factory for global client registry table management
+    - **ClientFact**: Pydantic model with validation and serialization capabilities
+
+Client records serve as the foundation of the registry hierarchy and enable
+multi-tenant operation with client-specific configurations and resource isolation.
+The client registry uses a single global table since it stores the client definitions themselves.
+"""
+
+import re
+from typing import Optional, Type
+from pydantic import Field
 
 from pynamodb.attributes import UnicodeAttribute
 
-import core_logging as log
-
-from ...constants import CLIENT_FACTS
-from ...config import get_table_name
-from ..models import RegistryModel
+from ...models import TableFactory, DatabaseRecord, DatabaseTable
 
 
-class ClientFacts(RegistryModel):
-    """
-    Model representing client organization configuration in the core-automation-clients table.
+class ClientFactsModel(DatabaseTable):
+    """PynamoDB model representing client organization configuration in the core-automation-clients table.
 
     This model stores comprehensive client organization information including AWS account details,
-    regional configurations, bucket names, and automation settings. ClientFacts serves as the
+    regional configurations, bucket names, and automation settings. ClientFactsModel serves as the
     central registry for client organizations using the Core Automation platform.
 
-    Attributes
-    ----------
-    Client : UnicodeAttribute
-        Client ID or slug as the unique identifier for the client organization (hash key)
-        Must be URL-safe and unique across all clients
-        Example: "acme", "myorg", "example-corp"
-    ClientName : UnicodeAttribute, optional
-        Human-readable client organization name
-        Example: "ACME Corporation", "My Organization"
-    OrganizationId : UnicodeAttribute, optional
-        AWS Organization ID for the client's AWS Organization
-        Example: "o-t73gu32ai5", "o-example123456"
-    OrganizationName : UnicodeAttribute, optional
-        AWS Organization name as configured in AWS Organizations
-        Example: "ACME Production Organization"
-    OrganizationAccount : UnicodeAttribute, optional
-        AWS account number for the organization root account (master account)
-        Example: "123456789012"
-    OrganizationEmail : UnicodeAttribute, optional
-        Email address associated with the organization root account
-        Example: "aws-admin@acme.com", "aws+root@myorg.com"
-    Domain : UnicodeAttribute, optional
-        Primary domain name for the organization
-        Used for DNS configurations and resource naming
-        Example: "acme.com", "myorg.example.com"
-    IamAccount : UnicodeAttribute, optional
-        AWS account number where centralized IAM roles and policies are stored
-        Example: "123456789012"
-    AuditAccount : UnicodeAttribute, optional
-        AWS account number for centralized logging and audit trail storage
-        Example: "987654321098"
-    MasterRegion : UnicodeAttribute, optional
-        Primary AWS region where Core Automation control plane is deployed
-        Example: "us-west-2", "us-east-1"
-    DocsBucketName : UnicodeAttribute, optional
-        S3 bucket name for storing generated documentation and reports
-        Example: "acme-core-automation-docs"
-    ClientRegion : UnicodeAttribute, optional
-        Default AWS region for client operations when region is not specified
-        Example: "us-west-2", "eu-west-1"
-    AutomationAccount : UnicodeAttribute, optional
-        AWS account number where automation artifacts and resources are stored
-        Example: "123456789012"
-    BucketName : UnicodeAttribute, optional
-        Primary S3 bucket for automation artifacts (packages, files, templates)
-        Example: "acme-core-automation"
-    BucketRegion : UnicodeAttribute, optional
-        AWS region where the primary automation bucket is located
-        Example: "us-west-2"
-    ArtefactBucketName : UnicodeAttribute, optional
-        S3 bucket name for storing deployment artifacts and build outputs
-        Example: "acme-core-automation-artefacts"
-    SecurityAccount : UnicodeAttribute, optional
-        AWS account number for centralized security operations center (SOC)
-        Example: "111111111111"
-    NetworkAccount : UnicodeAttribute, optional
-        AWS account number for centralized VPCs, DNS, and network services
-        Example: "222222222222"
-    UiBucketName : UnicodeAttribute, optional
-        S3 bucket name for hosting the Core Automation web interface
-        Example: "acme-core-automation-ui"
-    Scope : UnicodeAttribute, optional
-        Resource name prefix for all automation-created resources
-        Must end with hyphen for proper concatenation
-        Example: "dev-", "test-", "staging-"
+    Attributes:
+        client (UnicodeAttribute): Client ID or slug as the unique identifier for the client organization (hash key)
+        client_id (UnicodeAttribute): Alternative client identifier for external system integration
+        client_type (UnicodeAttribute): Type classification of the client (e.g., 'enterprise', 'startup', 'government')
+        client_status (UnicodeAttribute): Current operational status of the client ('active', 'inactive', 'suspended')
+        client_description (UnicodeAttribute): Detailed description of the client organization and its purpose
+        client_name (UnicodeAttribute): Human-readable client organization name for display purposes
+        organization_id (UnicodeAttribute): AWS Organization ID for the client's AWS Organization structure
+        organization_name (UnicodeAttribute): AWS Organization name as configured in AWS Organizations service
+        organization_account (UnicodeAttribute): AWS account number for the organization root account
+        organization_email (UnicodeAttribute): Email address associated with the organization root account
+        domain (UnicodeAttribute): Primary domain name for the organization's web presence
+        iam_account (UnicodeAttribute): AWS account number where centralized IAM roles and policies are stored
+        audit_account (UnicodeAttribute): AWS account number for centralized logging and audit trail storage
+        automation_account (UnicodeAttribute): AWS account number where automation artifacts and resources are stored
+        security_account (UnicodeAttribute): AWS account number for centralized security operations center
+        network_account (UnicodeAttribute): AWS account number for centralized VPCs, DNS, and network services
+        master_region (UnicodeAttribute): Primary AWS region where Core Automation control plane is deployed
+        client_region (UnicodeAttribute): Default AWS region for client operations when region is not specified
+        bucket_region (UnicodeAttribute): AWS region where the primary automation bucket is located
+        bucket_name (UnicodeAttribute): Primary S3 bucket name for automation artifacts and deployment packages
+        docs_bucket_name (UnicodeAttribute): S3 bucket name for storing generated documentation and reports
+        artefact_bucket_name (UnicodeAttribute): S3 bucket name for storing deployment artifacts and build outputs
+        ui_bucket_name (UnicodeAttribute): S3 bucket name for hosting the Core Automation web interface
+        ui_bucket (UnicodeAttribute): Alternative S3 bucket name for UI hosting (legacy field, deprecated)
+        scope (UnicodeAttribute): Resource name prefix for all automation-created resources to ensure uniqueness
 
-        Note: This prefix is prepended to all resource names including:
-        - S3 buckets: "{scope}acme-core-automation"
-        - DynamoDB tables: "{scope}core-automation-clients"
-        - Lambda functions: "{scope}core-automation-invoker"
-        - IAM roles: "{scope}CoreAutomationExecutionRole"
-    UiBucket : UnicodeAttribute, optional
-        Alternative S3 bucket name for UI hosting (legacy field)
-        Example: "core-automation-ui"
-    UserInstantiated : UnicodeAttribute, optional
-        Internal PynamoDB field indicating user instantiation
+        Inherited from DatabaseTable:
+            created_at (UTCDateTimeAttribute): Timestamp when the record was first created (auto-generated)
+            updated_at (UTCDateTimeAttribute): Timestamp when the record was last modified (auto-updated)
 
-    Examples
-    --------
-    Creating a new client configuration:
-
-    >>> client = ClientFacts(
-    ...     "acme",
-    ...     ClientName="ACME Corporation",
-    ...     OrganizationId="o-example123456",
-    ...     OrganizationAccount="123456789012",
-    ...     Domain="acme.com",
-    ...     MasterRegion="us-west-2",
-    ...     Scope="prod-"
-    ... )
-    >>> client.save()
-
-    Retrieving a client:
-
-    >>> client = ClientFacts.get("acme")
-    >>> print(f"Client: {client.ClientName}")
-    >>> print(f"Domain: {client.Domain}")
-    >>> print(f"Master Region: {client.MasterRegion}")
-
-    Updating client configuration:
-
-    >>> client = ClientFacts.get("acme")
-    >>> client.SecurityAccount = "111111111111"
-    >>> client.NetworkAccount = "222222222222"
-    >>> client.save()
-
-    Listing all clients:
-
-    >>> for client in ClientFacts.scan():
-    ...     print(f"{client.Client}: {client.ClientName}")
-
-    Configuring multiple AWS accounts:
-
-    >>> client = ClientFacts(
-    ...     "enterprise",
-    ...     ClientName="Enterprise Corp",
-    ...     OrganizationAccount="123456789012",  # Root account
-    ...     IamAccount="123456789012",           # IAM roles account
-    ...     AuditAccount="987654321098",         # Logging account
-    ...     SecurityAccount="111111111111",      # Security account
-    ...     NetworkAccount="222222222222",       # Network account
-    ...     AutomationAccount="333333333333",    # Automation account
-    ...     MasterRegion="us-east-1",
-    ...     BucketRegion="us-east-1"
-    ... )
-    >>> client.save()
-
-    Managing resource naming with scope:
-
-    >>> client = ClientFacts(
-    ...     "dev-client",
-    ...     ClientName="Development Environment",
-    ...     Scope="dev-",
-    ...     BucketName="dev-myclient-core-automation",
-    ...     DocsBucketName="dev-myclient-core-automation-docs"
-    ... )
-    >>> client.save()
-
-    Notes
-    -----
-    **Account Strategy**: Different AWS accounts can be configured for different purposes:
-
-    - **OrganizationAccount**: Root account for AWS Organizations
-    - **IamAccount**: Centralized IAM roles and policies
-    - **AuditAccount**: CloudTrail, Config, and audit logs
-    - **SecurityAccount**: Security monitoring and SOC tools
-    - **NetworkAccount**: VPCs, DNS, and network infrastructure
-    - **AutomationAccount**: Core Automation deployment and artifacts
-
-    **Resource Naming**: The Scope field affects all resource naming:
-
-    - Without scope: "core-automation-clients"
-    - With scope "dev-": "dev-core-automation-clients"
-    - Ensures environment isolation and easy identification
-
-    **Regional Configuration**: Multiple region fields serve different purposes:
-
-    - **MasterRegion**: Core Automation control plane location
-    - **ClientRegion**: Default region for client operations
-    - **BucketRegion**: Primary bucket location (may differ for compliance)
-
-    **Single Table Design**: Unlike other registry models, ClientFacts uses a single
-    global table without client-specific table names, as it stores the client registry
-    itself and is accessed by the Core Automation platform infrastructure.
-
-    See Also
-    --------
-    PortfolioFacts : Portfolio configuration per client
-    ZoneFacts : Zone configuration per client
-    AppFacts : Application configuration per client
+    Note:
+        Uses a single global table for all clients since it stores the client registry itself.
+        This table is accessed by the Core Automation platform infrastructure for multi-tenant operations.
+        The hierarchy is: Client -> Portfolio -> App -> Branch -> Build -> Component
     """
 
-    class Meta(RegistryModel.Meta):
+    class Meta(DatabaseTable.Meta):
+        """Meta class for ClientFactsModel DynamoDB table configuration.
+
+        Inherits table configuration from DatabaseTable.Meta including:
+        - billing_mode: PAY_PER_REQUEST for automatic scaling
+        - stream_view_type: NEW_AND_OLD_IMAGES for change tracking
+        - point_in_time_recovery: Enabled for data protection
+        """
+
         pass
 
     # Primary key
-    Client = UnicodeAttribute(hash_key=True)
+    client = UnicodeAttribute(hash_key=True, attr_name="Client")
 
-    # Client identification
-    ClientName = UnicodeAttribute(null=True)
+    # Core client metadata
+    client_id = UnicodeAttribute(null=True, attr_name="ClientId")
+    client_type = UnicodeAttribute(null=True, attr_name="ClientType")
+    client_status = UnicodeAttribute(null=True, attr_name="ClientStatus")
+    client_description = UnicodeAttribute(null=True, attr_name="ClientDescription")
+    client_name = UnicodeAttribute(null=True, attr_name="ClientName")
 
     # AWS Organization configuration
-    OrganizationId = UnicodeAttribute(null=True)
-    OrganizationName = UnicodeAttribute(null=True)
-    OrganizationAccount = UnicodeAttribute(null=True)
-    OrganizationEmail = UnicodeAttribute(null=True)
+    organization_id = UnicodeAttribute(null=True, attr_name="OrganizationId")
+    organization_name = UnicodeAttribute(null=True, attr_name="OrganizationName")
+    organization_account = UnicodeAttribute(null=True, attr_name="OrganizationAccount")
+    organization_email = UnicodeAttribute(null=True, attr_name="OrganizationEmail")
 
     # Domain and networking
-    Domain = UnicodeAttribute(null=True)
+    domain = UnicodeAttribute(null=True, attr_name="Domain")
 
-    # AWS Account assignments
-    IamAccount = UnicodeAttribute(null=True)
-    AuditAccount = UnicodeAttribute(null=True)
-    AutomationAccount = UnicodeAttribute(null=True)
-    SecurityAccount = UnicodeAttribute(null=True)
-    NetworkAccount = UnicodeAttribute(null=True)
+    # AWS Account assignments for multi-account architecture
+    iam_account = UnicodeAttribute(null=True, attr_name="IamAccount")
+    audit_account = UnicodeAttribute(null=True, attr_name="AuditAccount")
+    automation_account = UnicodeAttribute(null=True, attr_name="AutomationAccount")
+    security_account = UnicodeAttribute(null=True, attr_name="SecurityAccount")
+    network_account = UnicodeAttribute(null=True, attr_name="NetworkAccount")
 
-    # Regional configuration
-    MasterRegion = UnicodeAttribute(null=True)
-    ClientRegion = UnicodeAttribute(null=True)
-    BucketRegion = UnicodeAttribute(null=True)
+    # Regional configuration for deployment targeting
+    master_region = UnicodeAttribute(null=True, attr_name="MasterRegion")
+    client_region = UnicodeAttribute(null=True, attr_name="ClientRegion")
+    bucket_region = UnicodeAttribute(null=True, attr_name="BucketRegion")
 
-    # S3 bucket configuration
-    BucketName = UnicodeAttribute(null=True)
-    DocsBucketName = UnicodeAttribute(null=True)
-    ArtefactBucketName = UnicodeAttribute(null=True)
-    UiBucketName = UnicodeAttribute(null=True)
-    UiBucket = UnicodeAttribute(null=True)  # Legacy field
+    # S3 bucket configuration for artifact storage
+    bucket_name = UnicodeAttribute(null=True, attr_name="BucketName")
+    docs_bucket_name = UnicodeAttribute(null=True, attr_name="DocsBucketName")
+    artefact_bucket_name = UnicodeAttribute(null=True, attr_name="ArtefactBucketName")
+    ui_bucket_name = UnicodeAttribute(null=True, attr_name="UiBucketName")
+    ui_bucket = UnicodeAttribute(null=True, attr_name="UiBucket")  # Legacy field
 
-    # Resource naming
-    Scope = UnicodeAttribute(null=True)
-
-    # Internal fields
-    UserInstantiated = UnicodeAttribute(null=True)
-
-    def __init__(self, *args, **kwargs):
-        """
-        Initialize ClientFacts instance with automatic key conversion.
-
-        :param args: Positional arguments for model initialization
-        :param kwargs: Keyword arguments with automatic snake_case/kebab-case conversion
-        """
-        super().__init__(*args, **kwargs)
+    # Resource naming and scoping
+    scope = UnicodeAttribute(null=True, attr_name="Scope")
 
     def __repr__(self) -> str:
-        """
-        Return string representation of ClientFacts.
+        """Return string representation of ClientFactsModel.
 
-        :returns: String representation showing Client identifier
-        :rtype: str
+        Returns:
+            str: String representation showing client identifier and name for debugging
         """
-        return f"ClientFacts({self.Client})"
+        return f"<ClientFactsModel(client={self.client},name={self.client_name})>"
 
     def get_resource_prefix(self) -> str:
-        """
-        Get the resource prefix for this client including scope.
+        """Get the resource prefix for this client including scope.
 
-        :returns: Resource prefix combining scope and client identifier
-        :rtype: str
+        Returns:
+            str: Resource prefix combining scope and client identifier for unique resource naming
         """
-        scope = self.Scope or ""
-        return f"{scope}{self.Client}"
+        scope = self.scope or ""
+        return f"{scope}{self.client}"
 
     def get_bucket_name(self, bucket_type: str = "automation") -> str:
-        """
-        Get the appropriate bucket name for the specified type.
+        """Get the appropriate bucket name for the specified type.
 
-        :param bucket_type: Type of bucket ("automation", "docs", "artefacts", "ui")
-        :type bucket_type: str
-        :returns: Full bucket name with scope prefix
-        :rtype: str
-        :raises ValueError: If bucket_type is not recognized
+        Args:
+            bucket_type (str): Type of bucket requested from available options
+
+        Returns:
+            str: Full bucket name for the specified type
+
+        Raises:
+            ValueError: If bucket_type is not one of the recognized types
         """
         bucket_mapping = {
-            "automation": self.BucketName,
-            "docs": self.DocsBucketName,
-            "artefacts": self.ArtefactBucketName,
-            "ui": self.UiBucketName or self.UiBucket,
+            "automation": self.bucket_name,
+            "docs": self.docs_bucket_name,
+            "artefacts": self.artefact_bucket_name,
+            "ui": self.ui_bucket_name or self.ui_bucket,
         }
 
         if bucket_type not in bucket_mapping:
-            raise ValueError(f"Unknown bucket type: {bucket_type}")
+            raise ValueError(f"Unknown bucket type: {bucket_type}. Valid types: {list(bucket_mapping.keys())}")
 
         return bucket_mapping[bucket_type]
 
     def is_multi_account(self) -> bool:
-        """
-        Check if this client uses a multi-account AWS setup.
+        """Check if this client uses a multi-account AWS setup.
 
-        :returns: True if multiple distinct AWS accounts are configured
-        :rtype: bool
+        Returns:
+            bool: True if multiple distinct AWS accounts are configured, False for single-account setup
         """
         accounts = {
-            self.OrganizationAccount,
-            self.IamAccount,
-            self.AuditAccount,
-            self.AutomationAccount,
-            self.SecurityAccount,
-            self.NetworkAccount,
+            self.organization_account,
+            self.iam_account,
+            self.audit_account,
+            self.automation_account,
+            self.security_account,
+            self.network_account,
         }
         # Remove None values and check if more than one unique account
         accounts.discard(None)
         return len(accounts) > 1
 
 
-ClientFactsType = type[ClientFacts]
+ClientFactsType = Type[ClientFactsModel]
 
 
 class ClientFactsFactory:
+    """Factory class for managing the global ClientFactsModel table.
 
-    _cache_models = {}
+    Provides methods for getting the global model class, creating/deleting the table,
+    and checking table existence. Unlike other registry factories, this manages a single
+    global table since client records define the clients themselves.
 
-    @classmethod
-    def get_model(cls, client: str = "global", auto_create_table: bool = False) -> ClientFactsType:
-        """
-        Get a ClientFacts model class for a specific client.
-
-        :param client: Client identifier (slug)
-        :type client: str
-        :param auto_create_table: Whether to auto-create the table if it doesn't exist
-        :type auto_create_table: bool
-        :returns: A ClientFacts model class configured for the specified client
-        :rtype: type[ClientFacts]
-        """
-
-        if not client in cls._cache_models:
-            model_class = cls._create_client_model(client)
-            cls._cache_models[client] = model_class
-
-            # Auto-create table if requested
-            if auto_create_table:
-                cls._ensure_table_exists(model_class)
-
-        return cls._cache_models[client]
+    Note:
+        Client registry uses a single global table, not client-specific tables, because
+        it stores the client definitions that enable multi-tenant operations.
+    """
 
     @classmethod
-    def create_table(cls, client: str = None) -> None:
-        """
-        Create the ClientFacts table if it does not exist.
+    def get_model(cls, client: str) -> ClientFactsType:
+        """Get the global ClientFactsModel class.
 
-        :param cls: The ClientFacts model class to create the table for
-        :type cls: type[ClientFacts]
-        :param wait: Whether to wait until the table is created
-        :type wait: bool
+        Returns:
+            ClientFactsType: Global ClientFactsModel class for client registry operations
+
+        Note:
+            Unlike other factories, this returns the base model class since client registry
+            is global and not client-specific.
         """
-        if not client:
-            client = "global"
-        model = cls.get_model(client, True)
+        return TableFactory.get_model(ClientFactsModel, client=client)
 
     @classmethod
-    def _ensure_table_exists(cls, model_class: ClientFactsType) -> None:
-        """
-        Ensure the table exists, create it if it doesn't.
+    def create_table(cls, client: str, wait: bool = True) -> bool:
+        """Create the ClientFactsModel table for the given client.
 
-        :param model_class: The ClientFacts model class to check/create
-        :type model_class: type[ClientFacts]
+        Args:
+            wait (bool): Whether to wait for table creation to complete before returning
+
+        Returns:
+            bool: True if table was created successfully, False if it already exists
+
+        Raises:
+            Exception: If table creation fails due to AWS service issues
         """
-        try:
-            if not model_class.exists():
-                log.info("Creating client facts table: %s", model_class.Meta.table_name)
-                model_class.create_table(wait=True)
-                log.info(
-                    "Successfully created client facts table: %s",
-                    model_class.Meta.table_name,
-                )
-        except Exception as e:
-            log.error(
-                "Failed to create client facts table %s: %s",
-                model_class.Meta.table_name,
-                str(e),
-            )
+        return TableFactory.create_table(ClientFactsModel, client, wait=wait)
 
     @classmethod
-    def _create_client_model(cls, client: str) -> ClientFactsType:
+    def delete_table(cls, client: str, wait: bool = True) -> bool:
+        """Delete the ClientFactsModel table for the given client.
+
+        Args:
+            wait (bool): Whether to wait for table deletion to complete before returning
+
+        Returns:
+            bool: True if table was deleted, False if it did not exist
         """
-        Create a new ClientFacts model class for a specific client.
+        return TableFactory.delete_table(ClientFactsModel, client, wait=wait)
 
-        :param client: Client identifier (slug)
-        :type client: str
-        :returns: A new ClientFacts model class configured for the specified client
-        :rtype: type[ClientFacts]
+    @classmethod
+    def exists(cls, client: str) -> bool:
+        """Check if the ClientFactsModel table exists for the given client.
+
+        Args:
+            client (str): The client identifier
+
+        Returns:
+            bool: True if the table exists, False otherwise
         """
+        return TableFactory.exists(ClientFactsModel, client)
 
-        class ClientFactsModel(ClientFacts):
-            class Meta(ClientFacts.Meta):
-                table_name = get_table_name(CLIENT_FACTS)
 
-        return ClientFactsModel
+class ClientFact(DatabaseRecord):
+    """Pydantic model for Client Facts with validation and serialization.
+
+    Provides type validation, PascalCase serialization for APIs, and conversion methods
+    between PynamoDB and API formats. Extends DatabaseRecord to inherit audit fields
+    and serialization behavior.
+
+    Attributes:
+        client (str): Client ID or slug as the unique identifier for the client organization (required)
+        client_id (str, optional): Alternative client identifier for external system integration
+        client_type (str, optional): Type classification of the client organization
+        client_status (str, optional): Current operational status of the client
+        client_description (str, optional): Detailed description of the client organization
+        client_name (str, optional): Human-readable client organization name for display
+        organization_id (str, optional): AWS Organization ID for the client's AWS Organization
+        organization_name (str, optional): AWS Organization name as configured in AWS Organizations
+        organization_account (str, optional): AWS account number for the organization root account
+        organization_email (str, optional): Email address associated with the organization root account
+        domain (str, optional): Primary domain name for the organization's web presence
+        iam_account (str, optional): AWS account number for centralized IAM roles and policies
+        audit_account (str, optional): AWS account number for centralized logging and audit trails
+        automation_account (str, optional): AWS account number for automation artifacts and resources
+        security_account (str, optional): AWS account number for centralized security operations
+        network_account (str, optional): AWS account number for centralized VPCs and network services
+        master_region (str, optional): Primary AWS region for Core Automation control plane deployment
+        client_region (str, optional): Default AWS region for client operations when not specified
+        bucket_region (str, optional): AWS region where the primary automation bucket is located
+        bucket_name (str, optional): Primary S3 bucket name for automation artifacts and packages
+        docs_bucket_name (str, optional): S3 bucket name for generated documentation and reports
+        artefact_bucket_name (str, optional): S3 bucket name for deployment artifacts and build outputs
+        ui_bucket_name (str, optional): S3 bucket name for hosting the Core Automation web interface
+        ui_bucket (str, optional): Alternative S3 bucket name for UI hosting (legacy field)
+        scope (str, optional): Resource name prefix for all automation-created resources
+
+        Inherited from DatabaseRecord:
+            created_at (datetime): Timestamp when the record was first created (auto-generated)
+            updated_at (datetime): Timestamp when the record was last modified (auto-updated)
+
+    Note:
+        All string fields use PascalCase aliases for API compatibility and DynamoDB attribute naming.
+        The client field serves as both the Pydantic identifier and DynamoDB hash key.
+
+    Examples:
+        >>> # Create client with minimal required fields
+        >>> client = ClientFact(
+        ...     Client="acme-corp",
+        ...     ClientName="ACME Corporation",
+        ...     ClientType="enterprise",
+        ...     ClientStatus="active"
+        ... )
+
+        >>> # Create client with full configuration
+        >>> client = ClientFact(
+        ...     Client="startup-tech",
+        ...     ClientId="STARTUP001",
+        ...     ClientName="StartupTech Inc",
+        ...     ClientType="startup",
+        ...     ClientStatus="active",
+        ...     OrganizationAccount="987654321098",
+        ...     IamAccount="987654321098",
+        ...     MasterRegion="us-west-1",
+        ...     BucketName="startup-tech-automation",
+        ...     Scope="st-"
+        ... )
+
+        >>> # Convert from DynamoDB model
+        >>> db_client = ClientFactsModel(client="acme-corp")
+        >>> pydantic_client = ClientFact.from_model(db_client)
+
+        >>> # Convert to DynamoDB format
+        >>> db_model = client.to_model("global")
+    """
+
+    client: str = Field(..., alias="Client", description="Client ID or slug as the unique identifier for the client organization")
+
+    # Core Client Fields with PascalCase aliases
+    client_id: Optional[str] = Field(
+        None, alias="ClientId", description="Alternative client identifier for external system integration"
+    )
+    client_type: Optional[str] = Field(None, alias="ClientType", description="Type classification of the client organization")
+    client_status: Optional[str] = Field(None, alias="ClientStatus", description="Current operational status of the client")
+    client_description: Optional[str] = Field(
+        None, alias="ClientDescription", description="Detailed description of the client organization and its purpose"
+    )
+
+    # Client Identification
+    client_name: Optional[str] = Field(
+        None, alias="ClientName", description="Human-readable client organization name for display purposes"
+    )
+
+    # AWS Organization Configuration
+    organization_id: Optional[str] = Field(
+        None, alias="OrganizationId", description="AWS Organization ID for the client's AWS Organization structure"
+    )
+    organization_name: Optional[str] = Field(
+        None, alias="OrganizationName", description="AWS Organization name as configured in AWS Organizations service"
+    )
+    organization_account: Optional[str] = Field(
+        None, alias="OrganizationAccount", description="AWS account number for the organization root account"
+    )
+    organization_email: Optional[str] = Field(
+        None, alias="OrganizationEmail", description="Email address associated with the organization root account"
+    )
+
+    # Domain and Networking
+    domain: Optional[str] = Field(None, alias="Domain", description="Primary domain name for the organization's web presence")
+
+    # AWS Account Assignments
+    iam_account: Optional[str] = Field(
+        None, alias="IamAccount", description="AWS account number where centralized IAM roles and policies are stored"
+    )
+    audit_account: Optional[str] = Field(
+        None, alias="AuditAccount", description="AWS account number for centralized logging and audit trail storage"
+    )
+    automation_account: Optional[str] = Field(
+        None, alias="AutomationAccount", description="AWS account number where automation artifacts and resources are stored"
+    )
+    security_account: Optional[str] = Field(
+        None, alias="SecurityAccount", description="AWS account number for centralized security operations center"
+    )
+    network_account: Optional[str] = Field(
+        None, alias="NetworkAccount", description="AWS account number for centralized VPCs, DNS, and network services"
+    )
+
+    # Regional Configuration
+    master_region: Optional[str] = Field(
+        None, alias="MasterRegion", description="Primary AWS region where Core Automation control plane is deployed"
+    )
+    client_region: Optional[str] = Field(
+        None, alias="ClientRegion", description="Default AWS region for client operations when region is not specified"
+    )
+    bucket_region: Optional[str] = Field(
+        None, alias="BucketRegion", description="AWS region where the primary automation bucket is located"
+    )
+
+    # S3 Bucket Configuration
+    bucket_name: Optional[str] = Field(
+        None, alias="BucketName", description="Primary S3 bucket name for automation artifacts and deployment packages"
+    )
+    docs_bucket_name: Optional[str] = Field(
+        None, alias="DocsBucketName", description="S3 bucket name for storing generated documentation and reports"
+    )
+    artefact_bucket_name: Optional[str] = Field(
+        None, alias="ArtefactBucketName", description="S3 bucket name for storing deployment artifacts and build outputs"
+    )
+    ui_bucket_name: Optional[str] = Field(
+        None, alias="UiBucketName", description="S3 bucket name for hosting the Core Automation web interface"
+    )
+    ui_bucket: Optional[str] = Field(
+        None, alias="UiBucket", description="Alternative S3 bucket name for UI hosting (legacy field, deprecated)"
+    )
+
+    # Resource Naming
+    scope: Optional[str] = Field(
+        None, alias="Scope", description="Resource name prefix for all automation-created resources to ensure uniqueness"
+    )
+
+    @classmethod
+    def model_class(cls, client: str) -> ClientFactsType:
+        """Get the PynamoDB model class for this Pydantic model.
+
+        Returns:
+            ClientFactsType: Global ClientFactsModel class for database operations
+        """
+        return ClientFactsFactory.get_model(client)
+
+    @classmethod
+    def from_model(cls, model: ClientFactsModel) -> "ClientFact":
+        """Convert a PynamoDB ClientFactsModel instance to a ClientFact Pydantic model.
+
+        Args:
+            client_model (ClientFactsModel): PynamoDB model instance to convert
+
+        Returns:
+            ClientFact: Pydantic model instance with data from the PynamoDB model
+        """
+        return cls(**model.to_simple_dict())
+
+    def to_model(self, client: str) -> ClientFactsModel:
+        """Convert to PynamoDB ClientFactsModel instance.
+
+        Args:
+            client (str): Client identifier for table isolation (used for factory)
+
+        Returns:
+            ClientFactsModel: PynamoDB ClientFactsModel instance ready for database operations
+
+        """
+        model_class = ClientFactsFactory.get_model(client)
+        return model_class(**self.model_dump(by_alias=False, exclude_none=True))
+
+    def get_resource_prefix(self) -> str:
+        """Get the resource prefix for this client including scope.
+
+        Returns:
+            str: Resource prefix combining scope and client identifier for unique resource naming
+        """
+        scope = self.scope or ""
+        return f"{scope}{self.client}"
+
+    def get_bucket_name(self, bucket_type: str = "automation") -> str:
+        """Get the appropriate bucket name for the specified type.
+
+        Args:
+            bucket_type (str): Type of bucket requested from available options
+
+        Returns:
+            str: Full bucket name for the specified type
+
+        Raises:
+            ValueError: If bucket_type is not one of the recognized types
+        """
+        bucket_mapping = {
+            "automation": self.bucket_name,
+            "docs": self.docs_bucket_name,
+            "artefacts": self.artefact_bucket_name,
+            "ui": self.ui_bucket_name or self.ui_bucket,
+        }
+
+        if bucket_type not in bucket_mapping:
+            raise ValueError(f"Unknown bucket type: {bucket_type}. Valid types: {list(bucket_mapping.keys())}")
+
+        return bucket_mapping[bucket_type]
+
+    def is_multi_account(self) -> bool:
+        """Check if this client uses a multi-account AWS setup.
+
+        Returns:
+            bool: True if multiple distinct AWS accounts are configured, False for single-account setup
+        """
+        accounts = {
+            self.organization_account,
+            self.iam_account,
+            self.audit_account,
+            self.automation_account,
+            self.security_account,
+            self.network_account,
+        }
+        # Remove None values and check if more than one unique account
+        accounts.discard(None)
+        return len(accounts) > 1
+
+    def __repr__(self) -> str:
+        """Return a string representation of the ClientFact instance.
+
+        Returns:
+            str: String representation showing client identifier and name for debugging
+        """
+        return f"<ClientFact(client={self.client},name={self.client_name})>"

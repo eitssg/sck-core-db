@@ -1,5 +1,4 @@
-"""
-The Facter object is the "FACTS" database. This object is DEPRECATED and should not be used.
+"""The Facter object is the "FACTS" database. This object is DEPRECATED and should not be used.
 This FACTS database should come from DynamoDB. Not 'accounts.yaml' and 'apps.yaml' files.
 
 (In re-rewrite. We need to use DynamoDB instead of FACTS YAML files)
@@ -32,61 +31,107 @@ from core_framework.models import DeploymentDetails
 
 from ..constants import REGION, ENVIRONMENT, ZONE_KEY
 
-from ..registry.client.models import ClientFacts, ClientFactsFactory
-from ..registry.portfolio.models import PortfolioFacts, PortfolioFactsFactory
-from ..registry.zone.models import ZoneFacts, ZoneFactsFactory
-from ..registry.app.models import AppFacts, AppFactsFactory
+from ..registry.client.models import ClientFactsModel, ClientFactsFactory
+from ..registry.portfolio.models import PortfolioFactsModel, PortfolioFactsFactory
+from ..registry.zone.models import ZoneFactsModel, ZoneFactsFactory
+from ..registry.app.models import AppFactsModel, AppFactsFactory
 
 
-def get_client_model(client) -> ClientFacts:
-    """
-    Returns the ClientFacts class from the ClientFactsFactory.
+def get_client_model(client) -> ClientFactsModel:
+    """Returns the ClientFactsModel class from the ClientFactsFactory.
+
     This is a helper function to avoid circular imports.
+
+    Args:
+        client: The client identifier for model creation
+
+    Returns:
+        ClientFactsModel: The client facts model instance for the specified client
+
+    Examples:
+        >>> model = get_client_model("acme")
+        >>> print(model.Meta.table_name)  # "acme-core-automation-clients"
     """
     return ClientFactsFactory.get_model(client)
 
 
-def get_portfolio_model(client) -> PortfolioFacts:
-    """
-    Returns the PortfolioFacts class from the PortfolioFactsFactory.
+def get_portfolio_model(client) -> PortfolioFactsModel:
+    """Returns the PortfolioFactsModel class from the PortfolioFactsFactory.
+
     This is a helper function to avoid circular imports.
+
+    Args:
+        client: The client identifier for model creation
+
+    Returns:
+        PortfolioFactsModel: The portfolio facts model instance for the specified client
+
+    Examples:
+        >>> model = get_portfolio_model("acme")
+        >>> print(model.Meta.table_name)  # "acme-core-automation-portfolios"
     """
     return PortfolioFactsFactory.get_model(client)
 
 
-def get_zone_model(client) -> ZoneFacts:
-    """
-    Returns the ZoneFacts class.
+def get_zone_model(client) -> ZoneFactsModel:
+    """Returns the ZoneFactsModel class.
+
     This is a helper function to avoid circular imports.
+
+    Args:
+        client: The client identifier for model creation
+
+    Returns:
+        ZoneFactsModel: The zone facts model instance for the specified client
+
+    Examples:
+        >>> model = get_zone_model("acme")
+        >>> print(model.Meta.table_name)  # "acme-core-automation-zones"
     """
     return ZoneFactsFactory.get_model(client)
 
 
-def get_app_model(client) -> AppFacts:
-    """
-    Returns the AppFacts class.
+def get_app_model(client) -> AppFactsModel:
+    """Returns the AppFactsModel class.
+
     This is a helper function to avoid circular imports.
+
+    Args:
+        client: The client identifier for model creation
+
+    Returns:
+        AppFactsModel: The app facts model instance for the specified client
+
+    Examples:
+        >>> model = get_app_model("acme")
+        >>> print(model.Meta.table_name)  # "acme-core-automation-apps"
     """
     return AppFactsFactory.get_model(client)
 
 
 def get_client_facts(client: str) -> dict | None:
-    """
-    Uses the logic within the :class:`ClientFacts` class to retrieve the Client Details.
+    """Uses the logic within the ClientFactsModel class to retrieve the Client Details.
 
-    This is a helper function and you can call ClientFacts.get(client) directly without
+    This is a helper function and you can call ClientFactsModel.get(client) directly without
     using this helper.
 
-    :param client: The client name to retrieve from the database
-    :type client: str
-    :returns: The dictionary representing the ClientFacts database table record
-    :rtype: dict | None
+    Args:
+        client (str): The client name to retrieve from the database
 
-    Examples
-    --------
-    >>> client_facts = get_client_facts("acme")
-    >>> if client_facts:
-    ...     print(f"Client: {client_facts['name']}")
+    Returns:
+        dict | None: The dictionary representing the ClientFactsModel database table record,
+            or None if the client is not found
+
+    Examples:
+        >>> client_facts = get_client_facts("acme")
+        >>> if client_facts:
+        ...     print(f"Client: {client_facts['name']}")
+        ...     print(f"Namespace: {client_facts['ResourceNamespace']}")
+        ...     print(f"Tags: {client_facts['Tags']}")
+
+        >>> # Handle missing client
+        >>> facts = get_client_facts("nonexistent")
+        >>> print(facts)  # None
     """
     try:
         model = get_client_model(client)
@@ -101,24 +146,29 @@ def get_client_facts(client: str) -> dict | None:
 
 
 def get_portfolio_facts(client: str, portfolio: str) -> dict | None:
-    """
-    Uses the logic within the :class:`PortfolioFacts` class to retrieve the Portfolio Details.
+    """Uses the logic within the PortfolioFactsModel class to retrieve the Portfolio Details.
 
-    This is a helper function and you can call PortfolioFacts.get(client, portfolio) directly
+    This is a helper function and you can call PortfolioFactsModel.get(client, portfolio) directly
     without using this helper.
 
-    :param client: The client name (slug)
-    :type client: str
-    :param portfolio: The portfolio name (slug)
-    :type portfolio: str
-    :returns: The dictionary representing PortfolioFacts database table record
-    :rtype: dict | None
+    Args:
+        client (str): The client name (slug)
+        portfolio (str): The portfolio name (slug)
 
-    Examples
-    --------
-    >>> portfolio_facts = get_portfolio_facts("acme", "core")
-    >>> if portfolio_facts:
-    ...     print(f"Portfolio: {portfolio_facts['name']}")
+    Returns:
+        dict | None: The dictionary representing PortfolioFactsModel database table record,
+            or None if the portfolio is not found
+
+    Examples:
+        >>> portfolio_facts = get_portfolio_facts("acme", "core")
+        >>> if portfolio_facts:
+        ...     print(f"Portfolio: {portfolio_facts['name']}")
+        ...     print(f"Owner: {portfolio_facts['Owner']['Email']}")
+        ...     print(f"Contacts: {len(portfolio_facts['Contacts'])}")
+
+        >>> # Handle missing portfolio
+        >>> facts = get_portfolio_facts("acme", "nonexistent")
+        >>> print(facts)  # None
     """
     try:
         model = get_portfolio_model(client)
@@ -133,26 +183,31 @@ def get_portfolio_facts(client: str, portfolio: str) -> dict | None:
 
 
 def get_zone_facts(client: str, zone: str) -> dict | None:
-    """
-    Uses the logic within the :class:`ZoneFacts` class to retrieve the Zone Details.
+    """Uses the logic within the ZoneFactsModel class to retrieve the Zone Details.
 
-    This is a helper function and you can call ZoneFacts.get(zone_key, zone_name) directly
+    This is a helper function and you can call ZoneFactsModel.get(zone_key, zone_name) directly
     without using this helper.
 
     zone_key = client + ':' + portfolio
 
-    :param client: The client name
-    :type client: str
-    :param zone: The zone label
-    :type zone: str
-    :returns: The dictionary representing the ZoneFacts database table record
-    :rtype: dict | None
+    Args:
+        client (str): The client name
+        zone (str): The zone label
 
-    Examples
-    --------
-    >>> zone_facts = get_zone_facts("acme", "production")
-    >>> if zone_facts:
-    ...     print(f"Zone: {zone_facts['name']}")
+    Returns:
+        dict | None: The dictionary representing the ZoneFactsModel database table record,
+            or None if the zone is not found
+
+    Examples:
+        >>> zone_facts = get_zone_facts("acme", "production")
+        >>> if zone_facts:
+        ...     print(f"Zone: {zone_facts['name']}")
+        ...     print(f"Account ID: {zone_facts['Account']['AwsAccountId']}")
+        ...     print(f"Environment: {zone_facts['Environment']}")
+
+        >>> # Handle missing zone
+        >>> facts = get_zone_facts("acme", "nonexistent")
+        >>> print(facts)  # None
     """
     try:
         model = get_zone_model(client)
@@ -167,25 +222,31 @@ def get_zone_facts(client: str, zone: str) -> dict | None:
 
 
 def get_zone_facts_by_account_id(client: str, account_id: str) -> list[dict] | None:
-    """
-    Uses the logic within the :class:`ZoneFacts` class to retrieve the Zone Details.
+    """Uses the logic within the ZoneFactsModel class to retrieve the Zone Details.
 
-    This is a helper function and you can call ZoneFacts.query(account_id) directly
+    This is a helper function and you can call ZoneFactsModel.query(account_id) directly
     without using this helper.
 
     zone_key = client + ':' + portfolio
 
-    :param account_id: The AWS account ID
-    :type account_id: str
-    :returns: The list of Zone Facts that are registered with this AWS Account ID
-    :rtype: list[dict] | None
+    Args:
+        client (str): The client name
+        account_id (str): The AWS account ID
 
-    Examples
-    --------
-    >>> zone_facts_list = get_zone_facts_by_account_id(client, "123456789012")
-    >>> if zone_facts_list:
-    ...     for zone in zone_facts_list:
-    ...         print(f"Zone: {zone['name']}")
+    Returns:
+        list[dict] | None: The list of Zone Facts that are registered with this AWS Account ID,
+            or None if no zones are found
+
+    Examples:
+        >>> zone_facts_list = get_zone_facts_by_account_id("acme", "123456789012")
+        >>> if zone_facts_list:
+        ...     for zone in zone_facts_list:
+        ...         print(f"Zone: {zone['name']}")
+        ...         print(f"Environment: {zone['Environment']}")
+
+        >>> # Handle no zones found
+        >>> facts = get_zone_facts_by_account_id("acme", "999999999999")
+        >>> print(facts)  # None or empty list
     """
     try:
         model = get_zone_model(client)
@@ -200,22 +261,43 @@ def get_zone_facts_by_account_id(client: str, account_id: str) -> list[dict] | N
 
 
 def get_app_facts(deployment_details: DeploymentDetails) -> dict | None:
-    """
-    Retrieves the Facts for DeploymentDetails that can be used in the Jinja2 Renderer
+    """Retrieves the Facts for DeploymentDetails that can be used in the Jinja2 Renderer
     to generate final CloudFormation Templates.
 
-    :param deployment_details: The deployment details of the TaskPayload
-    :type deployment_details: DeploymentDetails
-    :returns: The app facts dictionary or None if not found
-    :rtype: dict | None
-    :raises ValueError: If required fields are missing from deployment_details
+    Args:
+        deployment_details (DeploymentDetails): The deployment details of the TaskPayload
 
-    Examples
-    --------
-    >>> dd = DeploymentDetails(client="acme", portfolio="core", app="api", branch="master", build="1234")
-    >>> app_facts = get_app_facts(dd)
-    >>> if app_facts:
-    ...     print(f"App: {app_facts['name']}")
+    Returns:
+        dict | None: The app facts dictionary or None if not found
+
+    Raises:
+        ValueError: If required fields are missing from deployment_details
+
+    Examples:
+        >>> dd = DeploymentDetails(
+        ...     client="acme",
+        ...     portfolio="core",
+        ...     app="api",
+        ...     branch="master",
+        ...     build="1234"
+        ... )
+        >>> app_facts = get_app_facts(dd)
+        >>> if app_facts:
+        ...     print(f"App: {app_facts['name']}")
+        ...     print(f"Repository: {app_facts['Repository']}")
+        ...     print(f"Zone: {app_facts['Zone']}")
+
+        >>> # Handle missing app facts
+        >>> dd_invalid = DeploymentDetails(client="acme", portfolio="invalid", app="nonexistent")
+        >>> facts = get_app_facts(dd_invalid)
+        >>> print(facts)  # None
+
+        >>> # Error handling for missing fields
+        >>> try:
+        ...     dd_incomplete = DeploymentDetails(client="acme")  # Missing portfolio and app
+        ...     get_app_facts(dd_incomplete)
+        ... except ValueError as e:
+        ...     print(f"Error: {e}")  # "Portfolio must be valid in DeploymentDetails"
     """
     client = deployment_details.client
     if not client:
@@ -252,28 +334,35 @@ def get_app_facts(deployment_details: DeploymentDetails) -> dict | None:
 
 
 def derive_environment_from_branch(branch: str) -> tuple[str, str]:
-    """
-    Derive the environment and region alias from the branch name.
+    """Derive the environment and region alias from the branch name.
 
     Example of a branch name is **dev-sin** or **feature1/dev-sin**
 
     Where *dev* is the environment and *sin* is the region alias.
 
-    :param branch: The application deployment git repository branch name
-    :type branch: str
-    :returns: The environment and region alias tuple
-    :rtype: tuple[str, str]
+    Args:
+        branch (str): The application deployment git repository branch name
 
-    Examples
-    --------
-    >>> env, region = derive_environment_from_branch("dev-sin")
-    >>> # Returns: ("dev", "sin")
+    Returns:
+        tuple[str, str]: The environment and region alias tuple
 
-    >>> env, region = derive_environment_from_branch("feature1/dev-sin")
-    >>> # Returns: ("dev", "sin")
+    Examples:
+        >>> env, region = derive_environment_from_branch("dev-sin")
+        >>> print((env, region))  # ("dev", "sin")
 
-    >>> env, region = derive_environment_from_branch("master")
-    >>> # Returns: ("production", "use1")  # or whatever V_DEFAULT_ENVIRONMENT is
+        >>> env, region = derive_environment_from_branch("feature1/dev-sin")
+        >>> print((env, region))  # ("dev", "sin")
+
+        >>> env, region = derive_environment_from_branch("master")
+        >>> print((env, region))  # ("production", "use1")  # or whatever V_DEFAULT_ENVIRONMENT is
+
+        >>> # Complex feature branch
+        >>> env, region = derive_environment_from_branch("feature/new-auth/staging-usw2")
+        >>> print((env, region))  # ("staging", "usw2")
+
+        >>> # Single part branch (no region)
+        >>> env, region = derive_environment_from_branch("development")
+        >>> print((env, region))  # ("development", "use1")  # uses default region
     """
     parts = branch.split("-")
 
@@ -296,23 +385,35 @@ def derive_environment_from_branch(branch: str) -> tuple[str, str]:
 
 
 def format_contact(contact: dict) -> str:
-    """
-    Format the contact details for the Jinja2 template context.
+    """Format the contact details for the Jinja2 template context.
 
-    :param contact: The contact details dictionary
-    :type contact: dict
-    :returns: The formatted contact string
-    :rtype: str
+    Args:
+        contact (dict): The contact details dictionary containing Name and/or Email
 
-    Examples
-    --------
-    >>> contact = {"Name": "John Doe", "Email": "john@example.com"}
-    >>> formatted = format_contact(contact)
-    >>> # Returns: "John Doe <john@example.com>"
+    Returns:
+        str: The formatted contact string
 
-    >>> contact = {"Email": "john@example.com"}
-    >>> formatted = format_contact(contact)
-    >>> # Returns: "john@example.com"
+    Examples:
+        >>> contact = {"Name": "John Doe", "Email": "john@example.com"}
+        >>> formatted = format_contact(contact)
+        >>> print(formatted)  # "John Doe <john@example.com>"
+
+        >>> contact = {"Email": "john@example.com"}
+        >>> formatted = format_contact(contact)
+        >>> print(formatted)  # "john@example.com"
+
+        >>> contact = {"Name": "John Doe"}
+        >>> formatted = format_contact(contact)
+        >>> print(formatted)  # "John Doe"
+
+        >>> contact = {}
+        >>> formatted = format_contact(contact)
+        >>> print(formatted)  # "" (empty string)
+
+        >>> # Real-world usage in template context
+        >>> portfolio_facts = {"Owner": {"Name": "Jane Smith", "Email": "jane@acme.com"}}
+        >>> owner_formatted = format_contact(portfolio_facts["Owner"])
+        >>> print(owner_formatted)  # "Jane Smith <jane@acme.com>"
     """
     name = contact.get("Name", "")
     email = contact.get("Email", "")
@@ -326,20 +427,30 @@ def format_contact(contact: dict) -> str:
 
 
 def get_store_url(bucket_name: str, bucket_region: str) -> str:
-    """
-    Get the storage URL for the specified bucket and region.
+    """Get the storage URL for the specified bucket and region.
 
-    :param bucket_name: The S3 bucket name
-    :type bucket_name: str
-    :param bucket_region: The AWS region for the bucket
-    :type bucket_region: str
-    :returns: The storage URL
-    :rtype: str
+    Args:
+        bucket_name (str): The S3 bucket name
+        bucket_region (str): The AWS region for the bucket
 
-    Examples
-    --------
-    >>> url = get_store_url("my-bucket", "us-east-1")
-    >>> # Returns: "s3://my-bucket" or "/path/to/my-bucket" depending on storage type
+    Returns:
+        str: The storage URL
+
+    Examples:
+        >>> # S3 storage (production)
+        >>> url = get_store_url("my-bucket", "us-east-1")
+        >>> print(url)  # "s3://my-bucket"
+
+        >>> # Local storage (development)
+        >>> url = get_store_url("local-bucket", "us-west-2")
+        >>> print(url)  # "/path/to/local-bucket" (on Windows: "C:\\path\\to\\local-bucket")
+
+        >>> # Real-world usage
+        >>> client = "acme"
+        >>> bucket = f"{client}-artifacts"
+        >>> region = "us-west-2"
+        >>> store_url = get_store_url(bucket, region)
+        >>> print(store_url)  # "s3://acme-artifacts"
     """
     store = util.get_storage_volume(bucket_region)
     sep = "/" if util.is_use_s3() else os.path.sep
@@ -347,19 +458,35 @@ def get_store_url(bucket_name: str, bucket_region: str) -> str:
 
 
 def get_compiler_facts(dd: DeploymentDetails) -> dict:
-    """
-    Get compiler-specific facts for artifact and file storage.
+    """Get compiler-specific facts for artifact and file storage.
 
-    :param dd: The deployment details
-    :type dd: DeploymentDetails
-    :returns: Dictionary containing compiler facts for template rendering
-    :rtype: dict
+    Args:
+        dd (DeploymentDetails): The deployment details
 
-    Examples
-    --------
-    >>> dd = DeploymentDetails(client="acme", portfolio="core", app="api")
-    >>> facts = get_compiler_facts(dd)
-    >>> print(facts['ArtefactsBucketName'])
+    Returns:
+        dict: Dictionary containing compiler facts for template rendering
+
+    Examples:
+        >>> dd = DeploymentDetails(
+        ...     client="acme",
+        ...     portfolio="core",
+        ...     app="api",
+        ...     branch="main",
+        ...     build="123"
+        ... )
+        >>> facts = get_compiler_facts(dd)
+        >>> print(facts['ArtefactsBucketName'])  # "acme-artifacts"
+        >>> print(facts['ArtifactKeyPrefix'])    # "artifacts/acme/core/api/main/123"
+        >>> print(facts['BuildFilesPrefix'])    # "files/acme/core/api/main/123"
+
+        >>> # Access different storage prefixes
+        >>> print(facts['PortfolioFilesPrefix'])  # "files/acme/core"
+        >>> print(facts['AppFilesPrefix'])       # "files/acme/core/api"
+        >>> print(facts['BranchFilesPrefix'])    # "files/acme/core/api/main"
+
+        >>> # Both spelling variants
+        >>> print(facts['ArtefactsBucketName'])  # British spelling
+        >>> print(facts['ArtifactBucketName'])   # American spelling (same value)
     """
     # Shared Files path separator
     sep = "/" if util.is_use_s3() else os.path.sep
@@ -406,29 +533,81 @@ def get_compiler_facts(dd: DeploymentDetails) -> dict:
 
 
 def get_facts(deployment_details: DeploymentDetails) -> dict:  # noqa: C901
-    """
-    Get the facts for a given deployment context.
+    """Get the facts for a given deployment context.
 
     Combines facts from multiple sources (client, portfolio, app, zone) to create
     a complete Jinja2 template context for CloudFormation generation.
 
-    :param deployment_details: The deployment details containing client, portfolio, app, etc.
-    :type deployment_details: DeploymentDetails
-    :returns: The Jinja2 template context dictionary (a.k.a FACTS)
-    :rtype: dict
-    :raises ValueError: For any inconsistency or missing required facts
+    Args:
+        deployment_details (DeploymentDetails): The deployment details containing client,
+            portfolio, app, etc.
 
-    Examples
-    --------
-    >>> dd = DeploymentDetails(
-    ...     client="acme",
-    ...     portfolio="core",
-    ...     app="api",
-    ...     branch="master",
-    ...     build="1234"
-    ... )
-    >>> facts = get_facts(dd)
-    >>> # Returns merged facts from all sources
+    Returns:
+        dict: The Jinja2 template context dictionary (a.k.a FACTS)
+
+    Raises:
+        ValueError: For any inconsistency or missing required facts
+
+    Examples:
+        >>> dd = DeploymentDetails(
+        ...     client="acme",
+        ...     portfolio="core",
+        ...     app="api",
+        ...     branch="master",
+        ...     build="1234"
+        ... )
+        >>> facts = get_facts(dd)
+        >>>
+        >>> # Access basic identification
+        >>> print(facts["Client"])       # "acme"
+        >>> print(facts["Portfolio"])    # "core"
+        >>> print(facts["App"])         # "api"
+        >>> print(facts["Build"])       # "1234"
+        >>>
+        >>> # Access AWS configuration
+        >>> print(facts["AwsAccountId"])  # "123456789012"
+        >>> print(facts["AwsRegion"])     # "us-west-2"
+        >>> print(facts["Environment"])   # "production"
+        >>>
+        >>> # Access networking configuration
+        >>> print(facts["VpcAliases"]["public"])     # "Vpc1"
+        >>> print(facts["SubnetAliases"]["private"]) # "PrivateSubnet"
+        >>>
+        >>> # Access security configuration
+        >>> print(facts["SecurityAliases"]["intranet"][0]["Value"])  # "10.0.0.0/8"
+        >>>
+        >>> # Access KMS configuration
+        >>> print(facts["Kms"]["KmsKeyArn"])  # "arn:aws:kms:us-west-2:..."
+        >>>
+        >>> # Access tags for resource tagging
+        >>> print(facts["Tags"]["Environment"])  # "production"
+        >>> print(facts["Tags"]["CostCenter"])   # "COST123"
+        >>>
+        >>> # Access contact information
+        >>> print(facts["Owner"]["Email"])       # "owner@acme.com"
+        >>> print(facts["Contacts"][0]["Email"]) # "contact@acme.com"
+        >>>
+        >>> # Access artifact paths
+        >>> print(facts["ArtifactKeyPrefix"])    # "artifacts/acme/core/api/master/1234"
+        >>> print(facts["BuildFilesPrefix"])     # "files/acme/core/api/master/1234"
+
+        >>> # Error handling
+        >>> try:
+        ...     dd_invalid = DeploymentDetails(client="nonexistent")
+        ...     get_facts(dd_invalid)
+        ... except ValueError as e:
+        ...     print(f"Error: {e}")  # "Client facts not found for nonexistent"
+
+        >>> # Branch-based environment derivation
+        >>> dd_dev = DeploymentDetails(
+        ...     client="acme",
+        ...     portfolio="core",
+        ...     app="api",
+        ...     branch="dev-usw2"
+        ... )
+        >>> facts = get_facts(dd_dev)
+        >>> print(facts["Environment"])  # "dev" (derived from branch)
+        >>> print(facts["Region"])       # "usw2" (derived from branch)
     """
     client = deployment_details.client
 

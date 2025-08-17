@@ -1,321 +1,292 @@
-"""Constants for field names and keys for the Core-DB database tables."""
+"""Constants for field names and keys for the Core-DB database tables.
 
-# Facts Fields / And Table Types for the Registry
-CLIENT_FACTS = "ClientFacts"
-"""
-Key used to lookup the table name for the ClientFact registry table.
+This module defines all the constant values used throughout the Core-DB system
+for DynamoDB field names, table keys, query parameters, and table names.
+Constants are organized by their usage context and table relationships.
 
-The client facts table name is typically: **core-automation-clients**
-
-:value: ClientFacts
-"""
-
-PORTFOLIO_FACTS = "PortfolioFacts"
-"""
-Key used to lookup the table name for the PortfolioFact registry table.
-
-The portfolio facts table name is typically: **core-automation-portfolios**
-
-:value: PortfolioFacts
+The constants follow different naming conventions based on their context:
+- **Registry Tables**: Use PascalCase for field names (e.g., "Client", "Portfolio")
+- **Items/Events Tables**: Use snake_case for field names (e.g., "item_type", "created_at")
+- **Query Parameters**: Use snake_case for API parameters (e.g., "limit", "sort")
 """
 
-ZONE_FACTS = "ZoneFacts"
-"""
-Key used to lookup the table name for the ZoneFact registry table.
-
-The zone facts table name is typically: **core-automation-zones**
-
-:value: ZoneFacts
-"""
-
-APP_FACTS = "AppFacts"
-"""
-Key used to lookup the table name for the AppFact registry table.
-
-The app facts table name is typically: **core-automation-apps**
-
-:value: AppFacts
-"""
-
-# Type Types for the Events and Deployments
-EVENTS = "Events"
-"""
-Key used to lookup the table name for the Events registry table.
-
-The events table name is typically: **{client}-core-automation-events**
-
-:value: Events
-"""
-
-ITEMS = "Items"
-"""
-Key used to lookup the table name for the Items registry table.
-
-The items table name is typically: **{client}-core-automation-items**
-
-{client} is the client name
-
-:value: Items
-"""
+# =============================================================================
+# Primary Key Constants
+# =============================================================================
 
 PRN = "prn"
-"""
-Hash key field name for the Items and Events tables.
-
-:value: prn
+"""Hash key field name for the Items and Events tables.
+    
+The PRN (Platform Resource Name) serves as the unique identifier for all
+deployment items and events in the core automation system.
 """
 
 ITEM_TYPE = "item_type"
-"""
-Field name for the item_type field in the Items table.
+"""Field name for the item_type field in the Items table.
 
-:value: item_type
+Specifies the type of deployment item (portfolio, app, branch, build, component).
+Used for filtering and categorizing items in queries.
 """
 
 EVENT_TYPE = "event_type"
-"""
-Field name for the event_type field in the Events table.
+"""Field name for the event_type field in the Events table.
 
-:value: event_type
+Specifies the type of deployment event (deploy_start, deploy_success, deploy_failure, etc.).
+Used for filtering and categorizing events in queries.
 """
 
-# Attributes of Portfolio Facts
+# =============================================================================
+# Portfolio Facts Attributes (PascalCase)
+# =============================================================================
+
 APPROVERS = "Approvers"
-"""
-Field name for the Approvers field in the PortfolioFacts table.
+"""Field name for the Approvers field in the PortfolioFactsModel table.
 
-:value: Approvers
+Contains a list of users who can approve deployments for this portfolio.
+Used for deployment authorization workflows.
 """
 
 CONTACTS = "Contacts"
-"""
-Field name for the Contacts field in the PortfolioFacts table.
+"""Field name for the Contacts field in the PortfolioFactsModel table.
 
-:value: Contacts
+Contains contact information for the portfolio including technical and business contacts.
+Used for notifications and escalation procedures.
 """
 
 OWNER = "Owner"
-"""
-Field name for the Owner field in the PortfolioFacts table.
+"""Field name for the Owner field in the PortfolioFactsModel table.
 
-:value: Owner
+Identifies the primary owner responsible for the portfolio.
+Used for accountability and access control decisions.
 """
 
-# Attributes of App Facts
+# =============================================================================
+# App Facts Attributes (PascalCase)
+# =============================================================================
+
 REGION = "Region"
-"""
-Field name for the Region field in the AppFacts table.
+"""Field name for the Region field in the AppFactsModel table.
 
-:value: Region
+Specifies the AWS region where the application is deployed.
+Used for region-specific deployment logic and resource placement.
 """
 
 ENVIRONMENT = "Environment"
-"""
-Field name for the Environment field in the AppFacts table.
+"""Field name for the Environment field in the AppFactsModel table.
 
-:value: Environment
+Specifies the deployment environment (dev, staging, prod, etc.).
+Used for environment-specific configuration and deployment policies.
 """
 
-# Registry Model
+# =============================================================================
+# Registry Model Keys (PascalCase)
+# =============================================================================
+
 CLIENT_KEY = "Client"
-"""
-Hash Key name used to specify the Client in the Client and Portfolio registry tables.
+"""Hash Key name used to specify the Client in the Client and Portfolio registry tables.
 
-:value: Client
+The client identifier represents an AWS Organization or tenant in the system.
+Used as the primary partition key for client-specific data isolation.
 """
 
 PORTFOLIO_KEY = "Portfolio"
-"""
-Range Key name used to lookup the portfolio name in Portfolio registry table for the Client.
+"""Range Key name used to lookup the portfolio name in Portfolio registry table for the Client.
 
-:value: Portfolio
-"""
-
-CLIENT_PORTFOLIO_KEY = "ClientPortfolio"
-"""
-Hash key name used to lookup apps and zones in the App and Zone registry tables for the Client and Portfolio.
-
-:value: ClientPortfolio
+Combined with CLIENT_KEY, forms the composite primary key for portfolio records.
+Used to identify specific portfolios within a client organization.
 """
 
-# Registry Range Keys
+
+# =============================================================================
+# Registry Range Keys (PascalCase)
+# =============================================================================
+
 APP_KEY = "AppRegex"
-"""
-Range Key name used to lookup the app name in the App registry table for the Client and Portfolio.
+"""Range Key name used to lookup the app name in the App registry table for the Client and Portfolio.
 
-:value: AppRegex
+Uses regex pattern matching for flexible app name lookups within portfolios.
+Combined with CLIENT_PORTFOLIO_KEY for app identification.
 """
 
 ZONE_KEY = "Zone"
-"""
-Range Key name used to lookup the zone name in the Zone registry table for the Client and Portfolio.
+"""Range Key name used to lookup the zone name in the Zone registry table for the Client and Portfolio.
 
-:value: Zone
+Combined with CLIENT_PORTFOLIO_KEY to identify specific deployment zones.
+Zones represent deployment boundaries with specific AWS accounts and regions.
 """
 
-# Whereas registry fields are in PascalCase, the fields in the Items and Events tables are in snake_case
+# =============================================================================
+# Items Table Fields (snake_case)
+# =============================================================================
+
 NAME = "name"
-"""
-Field name for the name of the object inside the items table.
+"""Field name for the name of the object inside the items table.
 
-:value: name
+Human-readable name for deployment items (portfolios, apps, branches, etc.).
+Used for display purposes and identification in logs and UIs.
 """
 
 CONTACT_EMAIL = "contact_email"
-"""
-Field name for the contact_email field in the Items table.
+"""Field name for the contact_email field in the Items table.
 
-:value: contact_email
+Primary contact email for the deployment item owner or responsible team.
+Used for notifications, alerts, and communication.
 """
 
-# MapAttribute fields
-# These are fields in the items table "core-automation-items"
+# =============================================================================
+# PRN Hierarchy Fields (snake_case)
+# =============================================================================
+
 PARENT_PRN = "parent_prn"
-"""
-Field name for the parent_prn field in the Items table.
+"""Field name for the parent_prn field in the Items table.
 
-:value: parent_prn
+References the PRN of the parent item in the deployment hierarchy.
+Used to build the hierarchical relationship between deployment items.
 """
 
 PORTFOLIO_PRN = "portfolio_prn"
-"""
-Field name for the portfolio_prn field in the Items table.
+"""Field name for the portfolio_prn field in the Items table.
 
-The parent_prn is the item record is the constant value "prn".
-
-:value: portfolio_prn
+References the portfolio that contains this item.
+For portfolio items, this is the same as the PRN itself.
 """
 
 APP_PRN = "app_prn"
-"""
-Field name for the app_prn field in the Items table.
+"""Field name for the app_prn field in the Items table.
 
-An App belongs to a Portfolio. The parent_prn and portfolio_prn are the same.
-
-:value: app_prn
+References the app that contains this item.
+An App belongs to a Portfolio. For app items, parent_prn and portfolio_prn are the same.
 """
 
 BRANCH_PRN = "branch_prn"
-"""
-Field name for the branch_prn field in the Items table.
+"""Field name for the branch_prn field in the Items table.
 
-A Branch belongs to an App. The parent_prn is the app_prn and are the same.
-
-:value: branch_prn
+References the branch that contains this item.
+A Branch belongs to an App. For branch items, parent_prn is the app_prn.
 """
 
 BUILD_PRN = "build_prn"
-"""
-Field name for the build_prn field in the Items table.
+"""Field name for the build_prn field in the Items table.
 
-A Build belongs to a Branch. The parent_prn is the branch_prn and are the same.
-
-:value: build_prn
+References the build that contains this item.
+A Build belongs to a Branch. For build items, parent_prn is the branch_prn.
 """
 
 COMPONENT_PRN = "component_prn"
-"""
-Field name for the component_prn field in the Items table.
+"""Field name for the component_prn field in the Items table.
 
-A Component belongs to a Build. The parent_prn is the build_prn and are the same.
-
-:value: component_prn
+References the component for items that belong to components.
+A Component belongs to a Build. For component items, parent_prn is the build_prn.
 """
+
+# =============================================================================
+# Special Item Fields (snake_case)
+# =============================================================================
 
 SHORT_NAME = "short_name"
-"""
-Field name for the short_name field in the Items table.
+"""Field name for the short_name field in the Items table.
 
 The Branch Short Name is calculated to make it possible to use as an AWS resource ID.
-
-Since your repository branch can be any string you like, this name is generated and
-used as part of Resource ID's.
-
-:value: short_name
+Since repository branch names can contain special characters, this generates
+a sanitized version suitable for AWS resource naming.
 """
 
 RELEASED_BUILD_PRN = "released_build_prn"
-"""
-Field name for the released_build_prn field in the Items table for the Branch records.
+"""Field name for the released_build_prn field in the Items table for the Branch records.
 
-When a build is released, it's expected that the core_api will set the released_build_prn
-on the Branch item record.
-
-:value: released_build_prn
+When a build is released, the core_api sets the released_build_prn on the Branch item record.
+This tracks which build is currently released for the branch.
 """
 
 RELEASED_BUILD = "released_build"
-"""
-Field name for the released_build field in the Items table for the Branch records.
+"""Field name for the released_build field in the Items table for the Branch records.
 
-When a build is released, it's expected that the core_api will set the released_build_prn
-on the Branch item record.
-
-:value: released_build
+When a build is released, the core_api sets the released_build on the Branch item record.
+This contains additional metadata about the released build.
 """
 
-# Fields For build and component releases
+# =============================================================================
+# Event and Status Fields (snake_case)
+# =============================================================================
+
 STATUS = "status"
-"""
-Field name for the status field in the Events table.
+"""Field name for the status field in the Events table.
 
-:value: status
+Indicates the status of deployment events (success, failure, in_progress, etc.).
+Used for tracking deployment progress and health monitoring.
 """
 
-# Date fields
+# =============================================================================
+# Timestamp Fields (snake_case)
+# =============================================================================
+
 UPDATED_AT = "updated_at"
-"""
-Field name for the updated_at date field in both the Items and Events tables.
+"""Field name for the updated_at date field in both the Items and Events tables.
 
-:value: updated_at
+Timestamp indicating when the record was last modified.
+Automatically maintained by the system for audit tracking.
 """
 
 CREATED_AT = "created_at"
-"""
-Field name for the created_at date field in both the Items and Events tables.
+"""Field name for the created_at date field in both the Items and Events tables.
 
-:value: created_at
+Timestamp indicating when the record was first created.
+Set once during record creation and never modified.
 """
 
-# Query tags (for pagination)
+# =============================================================================
+# Query Parameters (snake_case)
+# =============================================================================
+
 EARLIEST_TIME = "earliest_time"
-"""
-Field name for the earliest_time query parameter.
+"""Field name for the earliest_time query parameter.
 
-:value: earliest_time
+Used in time-based queries to specify the start of a time range.
+Typically used for filtering events and items by creation or update time.
 """
 
 LATEST_TIME = "latest_time"
-"""
-Field name for the latest_time query parameter.
+"""Field name for the latest_time query parameter.
 
-:value: latest_time
+Used in time-based queries to specify the end of a time range.
+Combined with earliest_time for comprehensive time range filtering.
 """
 
 DATA_PAGINATOR = "data_paginator"
-"""
-Field name for the data_paginator query parameter.
+"""Field name for the data_paginator query parameter.
 
-:value: data_paginator
+Contains pagination token for continuing queries across multiple pages.
+Used with DynamoDB's LastEvaluatedKey for efficient result pagination.
 """
 
 SORT = "sort"
-"""
-Field name for the sort query parameter.
+"""Field name for the sort query parameter.
 
-:value: sort
+Specifies the field to sort results by in queries.
+Combined with ASCENDING parameter to control sort direction.
 """
 
 LIMIT = "limit"
-"""
-Field name for the limit query parameter.
+"""Field name for the limit query parameter.
 
-:value: limit
+Specifies the maximum number of items to return in a single query.
+Used for pagination and performance optimization.
 """
 
 ASCENDING = "ascending"
-"""
-Field name for the ascending query parameter.
+"""Field name for the ascending query parameter.
 
-:value: ascending
+Boolean flag controlling sort direction when SORT parameter is specified.
+True for ascending order, False for descending order.
+"""
+
+# =============================================================================
+# Table Names
+# =============================================================================
+
+PROFILES = "profiles"
+"""Name of the Profiles table in the database.
+
+Table containing user and system configuration profiles.
+Used for storing user preferences, system settings, and configuration templates.
 """

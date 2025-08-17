@@ -1,159 +1,89 @@
-"""This module contains the actions list, get, create, delete, update for the Items.Component object in core-automation-items"""
+"""Component item management actions for the core-automation-items DynamoDB table.
 
-import core_framework as util
+This module provides CRUD operations for component items in the Configuration Management Database (CMDB).
+Component items represent the actual AWS resources deployed as part of a build, serving as the leaf nodes
+in the deployment hierarchy and enabling complete infrastructure traceability.
 
-from ...exceptions import BadRequestException
+The ComponentActions class extends ItemTableActions to provide component-specific CRUD operations
+while inheriting common item management functionality.
+"""
+
 from ...response import Response
-from ...constants import (
-    PRN,
-    APP_PRN,
-    BRANCH_PRN,
-    BUILD_PRN,
-    PORTFOLIO_PRN,
-    COMPONENT_PRN,
-    ITEM_TYPE,
-)
-
 from ..actions import ItemTableActions
-
-from .models import ComponentModelFactory
+from .models import ComponentItem
 
 
 class ComponentActions(ItemTableActions):
-    """Class container for Component Item specific validations and actions"""
+    """Implements CRUD operations for component items in the CMDB.
 
-    @classmethod
-    def get_item_model(cls):
-        """
-        Get the ItemModel for Component
+    This class provides component-specific item management functionality by extending
+    the base ItemTableActions class. Component items represent individual AWS resources
+    like EC2 instances, S3 buckets, RDS databases, Lambda functions, etc.
 
-        Returns:
-            ItemModel: The ItemModel for Component
-        """
-        return ComponentModelFactory.get_model(util.get_client())
-
-    @classmethod
-    def validate_prn(cls, prn: str) -> str:
-        """
-        Override the class validate_prn method to validate the Component PRN
-
-        Args:
-            prn (str): The component PRN to validate
-
-        Raises:
-            BadRequestException: If the prn is not a component prn
-
-        Returns:
-            str: The PRN provided
-        """
-        if not util.validate_component_prn(prn):
-            raise BadRequestException(f"Invalid component_prn: {prn}")
-        return prn
-
-    @classmethod
-    def create(cls, **kwargs) -> Response:
-        """
-        Create a Component Item in the core-automation-items database
-
-        Args:
-            **kwargs: The fields required to create a component
-                * prn: The Component PRN
-                * component_prn: The Component PRN
-                * name: The Component Name
-                * branch_prn: The Branch PRN
-                * app_prn: The App PRN
-                * portfolio_prn: The Portfolio PRN
-                * build_prn: The Build PRN
-
-        Raises:
-            BadRequestException: If data is missing
-
-        Returns:
-            Response: Response object with data of the component item that was created
-        """
-        # Component Fields
-        component_prn = kwargs.pop(PRN, kwargs.pop(COMPONENT_PRN, None))
-        if not component_prn:
-            component_prn = util.generate_component_prn(kwargs)
-
-        kwargs[PRN] = cls.validate_prn(component_prn)
-        kwargs[ITEM_TYPE] = util.constants.SCOPE_COMPONENT
-
-        # Build PRN Reference
-        build_prn = kwargs.get(BUILD_PRN, None)
-        if not build_prn:
-            build_prn = util.extract_build_prn(kwargs)
-        if not util.validate_build_prn(build_prn):
-            raise BadRequestException(f"Invalid build_prn: {build_prn}")
-        kwargs[BUILD_PRN] = build_prn
-
-        # Branch PRN reference
-        branch_prn = kwargs.get(BRANCH_PRN, None)
-        if not branch_prn:
-            branch_prn = util.extract_branch_prn(kwargs)
-        if not util.validate_branch_prn(branch_prn):
-            raise BadRequestException(f"Invalid branch_prn: {branch_prn}")
-        kwargs[BRANCH_PRN] = branch_prn
-
-        # App PRN reference
-        app_prn = kwargs.get(APP_PRN, None)
-        if not app_prn:
-            app_prn = util.extract_app_prn(kwargs)
-        if not util.validate_app_prn(app_prn):
-            raise BadRequestException(f"Invalid app_prn: {app_prn}")
-        kwargs[APP_PRN] = app_prn
-
-        # Portfolio PRN Reference
-        portfolio_prn = kwargs.get(PORTFOLIO_PRN, None)
-        if not portfolio_prn:
-            portfolio_prn = util.extract_portfolio_prn(kwargs)
-        if not util.validate_portfolio_prn(portfolio_prn):
-            raise BadRequestException(f"Invalid portfolio_prn: {portfolio_prn}")
-        kwargs[PORTFOLIO_PRN] = portfolio_prn
-
-        return super().create(**kwargs)
-
-    @classmethod
-    def update(cls, **kwargs) -> Response:
-        """
-        Update an existing component item
-
-        Args:
-            **kwargs: The fields required to update a component
-                * prn: The Component PRN
-                * component_prn: The Component PRN
-                * name: The Component Name
-                * branch_prn: The Branch PRN
-                * app_prn: The App PRN
-                * portfolio_prn: The Portfolio PRN
-                * build_prn: The Build
-        Raises:
-            BadRequestException: If data is missing
-
-        Returns:
-            Response: Response object with the component item that was updated
-        """
-        component_prn = kwargs.get(PRN, kwargs.get(COMPONENT_PRN, None))
-        if not component_prn:
-            raise BadRequestException("Component PRN is required to update a component")
-
-        return super().update(**kwargs)
+    All methods delegate to the parent class with ComponentItem as the record type,
+    ensuring consistent behavior across all item types while maintaining
+    component-specific validation and processing.
+    """
 
     @classmethod
     def list(cls, **kwargs) -> Response:
-        """
-        List Component Items by specifying the build_prn in the query parameters
+        """List component items with optional filtering and pagination.
 
         Args:
-            **kwargs: The fields required to list Items. (ignored for component lists)
-                * build_prn: The Build PRN that this component belongs to
+            **kwargs: Query parameters including parent_prn, pagination options,
+                     and time-based filtering criteria.
 
         Returns:
-            Response: Resposne object with the list of component items
+            Response: SuccessResponse containing list of component items and pagination metadata.
         """
+        return super().list(record_type=ComponentItem, **kwargs)
 
-        build_prn = kwargs.get(BUILD_PRN, None)
-        if not build_prn:
-            build_prn = util.extract_build_prn(kwargs)
+    @classmethod
+    def get(cls, **kwargs) -> Response:
+        """Retrieve a specific component item by PRN.
 
-        return super().list(parent_prn=build_prn, **kwargs)
+        Args:
+            **kwargs: Parameters including prn or component_prn to identify the component item.
+
+        Returns:
+            Response: SuccessResponse containing the component item data.
+        """
+        return super().get(record_type=ComponentItem, **kwargs)
+
+    @classmethod
+    def create(cls, **kwargs) -> Response:
+        """Create a new component item in the CMDB.
+
+        Args:
+            **kwargs: Component item attributes including name, component_type, build_prn,
+                     and other component-specific fields.
+
+        Returns:
+            Response: SuccessResponse containing the created component item data.
+        """
+        return super().create(record_type=ComponentItem, **kwargs)
+
+    @classmethod
+    def update(cls, **kwargs) -> Response:
+        """Update an existing component item using PUT semantics.
+
+        Args:
+            **kwargs: Component item attributes to update, including prn to identify
+                     the item and fields to modify.
+
+        Returns:
+            Response: SuccessResponse containing the updated component item data.
+        """
+        return super().update(record_type=ComponentItem, **kwargs)
+
+    @classmethod
+    def delete(cls, **kwargs) -> Response:
+        """Delete a component item from the CMDB.
+
+        Args:
+            **kwargs: Parameters including prn or component_prn to identify the component item to delete.
+
+        Returns:
+            Response: SuccessResponse with confirmation of the deletion.
+        """
+        return super().delete(record_type=ComponentItem, **kwargs)

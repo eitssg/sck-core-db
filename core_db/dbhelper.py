@@ -1,8 +1,43 @@
-"""A set of helper functions that write and update item records status values in the DB
+"""A set of helper functions that write and update item records status values in the DB.
 
-THe class also provides a mapping of names to classes to allow for the development of
+The class also provides a mapping of names to classes to allow for the development of
 a single interface to the DB for all the different types of items that can be stored in the DB.
 
+This module serves as a high-level abstraction layer over the core-db table actions,
+providing simplified functions for common database operations like status updates,
+item registration, and event creation.
+
+Functions:
+    update_status: Updates the status of a PRN in the database
+    update_item: Add or update an item in the database
+    register_item: Creates a new item in the database
+
+Action Routing:
+    The module includes an action routing dictionary that maps action prefixes to their
+    corresponding TableActions implementation classes. This enables dynamic routing
+    of database operations based on the item type or table scope.
+
+Examples:
+    >>> # Update status of a build
+    >>> result = update_status(
+    ...     prn="build:acme:web-services:user-api:main:123",
+    ...     status="success",
+    ...     message="Build completed successfully"
+    ... )
+
+    >>> # Register a new branch
+    >>> result = register_item(
+    ...     prn="branch:acme:web-services:user-api:feature-auth",
+    ...     name="feature-auth",
+    ...     short_name="feature-auth"
+    ... )
+
+    >>> # Update item data
+    >>> result = update_item(
+    ...     prn="component:acme:web-services:user-api:main:123:lambda",
+    ...     status="deployed",
+    ...     component_type="lambda"
+    ... )
 """
 
 from typing import Any
@@ -64,7 +99,7 @@ actions_routes: TableActionType = {
     "item:branch": BranchActions,
     "item:build": BuildActions,
     "item:component": ComponentActions,
-    # Evants and Status
+    # Events and Status
     "event": EventActions,
     # Facts.  Think of Facts as a DB "View" on the registry
     "facts": FactsActions,
@@ -74,60 +109,100 @@ actions_routes: TableActionType = {
     "registry:app": RegAppActions,
     "registry:zone": RegZoneActions,
 }
-""" TableActionType: A dictionary that maps the action prefix to the class that will handle the action
+"""A dictionary that maps the action prefix to the class that will handle the action.
 
-Values are classes that implement the TableActions interface:
+Values are classes that implement the TableActions interface for different table types:
 
-    Items Table or Schema Names:
+**Items Table or Schema Names:**
+- portfolio: Portfolio deployment items
+- app: Application deployment items  
+- branch: Branch deployment items
+- build: Build deployment items
+- component: Component deployment items
 
-        * portfolio
-        * app
-        * branch
-        * build
-        * component
+**Event Table or Schema Names:**
+- event: Deployment events and status updates
 
-    Event Table or Schema Names:
-        * event
+**Registry Table or Schema Names:**
+- registry:client: Client organization registry
+- registry:portfolio: Portfolio configuration registry
+- registry:app: Application configuration registry
+- registry:zone: Zone configuration registry
 
-    Registry Table or Schema Names:
+**Facts View Name:**
+- facts: Database "view" on the registry for consolidated queries
 
-        * registry:client
-        * registry:portfolio
-        * registry:app
-        * registry:zone
+**Action Routing:**
+This name, concatenated with list, get, create, update, delete, will be used to route 
+the action to the correct class.
 
-    Facts View Name:
+Examples:
+    >>> # Portfolio operations
+    >>> actions_routes["portfolio"].list()  # PortfolioActions.list()
+    >>> actions_routes["portfolio"].get()   # PortfolioActions.get()
+    
+    >>> # Registry operations  
+    >>> actions_routes["registry:client"].create()  # RegClientActions.create()
+    >>> actions_routes["registry:zone"].update()    # RegZoneActions.update()
+    
+    >>> # Event operations
+    >>> actions_routes["event"].create()  # EventActions.create()
 
-        * facts
-
-    This name, concatenated with list, get, create, update, delete, will be used to route the action to the correct class.
-
-    For example, to get a list of items from the portfolio table, the action would be:
-
-        * "portfolio:list"  -> PortfolioActions.list()
-        * "portfolio:get"   -> PortfolioActions.get()
-
-    The class must implement the TableActions interface.
-
+Note:
+    The class must implement the TableActions interface to be compatible with this routing system.
 """
 
 
-def update_status(
-    prn: str, status: str, message: str | None = None, details={}
-) -> dict:
-    """
-    Updates the status of a PRN in the DB.
+def update_status(prn: str, status: str, message: str | None = None, details: dict = {}) -> dict:
+    """Updates the status of a PRN in the database.
 
-    :param prn: Pipeline Reference Number.
-    :type prn: str
-    :param status: Status Code from :class:`BuildStatus`.
-    :type status: str
-    :param message: Text Message. Defaults to None.
-    :type message: str or None
-    :param details: Item Details. Defaults to {}.
-    :type details: dict
-    :return: The item's details after the update.
-    :rtype: dict
+    This function performs a comprehensive status update by:
+    1. Logging the status change with structured logging
+    2. Creating an event record in the events table
+    3. Updating the item's status in the items table
+    4. Adding environment information to the details
+
+    Args:
+        prn (str): Pipeline Reference Number identifying the item to update.
+            Must be a valid PRN format (e.g., "build:acme:web-services:user-api:main:123")
+        status (str): Status code from BuildStatus or other status constants.
+            Common values include "success", "failure", "in_progress", "pending"
+        message (str, optional): Text message describing the status change.
+            Defaults to None.
+        details (dict, optional): Additional item details to include with the status.
+            Defaults to empty dict. Environment information is automatically added.
+
+    Returns:
+        dict: Result dictionary containing:
+            - TR_STATUS: "ok" if successful, "error" if failed
+            - TR_RESPONSE: Human-readable response message
+            - MESSAGE: Error message if an exception occurred
+
+    Examples:
+        >>> # Update build status to success
+        >>> result = update_status(
+        ...     prn="build:acme:web-services:user-api:main:123",
+        ...     status="success",
+        ...     message="Build completed successfully",
+        ...     details={"duration": "2m30s", "artifacts": ["lambda.zip"]}
+        ... )
+        >>> print(result)
+        {'TR_STATUS': 'ok', 'TR_RESPONSE': 'Status updated'}
+
+        >>> # Update component deployment status
+        >>> result = update_status(
+        ...     prn="component:acme:web-services:user-api:main:123:lambda",
+        ...     status="deployed",
+        ...     message="Lambda function deployed to production"
+        ... )
+
+        >>> # Update with failure status
+        >>> result = update_status(
+        ...     prn="build:acme:web-services:user-api:main:124",
+        ...     status="failure",
+        ...     message="Build failed due to test failures",
+        ...     details={"failed_tests": 3, "error_log": "tests/output.log"}
+        ... )
     """
     environment = os.getenv(ENV_ENVIRONMENT)
 
@@ -152,16 +227,63 @@ def update_status(
 
 
 def update_item(prn: str, **kwargs) -> dict:
-    """
-    Add or update an item in the DB.
+    """Add or update an item in the database.
 
-    :param prn: The Pipeline Reference Number.
-    :type prn: str
-    :param kwargs: The item details.
-    :type kwargs: dict
-    :raises ValueError: If the data is invalid.
-    :return: The item after it has been updated/saved.
-    :rtype: dict
+    This function updates an existing item or creates a new one if it doesn't exist.
+    The appropriate table action class is determined from the PRN scope, and the
+    update operation is delegated to that class.
+
+    Args:
+        prn (str): The Pipeline Reference Number identifying the item.
+            Must be a valid PRN format that can be parsed to determine scope
+        **kwargs: The item details to update. Available fields depend on the item type:
+            - status (str): Current status of the item
+            - name (str): Display name of the item
+            - contact_email (str): Contact email for the item owner
+            - Additional fields specific to the item type
+
+    Returns:
+        dict: The response from the update operation, typically containing:
+            - TR_STATUS: "ok" if successful, "error" if failed
+            - TR_RESPONSE: Human-readable response message
+            - data: The updated item data (if successful)
+            - MESSAGE: Error message (if failed)
+
+    Raises:
+        ValueError: If the PRN format is invalid or the scope cannot be determined
+        ValueError: If the PRN scope is not supported by any registered action class
+
+    Examples:
+        >>> # Update a portfolio item
+        >>> result = update_item(
+        ...     prn="portfolio:acme:web-services",
+        ...     status="active",
+        ...     name="Web Services Portfolio",
+        ...     contact_email="devops@acme.com"
+        ... )
+
+        >>> # Update a build with deployment info
+        >>> result = update_item(
+        ...     prn="build:acme:web-services:user-api:main:123",
+        ...     status="deployed",
+        ...     deployed_at="2025-01-01T12:00:00Z",
+        ...     version="1.2.3"
+        ... )
+
+        >>> # Update component configuration
+        >>> result = update_item(
+        ...     prn="component:acme:web-services:user-api:main:123:lambda",
+        ...     status="configured",
+        ...     component_type="lambda",
+        ...     runtime="python3.9"
+        ... )
+
+        >>> # Check result
+        >>> if result["TR_STATUS"] == "ok":
+        ...     print("Item updated successfully")
+        ...     updated_data = result.get("data", {})
+        ... else:
+        ...     print(f"Update failed: {result.get('MESSAGE')}")
     """
     try:
         scope = util.get_prn_scope(prn)
@@ -188,18 +310,87 @@ def update_item(prn: str, **kwargs) -> dict:
 
 
 def register_item(prn: str, name: str, **kwargs) -> dict:
-    """
-    Creates a new item in the DB.
+    """Creates a new item in the database.
 
-    :param prn: The Pipeline Reference Number.
-    :type prn: str
-    :param name: The Name of the item.
-    :type name: str
-    :param kwargs: Additional item data.
-    :type kwargs: dict
-    :raises ValueError: If the item data is invalid.
-    :return: The item after it has been created.
-    :rtype: dict
+    This function registers a new deployment item based on the PRN scope. It automatically
+    sets up the hierarchical relationships (parent_prn, app_prn, etc.) based on the PRN
+    format and item type.
+
+    Args:
+        prn (str): The Pipeline Reference Number for the new item.
+            Must be a valid PRN format that indicates the item type and hierarchy
+        name (str): The display name of the item.
+            Human-readable name for identification in UIs and logs
+        **kwargs: Additional item data specific to the item type:
+            - component_type (str): Required for component items (e.g., "lambda", "api")
+            - status (str): Initial status of the item
+            - contact_email (str): Contact email for the item owner
+            - Additional fields as supported by the item type
+
+    Returns:
+        dict: The response from the creation operation, containing:
+            - TR_STATUS: "ok" if successful, "error" if failed
+            - TR_RESPONSE: Human-readable response message
+            - data: The created item data (if successful)
+            - MESSAGE: Error message (if failed)
+
+    Raises:
+        ValueError: If the PRN format is invalid or scope cannot be determined
+        ValueError: If the scope is not supported (must be branch, build, or component)
+        ValueError: If required fields are missing (e.g., component_type for components)
+
+    Note:
+        **Supported Scopes:**
+        - **branch**: Creates a branch item with app_prn reference
+        - **build**: Creates a build item with branch_prn reference
+        - **component**: Creates a component item with build_prn reference (requires component_type)
+
+        **Automatic Relationships:**
+        The function automatically sets up parent relationships:
+        - Branch: Sets app_prn from first 3 PRN segments
+        - Build: Sets branch_prn from first 4 PRN segments
+        - Component: Sets build_prn from first 5 PRN segments
+
+    Examples:
+        >>> # Register a new branch
+        >>> result = register_item(
+        ...     prn="branch:acme:web-services:user-api:feature-auth",
+        ...     name="feature-auth",
+        ...     short_name="feature-auth",
+        ...     status="active"
+        ... )
+
+        >>> # Register a new build
+        >>> result = register_item(
+        ...     prn="build:acme:web-services:user-api:main:125",
+        ...     name="Build #125",
+        ...     status="building",
+        ...     commit_sha="abc123def456"
+        ... )
+
+        >>> # Register a new component
+        >>> result = register_item(
+        ...     prn="component:acme:web-services:user-api:main:125:lambda",
+        ...     name="User API Lambda",
+        ...     component_type="lambda",
+        ...     status="pending"
+        ... )
+
+        >>> # Check registration result
+        >>> if result["TR_STATUS"] == "ok":
+        ...     print("Item registered successfully")
+        ...     item_data = result.get("data", {})
+        ... else:
+        ...     print(f"Registration failed: {result.get('MESSAGE')}")
+
+        >>> # Register with additional metadata
+        >>> result = register_item(
+        ...     prn="component:acme:web-services:user-api:main:125:api",
+        ...     name="User API Gateway",
+        ...     component_type="api",
+        ...     contact_email="api-team@acme.com",
+        ...     runtime="nodejs18.x"
+        ... )
     """
     try:
         scope = util.get_prn_scope(prn)
@@ -217,17 +408,13 @@ def register_item(prn: str, name: str, **kwargs) -> dict:
                 "component_type": kwargs["component_type"],
             }
         else:
-            raise ValueError(
-                f"Unsupported SCOPE '{scope}'. Must be branch, build or component"
-            )
+            raise ValueError(f"Unsupported SCOPE '{scope}'. Must be branch, build or component")
 
         if kwargs:
             data = {**data, **kwargs}
 
-        # Register the branch (may not be required)
-        log.debug(
-            f"(API) registering {scope} '{prn}' {kwargs.get(STATUS, '')}", identity=prn
-        )
+        # Register the item (may not be required if it already exists)
+        log.debug(f"(API) registering {scope} '{prn}' {kwargs.get(STATUS, '')}", identity=prn)
 
         klazz = actions_routes.get(scope)
         if not klazz:
@@ -237,9 +424,7 @@ def register_item(prn: str, name: str, **kwargs) -> dict:
         result = klazz.create(**data)
 
         if result.status != OK:
-            log.error(
-                f"Failed to register item '{prn}':", details=result.data, identity=prn
-            )
+            log.error(f"Failed to register item '{prn}':", details=result.data, identity=prn)
 
         return result.model_dump()
 
@@ -253,17 +438,26 @@ def register_item(prn: str, name: str, **kwargs) -> dict:
 
 
 def __api_update_status(prn: str, status: str, message: str | None = None) -> dict:
-    """
-    Internal helper to update the status of an item via the API.
+    """Internal helper to update the status of an item via the API.
 
-    :param prn: Pipeline Reference Number.
-    :type prn: str
-    :param status: Status Code.
-    :type status: str
-    :param message: Optional message.
-    :type message: str or None
-    :return: The result of the update.
-    :rtype: dict
+    This is a private function used internally by update_status() to handle the
+    actual item status update in the database.
+
+    Args:
+        prn (str): Pipeline Reference Number identifying the item
+        status (str): Status code to set on the item
+        message (str, optional): Optional status message. Defaults to None.
+
+    Returns:
+        dict: The result of the update operation containing TR_STATUS and TR_RESPONSE
+
+    Examples:
+        >>> # This is an internal function, typically called by update_status()
+        >>> result = __api_update_status(
+        ...     prn="build:acme:web-services:user-api:main:123",
+        ...     status="success",
+        ...     message="Build completed"
+        ... )
     """
     try:
         scope = util.get_prn_scope(prn)
@@ -288,9 +482,7 @@ def __api_update_status(prn: str, status: str, message: str | None = None) -> di
         result = klazz.update(**data)
 
         if result.status != OK:
-            log.error(
-                f"Failed to update status of '{prn}': {result.data}", identity=prn
-            )
+            log.error(f"Failed to update status of '{prn}': {result.data}", identity=prn)
 
         return result.model_dump()
 
@@ -304,17 +496,26 @@ def __api_update_status(prn: str, status: str, message: str | None = None) -> di
 
 
 def __api_put_event(prn: str, status: str, message: str | None = None) -> dict:
-    """
-    Internal helper to create a new event in the DB via the API.
+    """Internal helper to create a new event in the database via the API.
 
-    :param prn: Pipeline Reference Number.
-    :type prn: str
-    :param status: Status Code.
-    :type status: str
-    :param message: Optional message.
-    :type message: str or None
-    :return: The result of the event creation.
-    :rtype: dict
+    This is a private function used internally by update_status() to create
+    an event record in the events table for audit and monitoring purposes.
+
+    Args:
+        prn (str): Pipeline Reference Number for the event
+        status (str): Status code for the event
+        message (str, optional): Optional event message. Defaults to None.
+
+    Returns:
+        dict: The result of the event creation containing TR_STATUS and TR_RESPONSE
+
+    Examples:
+        >>> # This is an internal function, typically called by update_status()
+        >>> result = __api_put_event(
+        ...     prn="build:acme:web-services:user-api:main:123",
+        ...     status="success",
+        ...     message="Build completed successfully"
+        ... )
     """
     try:
         log.debug(f"(API) New event: {prn} - {status} - {message}", identity=prn)
@@ -326,14 +527,11 @@ def __api_put_event(prn: str, status: str, message: str | None = None) -> dict:
         result = klazz.create(**data)
 
         if result.status != OK:
-            log.error(
-                f"Failed to create event '{prn}':", details=result.data, identity=prn
-            )
+            log.error(f"Failed to create event '{prn}':", details=result.data, identity=prn)
 
         return result.model_dump()
 
     except Exception as e:
-
         log.error(f"Failed to create event '{prn}'", identity=prn)
         return {
             TR_STATUS: ERROR,

@@ -1,102 +1,209 @@
-"""
-This module contains the actions list, get, create, delete, update for the Items.App object in core-automation-items
-"""
+"""App item management actions for the core-automation-items DynamoDB table.
 
-import core_framework as util
+This module provides CRUD operations for app items in the Configuration Management Database (CMDB).
+App items represent functional components or modules within a portfolio, serving as containers
+for branches and their associated builds.
 
-from ...constants import (
-    PRN,
-    APP_PRN,
-    PORTFOLIO_PRN,
-    CONTACT_EMAIL,
-    ITEM_TYPE,
-    NAME,
-)
+The AppActions class extends ItemTableActions to provide app-specific CRUD operations
+while inheriting common item management functionality.
+"""
 
 from ...response import Response
-from ...exceptions import BadRequestException
 from ..actions import ItemTableActions
-from .models import AppModelFactory
+from .models import AppItem
 
 
 class AppActions(ItemTableActions):
-    """Class container for App Item specific validations and actions"""
+    """Convenience wrapper for app-specific CRUD operations in the CMDB.
 
-    @classmethod
-    def get_item_model(cls):
-        """
-        Get the ItemModel for App
+    This class provides a type-safe interface for app item management by automatically
+    injecting the AppItem type into the parent ItemTableActions methods. App items
+    represent functional components or modules within a portfolio, serving as organizational
+    containers for branches and their associated builds.
 
-        Returns:
-            ItemModel: The ItemModel for App
-        """
-        return AppModelFactory.get_model(util.get_client())
-
-    @classmethod
-    def validate_prn(cls, prn: str) -> str:
-        if not util.validate_app_prn(prn):
-            raise BadRequestException(f"Invalid app_prn: {prn}")
-        return prn
-
-    @classmethod
-    def create(cls, **kwargs) -> Response:
-        """
-        Create a App Item in the core-automation-items database
-
-        Args:
-            **kwargs: The fields required to create an app
-                * prn: The App PRN
-                * app_prn: The App PRN
-                * name: The App Name
-                * contact_email: The App Contact Email
-                * portfolio_prn: The Portfolio PRN
-
-        Raises:
-            BadRequestException: If field values are missing
-
-        Returns:
-            Response: Response data with the app item that was created
-        """
-        # Application PRN
-        app_prn = kwargs.pop(PRN, kwargs.pop(APP_PRN, None))
-        if not app_prn:
-            app_prn = util.generate_app_prn(kwargs)
-
-        kwargs[PRN] = cls.validate_prn(app_prn)
-        kwargs[ITEM_TYPE] = util.constants.SCOPE_APP
-
-        if NAME not in kwargs:
-            raise BadRequestException("The field 'name' is required to create an app")
-
-        # Portfolio PRN reference
-        portfolio_prn = kwargs.get(PORTFOLIO_PRN)
-        if not portfolio_prn:
-            portfolio_prn = util.generate_portfolio_prn(kwargs)
-        if not util.validate_portfolio_prn(portfolio_prn):
-            raise BadRequestException(f"Invalid portfolio_prn: {portfolio_prn}")
-        kwargs[PORTFOLIO_PRN] = portfolio_prn
-
-        if CONTACT_EMAIL not in kwargs:
-            raise BadRequestException("contact_email is required to create an app")
-
-        return super().create(**kwargs)
+    All methods are convenience wrappers that delegate to the parent class with AppItem
+    as the record type, ensuring type safety and reducing the chance of using incorrect item types.
+    """
 
     @classmethod
     def list(cls, **kwargs) -> Response:
-        """
-        Return a list of apps by specifying the portfolio_prn in the query parameters
+        """List app items with optional filtering and pagination.
+
+        Convenience method that automatically uses AppItem type.
 
         Args:
-            **kwargs: The fields required to list Items. (ignored for app lists)
-                * portfolio_prn: The Portfolio PRN taht this app belongs to
+            **kwargs: Query parameters including:
+                - client (str): Client identifier for table isolation
+                - prn (str, optional): Specific app PRN to query
+                - parent_prn (str, optional): Portfolio PRN to filter apps by portfolio
+                - limit (int, optional): Maximum number of items to return
+                - cursor (str, optional): Pagination cursor for next page
+                - earliest_time (datetime, optional): Filter by creation date range
+                - latest_time (datetime, optional): Filter by creation date range
+                - sort_forward (bool, optional): Sort order (default: True)
 
         Returns:
-            Response: SuccessResponse or FaiureResponse
+            Response: SuccessResponse with structure:
+                - data (List[Dict]): List of app item dictionaries, each containing:
+                    - prn (str): App PRN
+                    - parent_prn (str): Portfolio PRN
+                    - portfolio_prn (str): Portfolio PRN (same as parent_prn)
+                    - item_type (str): "app"
+                    - name (str): App name
+                    - contact_email (str): Contact email
+                    - metadata (dict): App metadata including description, tags, etc.
+                    - created_at (str): ISO timestamp
+                    - updated_at (str): ISO timestamp
+                - metadata (Dict): Pagination information containing:
+                    - cursor (str): Cursor token for next page (if more results exist)
+                    - total_count (int): Total number of items returned in this page
         """
-        portfolio_prn = kwargs.get(PORTFOLIO_PRN, None)
-        if not portfolio_prn:
-            portfolio_prn = util.extract_portfolio_prn(kwargs)
-        if not util.validate_portfolio_prn(portfolio_prn):
-            raise BadRequestException(f"Invalid portfolio prn: {portfolio_prn}")
+        return super().list(record_type=AppItem, **kwargs)
 
-        return super().list(parent_prn=portfolio_prn, **kwargs)
+    @classmethod
+    def get(cls, **kwargs) -> Response:
+        """Retrieve a specific app item by PRN.
+
+        Convenience method that automatically uses AppItem type.
+
+        Args:
+            **kwargs: Parameters including:
+                - client (str): Client identifier for table isolation
+                - prn (str): App PRN to retrieve (e.g., "prn:ecommerce-platform:user-service")
+
+        Returns:
+            Response: SuccessResponse with structure:
+                - data (Dict): Single app item dictionary containing:
+                    - prn (str): App PRN
+                    - parent_prn (str): Portfolio PRN
+                    - portfolio_prn (str): Portfolio PRN (same as parent_prn)
+                    - item_type (str): "app"
+                    - name (str): App name
+                    - contact_email (str): Contact email
+                    - metadata (dict): App metadata including description, tags, etc.
+                    - created_at (str): ISO timestamp
+                    - updated_at (str): ISO timestamp
+
+        Raises:
+            NotFoundException: If the app item does not exist
+            BadRequestException: If required parameters are missing
+        """
+        return super().get(record_type=AppItem, **kwargs)
+
+    @classmethod
+    def create(cls, **kwargs) -> Response:
+        """Create a new app item in the CMDB.
+
+        Convenience method that automatically uses AppItem type.
+
+        Args:
+            **kwargs: App item attributes including:
+                - client (str): Client identifier for table isolation
+                - portfolio (str): Portfolio name (used for PRN generation)
+                - name (str): App name (used for PRN generation)
+                - contact_email (str): Primary contact email for the app
+                - metadata (dict, optional): Additional app information including:
+                    - description (str): App description
+                    - repository_url (str): Source code repository URL
+                    - tags (dict): Key-value pairs for tagging
+                    - Any other custom metadata fields
+
+        Returns:
+            Response: SuccessResponse with structure:
+                - data (Dict): Created app item dictionary containing:
+                    - prn (str): Generated app PRN (e.g., "prn:portfolio:app-name")
+                    - parent_prn (str): Portfolio PRN this app belongs to
+                    - portfolio_prn (str): Portfolio PRN (same as parent_prn)
+                    - item_type (str): "app"
+                    - name (str): App name
+                    - contact_email (str): Contact email
+                    - metadata (dict): App metadata
+                    - created_at (str): ISO timestamp of creation
+                    - updated_at (str): ISO timestamp of last update
+
+        Raises:
+            BadRequestException: If required fields are missing or invalid
+            ConflictException: If app with same PRN already exists
+        """
+        return super().create(record_type=AppItem, **kwargs)
+
+    @classmethod
+    def update(cls, **kwargs) -> Response:
+        """Update an existing app item using PUT semantics (full replacement).
+
+        Convenience method that automatically uses AppItem type.
+
+        Args:
+            **kwargs: App item attributes including:
+                - client (str): Client identifier for table isolation
+                - prn (str): App PRN to update
+                - contact_email (str): Updated contact email
+                - metadata (dict, optional): Updated metadata (replaces existing)
+                - Any other updatable app fields
+
+        Returns:
+            Response: SuccessResponse with structure:
+                - data (Dict): Updated app item dictionary with all current values
+
+        Raises:
+            NotFoundException: If the app item does not exist
+            BadRequestException: If required parameters are missing
+
+        Note:
+            This is a full replacement operation. All updatable fields should be provided.
+            Use patch() for partial updates.
+        """
+        return super().update(record_type=AppItem, **kwargs)
+
+    @classmethod
+    def delete(cls, **kwargs) -> Response:
+        """Delete an app item from the CMDB.
+
+        Convenience method that automatically uses AppItem type.
+
+        Args:
+            **kwargs: Parameters including:
+                - client (str): Client identifier for table isolation
+                - prn (str): App PRN to delete
+
+        Returns:
+            Response: SuccessResponse with structure:
+                - data (Dict): Confirmation containing deleted item information
+
+        Raises:
+            NotFoundException: If the app item does not exist
+            BadRequestException: If required parameters are missing
+
+        Warning:
+            Deleting an app may affect child items (branches, builds, components).
+            Ensure proper cleanup of dependent resources before deletion.
+        """
+        return super().delete(record_type=AppItem, **kwargs)
+
+    @classmethod
+    def patch(cls, **kwargs) -> Response:
+        """Partially update an app item using PATCH semantics.
+
+        Convenience method that automatically uses AppItem type.
+
+        Args:
+            **kwargs: App item attributes to modify including:
+                - client (str): Client identifier for table isolation
+                - prn (str): App PRN to update
+                - contact_email (str, optional): New contact email
+                - metadata (dict, optional): Metadata fields to merge/update
+                - Any other updatable app fields
+
+        Returns:
+            Response: SuccessResponse with structure:
+                - data (Dict): Updated app item dictionary with merged values
+
+        Raises:
+            NotFoundException: If the app item does not exist
+            BadRequestException: If required parameters are missing
+
+        Note:
+            This performs a partial update, merging provided fields with existing data.
+            Only specified fields will be updated.
+        """
+        return super().patch(record_type=AppItem, **kwargs)

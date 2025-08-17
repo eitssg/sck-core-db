@@ -1,87 +1,32 @@
-"""Defines a common registry class model for all Registry items"""
+"""Base registry model for consistent serialization across all registry items.
 
-import re
-from pynamodb.models import Model
-from pynamodb.attributes import MapAttribute
+This module provides the RegistryFact base class that extends DatabaseRecord with
+registry-specific serialization behavior. All registry facts (Client, Portfolio, Zone, App)
+inherit from this class to ensure uniform PascalCase API output and DynamoDB compatibility.
 
-import core_framework as util
+Key Features:
+    - **PascalCase Serialization**: Default API output uses PascalCase field names
+    - **DynamoDB Compatibility**: Matches DynamoDB attribute naming conventions
+    - **Consistent Behavior**: Uniform serialization across all registry endpoints
+    - **Flexible Options**: Supports snake_case output when needed
+"""
 
-
-class RegistryModel(Model):
-    """Common Top-Level Registry Model as a pynamodb Model"""
-
-    class Meta:
-        """
-        Meta class for RegistryModel.
-
-        This class can be extended by specific registry models to define
-        region, host, and other PynamoDB model settings.
-        """
-
-        # Default region and host can be set here if needed
-        region = util.get_dynamodb_region()
-        host = util.get_dynamodb_host()
-        read_capacity_units = 1
-        write_capacity_units = 1
-
-    # Pre-compile regex pattern to avoid recompilation on every call
-    _KEY_SPLIT_PATTERN = re.compile(r"[-_]")
-
-    def __init__(self, *args, **kwargs):
-        # Convert snake_case and kebab-case keys to PascalCase keys
-        kwargs = self.convert_keys(**kwargs)
-        super().__init__(*args, **kwargs)
-
-    def convert_keys(self, **kwargs) -> dict:
-        # Convert snake_case and kebab-case keys to PascalCase keys
-        if not kwargs:
-            return kwargs
-        attributes = self.get_attributes()
-        return {
-            self._convert_key_with_attrs(k, attributes): v for k, v in kwargs.items()
-        }
-
-    def _convert_key_with_attrs(self, key: str, attributes: dict) -> str:
-        # Convert snake_case and kebab-case keys to PascalCase keys
-        if hasattr(self, key) or key in attributes:
-            return key
-        words = self._KEY_SPLIT_PATTERN.split(key)
-        return "".join(word.capitalize() for word in words)
-
-    def _convert_key(self, key):
-        # Legacy method - for backward compatibility
-        attributes = self.get_attributes()
-        return self._convert_key_with_attrs(key, attributes)
+from ..models import DatabaseRecord
 
 
-class ExtendedMapAttribute(MapAttribute):
-    """Convert Keys to PascalCase in MapAttributes"""
+class RegistryFact(DatabaseRecord):
+    """Base class for all registry fact models with consistent PascalCase serialization.
 
-    # Add the same compiled regex pattern
-    _KEY_SPLIT_PATTERN = re.compile(r"[-_]")
+    Extends DatabaseRecord to provide uniform API behavior across all registry items.
+    Inherits model_dump behavior that uses PascalCase aliases by default, matching DynamoDB
+    attribute naming while allowing Python snake_case field names.
 
-    def __init__(self, *args, **kwargs):
-        # Convert snake_case and kebab-case keys to PascalCase keys
-        kwargs = self.convert_keys(**kwargs)
-        super().__init__(*args, **kwargs)
+    Attributes:
+        Inherits all attributes from DatabaseRecord including created_at and updated_at timestamps.
 
-    def convert_keys(self, **kwargs) -> dict:
-        # Convert snake_case and kebab-case keys to PascalCase keys
-        if not kwargs:
-            return kwargs
-        attributes = self.get_attributes()
-        return {
-            self._convert_key_with_attrs(k, attributes): v for k, v in kwargs.items()
-        }
+    Note:
+        Uses dual naming convention: snake_case for Python code, PascalCase for APIs/DynamoDB.
+        Inherits serialization with by_alias=True and exclude_none=True for consistent output.
+    """
 
-    def _convert_key_with_attrs(self, key: str, attributes: dict) -> str:
-        # Convert snake_case and kebab-case keys to PascalCase keys
-        if hasattr(self, key) or key in attributes:
-            return key
-        words = self._KEY_SPLIT_PATTERN.split(key)
-        return "".join(word.capitalize() for word in words)
-
-    def _convert_key(self, key):
-        # Legacy method
-        attributes = self.get_attributes()
-        return self._convert_key_with_attrs(key, attributes)
+    pass
