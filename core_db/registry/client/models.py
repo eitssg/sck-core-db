@@ -320,88 +320,141 @@ class ClientFact(DatabaseRecord):
         >>> db_model = client.to_model("global")
     """
 
-    client: str = Field(..., alias="Client", description="Client ID or slug as the unique identifier for the client organization")
-
+    client: str = Field(
+        ...,
+        alias="Client",
+        description="Client ID or slug as the unique identifier for the client organization",
+    )
     # Core Client Fields with PascalCase aliases
     client_id: Optional[str] = Field(
-        None, alias="ClientId", description="Alternative client identifier for external system integration"
+        None,
+        alias="ClientId",
+        description="Alternative client identifier for external system integration",
     )
-    client_type: Optional[str] = Field(None, alias="ClientType", description="Type classification of the client organization")
-    client_status: Optional[str] = Field(None, alias="ClientStatus", description="Current operational status of the client")
+    client_type: Optional[str] = Field(
+        None,
+        alias="ClientType",
+        description="Type classification of the client organization",
+    )
+    client_status: Optional[str] = Field(
+        None,
+        alias="ClientStatus",
+        description="Current operational status of the client",
+    )
     client_description: Optional[str] = Field(
-        None, alias="ClientDescription", description="Detailed description of the client organization and its purpose"
+        None,
+        alias="ClientDescription",
+        description="Detailed description of the client organization and its purpose",
     )
-
     # Client Identification
     client_name: Optional[str] = Field(
-        None, alias="ClientName", description="Human-readable client organization name for display purposes"
+        None,
+        alias="ClientName",
+        description="Human-readable client organization name for display purposes",
     )
-
     # AWS Organization Configuration
     organization_id: Optional[str] = Field(
-        None, alias="OrganizationId", description="AWS Organization ID for the client's AWS Organization structure"
+        None,
+        alias="OrganizationId",
+        description="AWS Organization ID for the client's AWS Organization structure",
     )
     organization_name: Optional[str] = Field(
-        None, alias="OrganizationName", description="AWS Organization name as configured in AWS Organizations service"
+        None,
+        alias="OrganizationName",
+        description="AWS Organization name as configured in AWS Organizations service",
     )
     organization_account: Optional[str] = Field(
-        None, alias="OrganizationAccount", description="AWS account number for the organization root account"
+        None,
+        alias="OrganizationAccount",
+        description="AWS account number for the organization root account",
     )
     organization_email: Optional[str] = Field(
-        None, alias="OrganizationEmail", description="Email address associated with the organization root account"
+        None,
+        alias="OrganizationEmail",
+        description="Email address associated with the organization root account",
     )
-
     # Domain and Networking
-    domain: Optional[str] = Field(None, alias="Domain", description="Primary domain name for the organization's web presence")
-
+    domain: Optional[str] = Field(
+        None,
+        alias="Domain",
+        description="Primary domain name for the organization's web presence",
+    )
     # AWS Account Assignments
     iam_account: Optional[str] = Field(
-        None, alias="IamAccount", description="AWS account number where centralized IAM roles and policies are stored"
+        None,
+        alias="IamAccount",
+        description="AWS account number where centralized IAM roles and policies are stored",
     )
     audit_account: Optional[str] = Field(
-        None, alias="AuditAccount", description="AWS account number for centralized logging and audit trail storage"
+        None,
+        alias="AuditAccount",
+        description="AWS account number for centralized logging and audit trail storage",
     )
     automation_account: Optional[str] = Field(
-        None, alias="AutomationAccount", description="AWS account number where automation artifacts and resources are stored"
+        None,
+        alias="AutomationAccount",
+        description="AWS account number where automation artifacts and resources are stored",
     )
     security_account: Optional[str] = Field(
-        None, alias="SecurityAccount", description="AWS account number for centralized security operations center"
+        None,
+        alias="SecurityAccount",
+        description="AWS account number for centralized security operations center",
     )
     network_account: Optional[str] = Field(
-        None, alias="NetworkAccount", description="AWS account number for centralized VPCs, DNS, and network services"
+        None,
+        alias="NetworkAccount",
+        description="AWS account number for centralized VPCs, DNS, and network services",
     )
 
     # Regional Configuration
     master_region: Optional[str] = Field(
-        None, alias="MasterRegion", description="Primary AWS region where Core Automation control plane is deployed"
+        None,
+        alias="MasterRegion",
+        description="Primary AWS region where Core Automation control plane is deployed",
     )
     client_region: Optional[str] = Field(
-        None, alias="ClientRegion", description="Default AWS region for client operations when region is not specified"
+        None,
+        alias="ClientRegion",
+        description="Default AWS region for client operations when region is not specified",
     )
     bucket_region: Optional[str] = Field(
-        None, alias="BucketRegion", description="AWS region where the primary automation bucket is located"
+        None,
+        alias="BucketRegion",
+        description="AWS region where the primary automation bucket is located",
     )
 
     # S3 Bucket Configuration
     bucket_name: Optional[str] = Field(
-        None, alias="BucketName", description="Primary S3 bucket name for automation artifacts and deployment packages"
+        None,
+        alias="BucketName",
+        description="Primary S3 bucket name for automation artifacts and deployment packages",
     )
     docs_bucket_name: Optional[str] = Field(
-        None, alias="DocsBucketName", description="S3 bucket name for storing generated documentation and reports"
+        None,
+        alias="DocsBucketName",
+        description="S3 bucket name for storing generated documentation and reports",
     )
     artefact_bucket_name: Optional[str] = Field(
-        None, alias="ArtefactBucketName", description="S3 bucket name for storing deployment artifacts and build outputs"
+        None,
+        alias="ArtefactBucketName",
+        description="S3 bucket name for storing deployment artifacts and build outputs",
     )
     ui_bucket_name: Optional[str] = Field(
-        None, alias="UiBucketName", description="S3 bucket name for hosting the Core Automation web interface"
+        None,
+        alias="UiBucketName",
+        description="S3 bucket name for hosting the Core Automation web interface",
     )
     ui_bucket: Optional[str] = Field(
-        None, alias="UiBucket", description="Alternative S3 bucket name for UI hosting (legacy field, deprecated)"
+        None,
+        alias="UiBucket",
+        description="Alternative S3 bucket name for UI hosting (legacy field, deprecated)",
     )
 
     # Resource Naming
     scope: Optional[str] = Field(
-        None, alias="Scope", description="Resource name prefix for all automation-created resources to ensure uniqueness"
+        None,
+        alias="Scope",
+        description="Resource name prefix for all automation-created resources to ensure uniqueness",
     )
 
     @classmethod
