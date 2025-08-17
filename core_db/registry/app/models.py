@@ -28,7 +28,6 @@ class AppFactsModel(DatabaseTable):
         region (str): AWS region where the app is deployed
         repository (str, optional): Git repository URL for the app source code
         enforce_validation (str, optional): Flag to enforce validation rules for the app
-        user_instantiated (str, optional): Internal field indicating user instantiation
         image_aliases (dict, optional): Image aliases to reduce bake time for deployments
         tags (dict, optional): Tags to apply to AWS resources created for this app
         metadata (dict, optional): Additional metadata for the app configuration
@@ -79,7 +78,6 @@ class AppFactsModel(DatabaseTable):
     region = UnicodeAttribute(null=False, attr_name="Region")
     repository = UnicodeAttribute(null=True, attr_name="Repository")
     enforce_validation = UnicodeAttribute(null=True, attr_name="EnforceValidation")
-    user_instantiated = UnicodeAttribute(null=True, attr_name="UserInstantiated")
 
     # Complex Attributes
     image_aliases = MapAttribute(null=True, attr_name="ImageAliases")
@@ -209,7 +207,6 @@ class AppFact(DatabaseRecord):
         region (str): AWS region where the app is deployed (required)
         repository (str, optional): Git repository URL for the app source code
         enforce_validation (str, optional): Flag to enforce validation rules for the app
-        user_instantiated (str, optional): Internal field indicating user instantiation
         image_aliases (dict, optional): Image aliases to reduce bake time for deployments
         tags (dict, optional): Tags to apply to AWS resources created for this app
         metadata (dict, optional): Additional metadata for the app configuration
@@ -286,11 +283,6 @@ class AppFact(DatabaseRecord):
         None,
         alias="EnforceValidation",
         description="Flag to enforce validation rules for the app",
-    )
-    user_instantiated: Optional[str] = Field(
-        None,
-        alias="UserInstantiated",
-        description="Internal field indicating user instantiation",
     )
     # Complex Configuration Fields
     image_aliases: Optional[Dict[str, str]] = Field(
