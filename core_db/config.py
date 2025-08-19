@@ -165,6 +165,8 @@ def get_table_name(model: type, client: str = None, default: Optional[str] = Non
     tables = {
         # Client Facts is the base tenant registration table (no "client" prefix)
         "ClientFactsModel": f"{prefix}{V_CORE_AUTOMATION}-clients",
+        # OAuth Authorizations Table
+        "AuthorizationsModel": f"{prefix}{V_CORE_AUTOMATION}-authorizations",
         # AWS Account(s) and zone names
         "ZoneFactsModel": f"{prefix}{client}-{V_CORE_AUTOMATION}-zones",
         # Portfolio BizApps / Deployment App targets

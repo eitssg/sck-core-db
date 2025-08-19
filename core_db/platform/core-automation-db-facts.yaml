@@ -1,5 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: AWS::DynamoDB::Table - core-automation-api-app - resources
+
 Parameters:
   Scope:
     Type: String
@@ -8,7 +9,7 @@ Parameters:
 
   Client:
     Type: String
-    Default: "eits"
+    Default: "core"
     AllowedPattern: "^[a-z]+$"
 
   Portfolio:
@@ -30,10 +31,6 @@ Parameters:
     Type: String
     Default: "prod"
 
-  ClientsTableName:
-    Type: String
-    Default: core-automation-clients
-
   PortfoliosTableName:
     Type: String
     Default: core-automation-portfolios
@@ -52,30 +49,6 @@ Resources:
     Metadata:
       Build:
         Ref: Build
-
-  ChangeClientsLogGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName:
-        Fn::Sub: "/aws/lambda/${Scope}core-automation-change-clients-lambda"
-      RetentionInDays: 1
-      Tags:
-        - Key: Name
-          Value: !Sub "${Scope}core-automation-change-events-clients-lambda"
-        - Key: Scope
-          Value: !Ref Scope
-        - Key: Client
-          Value: !Ref Client
-        - Key: Environment
-          Value: !Ref Environment
-        - Key: Portfolio
-          Value: !Ref Portfolio
-        - Key: App
-          Value: !Ref App
-        - Key: Branch
-          Value: !Ref Branch
-        - Key: Build
-          Value: !Ref Build
 
   ChangePortfoliosLogGroup:
     Type: AWS::Logs::LogGroup
@@ -151,7 +124,6 @@ Resources:
   LambdaExecutionRole:
     Type: AWS::IAM::Role
     DependsOn:
-      - ChangeClientsLogGroup
       - ChangePortfoliosLogGroup
       - ChangeAppsLogGroup
       - ChangeZonesLogGroup
@@ -181,9 +153,6 @@ Resources:
                   - dynamodb:ListStreams
                 Resource:
                   - Fn::GetAtt:
-                      - ClientsTable
-                      - Arn
-                  - Fn::GetAtt:
                       - PortfoliosTable
                       - Arn
                   - Fn::GetAtt:
@@ -192,9 +161,6 @@ Resources:
                   - Fn::GetAtt:
                       - ZonesTable
                       - Arn
-                  - Fn::GetAtt:
-                      - ClientsTable
-                      - StreamArn
                   - Fn::GetAtt:
                       - PortfoliosTable
                       - StreamArn
@@ -210,7 +176,6 @@ Resources:
                   - logs:CreateLogStream
                   - logs:PutLogEvents
                 Resource:
-                  - Fn::Sub: 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${Scope}core-automation-change-clients-lambda:*'
                   - Fn::Sub: 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${Scope}core-automation-change-portfolios-lambda:*'
                   - Fn::Sub: 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${Scope}core-automation-change-apps-lambda:*'
                   - Fn::Sub: 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${Scope}core-automation-change-zones-lambda:*'
@@ -218,100 +183,6 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub "${Scope}CoreAutomationFactsLambdaExecutionRole"
-        - Key: Scope
-          Value: !Ref Scope
-        - Key: Client
-          Value: !Ref Client
-        - Key: Environment
-          Value: !Ref Environment
-        - Key: Portfolio
-          Value: !Ref Portfolio
-        - Key: App
-          Value: !Ref App
-        - Key: Branch
-          Value: !Ref Branch
-        - Key: Build
-          Value: !Ref Build
-
-  ChangeClientsLambda:
-    Type: AWS::Lambda::Function
-    DependsOn:
-      - LambdaExecutionRole
-      - ChangeClientsLogGroup
-    Properties:
-      FunctionName: !Sub "${Scope}core-automation-change-clients-lambda"
-      Handler: index.handler
-      Role:
-        Fn::GetAtt:
-          - LambdaExecutionRole
-          - Arn
-      Code:
-        ZipFile: |
-          import json
-          import boto3
-          import os
-          from boto3.dynamodb.conditions import Attr
-
-          def handler(event, context):
-              dynamodb = boto3.resource('dynamodb')
-
-              # When removing clients, we need to remove the Portfolios for the client
-
-              portfolios_table = dynamodb.Table(os.environ['PORTFOLIOS_TABLE'])
-
-              log_level = os.environ.get('LOG_LEVEL', 'ERROR').upper()
-
-              try:
-                  count = 0
-                  for record in event['Records']:
-                      if record['eventName'] == 'REMOVE':
-                          client = record['dynamodb']['OldImage']['client']['S']
-
-                          response = portfolios_table.scan(
-                              FilterExpression=Attr('Client').eq(client)
-                          )
-
-                          for item in response['Items']:
-                              portfolio = item['Portfolio']
-                              portfolios_table.delete_item(
-                                  Key={
-                                      'Client': client,
-                                      'Portfolio': portfolio
-                                  }
-                              )
-                              count += 1
-                              if log_level == 'INFO':
-                                  print(f'SUCCESS: client [{client}], portfolio [{portfolio}] deleted')
-
-                          count += 1
-                          if log_level == 'INFO':
-                              print(f'SUCCESS: [{client}] deleted')
-
-                  print(f'SUCCESS: {count} records deleted')
-                  return {
-                      'statusCode': 200,
-                      'body': json.dumps(f'Success: {count} records deleted')
-                  }
-              except Exception as e:
-                  print(f'ERROR: {str(e)}')
-                  return {
-                      'statusCode': 500,
-                      'body': json.dumps(f'Error: {str(e)}')
-                  }
-      Runtime: python3.12
-      Timeout: 30
-      Environment:
-        Variables:
-          CLIENTS_TABLE:
-            Ref: ClientsTableName
-          PORTFOLIOS_TABLE:
-            Ref: PortfoliosTableName
-          LOG_LEVEL: INFO
-      LoggingConfig:
-        LogGroup: !Sub "/aws/lambda/${Scope}core-automation-change-clients-lambda"
-      Tags:
-        - Key: Name
-          Value: !Sub "${Scope}core-automation-change-clients-lambda"
         - Key: Scope
           Value: !Ref Scope
         - Key: Client
@@ -341,77 +212,7 @@ Resources:
           - Arn
       Code:
         ZipFile: |
-          import json
-          import boto3
-          import os
-          from boto3.dynamodb.conditions import Attr
-
-          def handler(event, context):
-              dynamodb = boto3.resource('dynamodb')
-
-              # When removing portfolios, we need to remove apps and zones for the portfolio
-
-              apps_table = dynamodb.Table(os.environ['APPS_TABLE'])
-              zones_table = dynamodb.Table(os.environ['ZONES_TABLE'])
-
-              log_level = os.environ.get('LOG_LEVEL', 'ERROR').upper()
-
-              try:
-                  count = 0
-                  for record in event['Records']:
-                      if record['eventName'] == 'REMOVE':
-                          client = record['dynamodb']['OldImage']['Client']['S']
-                          portfolio = record['dynamodb']['OldImage']['Portfolio']['S']
-
-                          portfolio_facts = f'{client}:{portfolio}'
-
-                          response = apps_table.scan(
-                              FilterExpression=Attr('ClientPortfolio').eq(portfolio_facts)
-                          )
-
-                          for item in response['Items']:
-                              app_regex = item['AppRegex']
-                              apps_table.delete_item(
-                                  Key={
-                                      'ClientPortfolio': portfolio_facts,
-                                      'AppRegex': app_regex
-                                  }
-                              )
-                              count += 1
-                              if log_level == 'INFO':
-                                  print(f'SUCCESS: [{portfolio_facts}], AppRegex [{app_regex}] deleted')
-
-                          response = zones_table.scan(
-                              FilterExpression=Attr('ClientPortfolio').eq(portfolio_facts)
-                          )
-
-                          for item in response['Items']:
-                              zone = item['Zone']
-                              zones_table.delete_item(
-                                  Key={
-                                      'ClientPortfolio': portfolio_facts,
-                                      'Zone': zone
-                                  }
-                              )
-                              count += 1
-                              if log_level == 'INFO':
-                                  print(f'SUCCESS: [{portfolio_facts}], zone [{zone}] deleted')
-
-                          count += 1
-                          if log_level == 'INFO':
-                              print(f'SUCCESS: [{portfolio_facts}] deleted')
-
-                  print(f'SUCCESS: {count} records deleted')
-                  return {
-                      'statusCode': 200,
-                      'body': json.dumps(f'Success: {len(event["Records"])} events deleted')  # Should be {count}
-                  }
-              except Exception as e:
-                  print(f'ERROR: {str(e)}')
-                  return {
-                      'statusCode': 500,
-                      'body': json.dumps(f'Error: {str(e)}')
-                  }
+         {{ read_file("portfolio_lambda.py") | indent(12) }}
       Runtime: python3.12
       Timeout: 30
       Environment:
@@ -457,40 +258,7 @@ Resources:
           - Arn
       Code:
         ZipFile: |
-          import json
-          import boto3
-          import os
-          from boto3.dynamodb.conditions import Attr
-
-          def handler(event, context):
-              dynamodb = boto3.resource('dynamodb')
-
-              # Apps are not referenced in other FACTS, so, nothing to do yet
-
-              log_level = os.environ.get('LOG_LEVEL', 'ERROR').upper()
-
-              try:
-                  count = 0
-                  for record in event['Records']:
-                      if record['eventName'] == 'REMOVE':
-                          portfolio_facts = record['dynamodb']['OldImage']['ClientPortfolio']['S']
-                          app_regex = record['dynamodb']['OldImage']['AppRegex']['S']
-
-                          count += 1
-                          if log_level == 'INFO':
-                              print(f'SUCCESS: [{portfolio_facts}], app: [{app_regex}] deleted')
-
-                  print(f'SUCCESS: {count} records deleted')
-                  return {
-                      'statusCode': 200,
-                      'body': json.dumps(f'Success: {count} records deleted')
-                  }
-              except Exception as e:
-                  print(f'ERROR: {str(e)}')
-                  return {
-                      'statusCode': 500,
-                      'body': json.dumps(f'Error: {str(e)}')
-                  }
+          {{ read_file("apps_lambda.py") | indent(12) }}
       Runtime: python3.12
       Timeout: 30
       Environment:
@@ -533,40 +301,7 @@ Resources:
       Runtime: python3.12
       Code:
         ZipFile: |
-          import json
-          import boto3
-          import os
-          from boto3.dynamodb.conditions import Attr
-
-          def handler(event, context):
-              dynamodb = boto3.resource('dynamodb')
-
-              log_level = os.environ.get('LOG_LEVEL', 'ERROR').upper()
-
-              # Zones are not referenced in other FACTS, so, nothing to do yet
-
-              try:
-                  count = 0
-                  for record in event['Records']:
-                      if record['eventName'] == 'REMOVE':
-                          portfolio_facts = record['dynamodb']['OldImage']['ClientPortfolio']['S']
-                          zone = record['dynamodb']['OldImage']['Zone']['S']
-
-                          count += 1
-                          if log_level == 'INFO':
-                              print(f'SUCCESS: [{portfolio_facts}], zone: [{zone}] deleted')
-
-                  print(f'SUCCESS: {count} records deleted')
-                  return {
-                      'statusCode': 200,
-                      'body': json.dumps(f'Success: {count} records deleted')
-                  }
-              except Exception as e:
-                  print(f'ERROR: {str(e)}')
-                  return {
-                      'statusCode': 500,
-                      'body': json.dumps(f'Error: {str(e)}')
-                  }
+          {{ read_file("zones_lambda.py") | indent(12) }}
       Timeout: 30
       Environment:
         Variables:
@@ -592,20 +327,6 @@ Resources:
           Value: !Ref Branch
         - Key: Build
           Value: !Ref Build
-
-  ClientsTableStream:
-    Type: AWS::Lambda::EventSourceMapping
-    Properties:
-      BatchSize: 100
-      EventSourceArn:
-        Fn::GetAtt:
-          - ClientsTable
-          - StreamArn
-      FunctionName:
-        Fn::GetAtt:
-          - ChangeClientsLambda
-          - Arn
-      StartingPosition: LATEST
 
   PortfoliosTableStream:
     Type: AWS::Lambda::EventSourceMapping
@@ -649,53 +370,16 @@ Resources:
           - Arn
       StartingPosition: LATEST
 
-  ClientsTable:
-    Type: AWS::DynamoDB::Table
-    Properties:
-      AttributeDefinitions:
-        - AttributeName: Client
-          AttributeType: S
-      BillingMode: PAY_PER_REQUEST
-      KeySchema:
-        - AttributeName: Client
-          KeyType: HASH
-      TableName:
-        Ref: ClientsTableName
-      StreamSpecification:
-        StreamViewType: OLD_IMAGE
-      GlobalSecondaryIndexes: []
-      Tags:
-        - Key: Name
-          Value: !Ref ClientsTableName
-        - Key: Scope
-          Value: !Ref Scope
-        - Key: Client
-          Value: !Ref Client
-        - Key: Environment
-          Value: !Ref Environment
-        - Key: Portfolio
-          Value: !Ref Portfolio
-        - Key: App
-          Value: !Ref App
-        - Key: Branch
-          Value: !Ref Branch
-        - Key: Build
-          Value: !Ref Build
-
   PortfoliosTable:
     Type: AWS::DynamoDB::Table
     Properties:
       AttributeDefinitions:
-        - AttributeName: Client
-          AttributeType: S
         - AttributeName: Portfolio
           AttributeType: S
       BillingMode: PAY_PER_REQUEST
       KeySchema:
-        - AttributeName: Client
-          KeyType: HASH
         - AttributeName: Portfolio
-          KeyType: RANGE
+          KeyType: HASH
       TableName:
         Ref: PortfoliosTableName
       StreamSpecification:
@@ -794,20 +478,7 @@ Resources:
           Value: !Ref Build
 
 Outputs:
-  ClientsTableArn:
-    Value:
-      Fn::GetAtt:
-        - ClientsTable
-        - Arn
-    Export:
-      Name: !Sub "${Scope}CoreAutomationClientsTableArn"
-
-  ClientsTableName:
-    Value:
-      Ref: ClientsTableName
-    Export:
-      Name: !Sub "${Scope}CoreAutomationClientsTableName"
-
+  
   PortfoliosTableArn:
     Value:
       Fn::GetAtt:

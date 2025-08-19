@@ -1,0 +1,200 @@
+# deploy a stack for the dynamodb
+#
+# Table 1 - core-automation-authorizations
+#           Authorization codes for oauth server (used) in local mode
+# Table 2 - core-automation-clients
+#           Master 'clients' or 'aws organizations' data (landing zones definition)
+# Table 3 - core-automation-profiles
+#           Manages user profiles for the CLI and GUI applications
+
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Core Automation core platform DB resources
+
+Parameters:
+  Scope:
+    Type: String
+    Default: ''
+    AllowedPattern: '^([a-z]+-)*$'
+
+  Client:
+    Type: String
+    Default: "core"
+    AllowedPattern: "^[a-z]+$"
+
+  Portfolio:
+    Type: String
+    Default: "automation"
+
+  App:
+    Type: String
+    Default: "core-db"
+
+  Branch:
+    Type: String
+    Default: "main"
+
+  Build:
+    Type: String
+
+  Environment:
+    Type: String
+    Default: "prod"
+
+  ClientsTableName:
+    Type: String
+    Default: core-automation-clients
+
+  ProfilesTableName:
+    Type: String
+    Default: core-automation-profiles
+
+  AuthenticationsTableName:
+    Type: String
+    Default: core-automation-apps
+
+Resources:
+  DummyResource:
+    Type: AWS::CloudFormation::WaitConditionHandle
+    Metadata:
+      Build:
+        Ref: Build
+
+  ClientsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        - AttributeName: Client
+          AttributeType: S
+      BillingMode: PAY_PER_REQUEST
+      KeySchema:
+        - AttributeName: Client
+          KeyType: HASH
+      TableName:
+        Ref: ClientsTableName
+      GlobalSecondaryIndexes: []
+      Tags:
+        - Key: Name
+          Value: !Ref ClientsTableName
+        - Key: Scope
+          Value: !Ref Scope
+        - Key: Client
+          Value: !Ref Client
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Portfolio
+          Value: !Ref Portfolio
+        - Key: App
+          Value: !Ref App
+        - Key: Branch
+          Value: !Ref Branch
+        - Key: Build
+          Value: !Ref Build
+
+  ProfilessTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        - AttributeName: UserId
+          AttributeType: S
+        - AttributeName: ProfileName
+          AttributeType: S
+      BillingMode: PAY_PER_REQUEST
+      KeySchema:
+        - AttributeName: UserId
+          KeyType: HASH
+        - AttributeName: ProfileName
+          KeyType: RANGE
+      TableName:
+        Ref: Profiles`TableName
+      GlobalSecondaryIndexes: []
+      Tags:
+        - Key: Name
+          Value: !Ref ProfilesTableName
+        - Key: Scope
+          Value: !Ref Scope
+        - Key: Client
+          Value: !Ref Client
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Portfolio
+          Value: !Ref Portfolio
+        - Key: App
+          Value: !Ref App
+        - Key: Branch
+          Value: !Ref Branch
+        - Key: Build
+          Value: !Ref Build
+
+  AuthorizationsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        - AttributeName: Code
+          AttributeType: S
+      BillingMode: PAY_PER_REQUEST
+      KeySchema:
+        - AttributeName: Code
+          KeyType: HASH
+      TableName:
+        Ref: AuthenticationsTableName
+      GlobalSecondaryIndexes: []
+      Tags:
+        - Key: Name
+          Value: !Ref AuthenticationsTableName
+        - Key: Scope
+          Value: !Ref Scope
+        - Key: Client
+          Value: !Ref Client
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Portfolio
+          Value: !Ref Portfolio
+        - Key: App
+          Value: !Ref App
+        - Key: Branch
+          Value: !Ref Branch
+        - Key: Build
+          Value: !Ref Build
+
+Outputs:
+  ClientsTableArn:
+    Value:
+      Fn::GetAtt:
+        - ClientsTable
+        - Arn
+    Export:
+      Name: !Sub "${Scope}CoreAutomationClientsTableArn"
+
+  ClientsTableName:
+      Value:
+      Ref: ClientsTableName
+    Export:
+      Name: !Sub "${Scope}CoreAutomationClientsTableName"
+
+  ProfilesTableArn:
+    Value:
+      Fn::GetAtt:
+        - ProfilesTable
+        - Arn
+    Export:
+      Name: !Sub "${Scope}CoreAutomationProfilesTableArn"
+
+  ProfilesTableName:
+      Value:
+      Ref:ProfilesTableName
+    Export:
+      Name: !Sub "${Scope}CoreAutomationProfilesTableName"
+
+  AuthorizationsTableArn:
+    Value:
+      Fn::GetAtt:
+        - AuthorizationsTable
+        - Arn
+    Export:
+      Name: !Sub "${Scope}CoreAutomationAuthorizationsTableArn"
+
+  ProfilesTableName:
+      Value:
+      Ref:ProfilesTableName
+    Export:
+      Name: !Sub "${Scope}CoreAutomationAuthorizationsTableName"

@@ -1,7 +1,12 @@
-- core-autmation-api-facts-deploy:
-  type: create-stack
+- version: v1
+  kind: create-stack
+  metadata:
+    name: core-autmation-api-facts-deploy
+    namespace: core
   scope: branch
   params:
+    account: {{ acccount }}
+    region: {{ region }}
     stack_name: {{ scope }}core-automation-api-facts-{{ branch }}
     template: core-automation-api-facts.yaml
     parameters:
@@ -15,13 +20,16 @@
       App: {{ app }}
       Branch: {{ branch }}
       Build: {{ build }}
-    account: {{ acccount }}
-    region: {{ region }}
   depends_on: []
-- core-automation-api-items-deploy:
-  type: create-stack
+- verions: v1
+  kind: create-stack
+  metadata:
+    name: core-automation-api-items-deploy
+    namespace: core
   scope: branch
   params:
+    account: {{ acccount }}
+    region: {{ region }}
     stack_name: core-automation-api-items-{{ branch }}
     template: core-automation-api-items.yaml
     parameters:
@@ -33,13 +41,16 @@
       App: {{ app }}
       Branch: {{ branch }}
       Build: {{ build }}
-    account: {{ acccount }}
-    region: {{ region }}
   depends_on: []
-- core-automation-api-roles-deploy:
-  type: create-stack
+- version: v1
+  kind: create-stack
+  metadata:
+    name: core-automation-api-roles-deploy
+    namespace: core
   scope: branch
   params:
+    account: {{ acccount }}
+    region: {{ region }}
     stack_name: {{ scope }}core-automation-api-roles-{{ branch }}
     template: core-automation-api-roles.yaml
     parameters:
@@ -53,6 +64,4 @@
       App: {{ app }}
       Branch: {{ branch }}
       Build: {{ build }}
-    account: {{ acccount }}
-    region: {{ region }}
   depends_on: [core-autmation-api-facts-deploy]
