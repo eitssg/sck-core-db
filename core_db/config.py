@@ -163,10 +163,14 @@ def get_table_name(model: type, client: str = None, default: Optional[str] = Non
 
     # The key of this table is the model class name
     tables = {
-        # Client Facts is the base tenant registration table (no "client" prefix)
-        "ClientFactsModel": f"{prefix}{V_CORE_AUTOMATION}-clients",
         # OAuth Authorizations Table
-        "AuthorizationsModel": f"{prefix}{V_CORE_AUTOMATION}-authorizations",
+        "AuthorizationsModel": f"{prefix}core-{V_CORE_AUTOMATION}-oauth",
+        # OAuth Rate Limits Table
+        "RateLimitsModel": f"{prefix}core-{V_CORE_AUTOMATION}-oauth",
+        # Client Facts is the base tenant registration table (no "client" prefix)
+        "ClientFactsModel": f"{prefix}core-{V_CORE_AUTOMATION}-clients",
+        # Profiles for user-defined configurations
+        "ProfileModel": f"{prefix}{client}-{V_CORE_AUTOMATION}-profiles",
         # AWS Account(s) and zone names
         "ZoneFactsModel": f"{prefix}{client}-{V_CORE_AUTOMATION}-zones",
         # Portfolio BizApps / Deployment App targets
@@ -187,8 +191,6 @@ def get_table_name(model: type, client: str = None, default: Optional[str] = Non
         "ComponentModel": f"{prefix}{client}-{V_CORE_AUTOMATION}-items",
         # All the events that are generated during deployment
         "EventModel": f"{prefix}{client}-{V_CORE_AUTOMATION}-events",
-        # Profiles for user-defined configurations
-        "ProfileModel": f"{prefix}{client}-{V_CORE_AUTOMATION}-profiles",
     }
 
     # We may also want to first check if an environment variable is set

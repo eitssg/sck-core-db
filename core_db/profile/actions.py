@@ -101,7 +101,7 @@ class ProfileActions(TableActions):
             - Table scan used for general listing with optional active filter
             - Pagination tokens encode composite key (user_id:profile_name)
         """
-        client = kwargs.get("client") or util.get_client()
+        client = kwargs.get("client", kwargs.get("Client")) or util.get_client()
         if not client:
             raise BadRequestException("Client parameter is required to list profiles")
 
@@ -165,7 +165,7 @@ class ProfileActions(TableActions):
             - Inactive profiles filtered out unless include_inactive="true"
             - Uses composite key queries for efficient retrieval
         """
-        client = kwargs.get("client") or util.get_client()
+        client = kwargs.get("client", kwargs.get("Client")) or util.get_client()
         if not client:
             raise BadRequestException("Client parameter is required to retrieve profiles")
 
@@ -189,7 +189,7 @@ class ProfileActions(TableActions):
     @classmethod
     def create(cls, **kwargs) -> Response:
 
-        client = kwargs.get("client") or util.get_client()
+        client = kwargs.get("client", kwargs.get("Client")) or util.get_client()
         if not client:
             raise BadRequestException("Client parameter is required to create profile")
 
@@ -198,11 +198,9 @@ class ProfileActions(TableActions):
         except ValueError as e:
             raise BadRequestException(f"Invalid profile data: {str(e)}") from e
 
-        model_class = UserProfile.model_class(client)
-
         try:
             item = data.to_model(client)
-            item.save(model_class.user_id.does_not_exist() & model_class.profile_name.does_not_exist())
+            item.save(type(item).user_id.does_not_exist() & type(item).profile_name.does_not_exist())
             return SuccessResponse(data=data.model_dump(mode="json"))
         except Exception as e:
             # Check if it's a conditional check failure (profile already exists)
@@ -223,7 +221,7 @@ class ProfileActions(TableActions):
     @classmethod
     def delete(cls, **kwargs) -> Response:
 
-        client = kwargs.get("client") or util.get_client()
+        client = kwargs.get("client", kwargs.get("Client")) or util.get_client()
         if not client:
             raise BadRequestException("Client parameter is required to delete profile")
 

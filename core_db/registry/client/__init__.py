@@ -242,7 +242,7 @@ Note:
     Client changes may affect related portfolios, applications, and deployments.
 """
 
-from .models import ClientFactsModel, ClientFactsFactory
+from .models import ClientFact
 from .actions import ClientActions
 
-__all__ = ["ClientFactsModel", "ClientActions", "ClientFactsFactory"]
+__all__ = ["ClientFact", "ClientActions"]

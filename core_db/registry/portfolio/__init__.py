@@ -334,22 +334,7 @@ Note:
     multi-tenant operations and team collaboration.
 """
 
-from .models import (
-    PortfolioFactsModel,
-    ContactFacts,
-    ApproverFacts,
-    OwnerFacts,
-    ProjectFacts,
-    PortfolioFactsFactory,
-)
+from .models import PortfolioFact
 from .actions import PortfolioActions
 
-__all__ = [
-    "PortfolioFactsModel",
-    "ContactFacts",
-    "ApproverFacts",
-    "OwnerFacts",
-    "ProjectFacts",
-    "PortfolioActions",
-    "PortfolioFactsFactory",
-]
+__all__ = ["PortfolioFact", "PortfolioActions"]

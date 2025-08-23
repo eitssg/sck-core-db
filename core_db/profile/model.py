@@ -119,9 +119,12 @@ class ProfileModel(DatabaseTable):
 
         pass
 
-    # Composite primary key
+    # UserID and Password.  user_pwd is only stored on pfoile 'default'
     user_id = UnicodeAttribute(hash_key=True, attr_name="UserId")
     profile_name = UnicodeAttribute(range_key=True, attr_name="ProfileName", default="default")
+
+    # Encrypted and stored credentials
+    credentials = MapAttribute(attr_name="Credentials", null=True)
 
     # Basic profile information
     email = UnicodeAttribute(attr_name="Email", null=True)
@@ -314,6 +317,12 @@ class UserProfile(DatabaseRecord):
         description="Profile identifier/role name used as range key",
         min_length=1,
         alias="ProfileName",
+    )
+    # Credentials
+    credentials: Optional[dict[str, Any]] = Field(
+        None,
+        alias="Credentials",
+        description="Encrypted credentials for this profile",
     )
     # Basic profile information
     email: Optional[str] = Field(

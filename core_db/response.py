@@ -237,7 +237,7 @@ class Response(BaseModel):
             >>> print(result)  # {"Status": "ok", "Code": 200, "Data": {"test": "value"}}
         """
         # Set default exclude_none=True if not specified
-        kwargs.setdefault("exclude_none", True)
+        kwargs["exclude_none"] = True
         return super().model_dump(**kwargs)
 
     def __repr__(self) -> str:
@@ -649,8 +649,9 @@ class ErrorResponse(Response):
         # Build error chain from exception if not already provided
         if not self.errors and self.exception:
             self.errors = _build_error_chain(self.exception)
-        elif not self.errors:
-            self.errors = []
+
+        if not self.errors:
+            self.errors = None
 
         return self
 

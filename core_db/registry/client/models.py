@@ -18,7 +18,7 @@ import re
 from typing import Optional, Type
 from pydantic import Field
 
-from pynamodb.attributes import UnicodeAttribute
+from pynamodb.attributes import UnicodeAttribute, ListAttribute
 
 from ...models import TableFactory, DatabaseRecord, DatabaseTable
 
@@ -83,10 +83,13 @@ class ClientFactsModel(DatabaseTable):
 
     # Core client metadata
     client_id = UnicodeAttribute(null=True, attr_name="ClientId")
+    client_secret = UnicodeAttribute(null=True, attr_name="ClientSecret")
     client_type = UnicodeAttribute(null=True, attr_name="ClientType")
     client_status = UnicodeAttribute(null=True, attr_name="ClientStatus")
     client_description = UnicodeAttribute(null=True, attr_name="ClientDescription")
     client_name = UnicodeAttribute(null=True, attr_name="ClientName")
+    client_scopes = ListAttribute(UnicodeAttribute(), null=True, attr_name="ClientScopes")
+    client_redirect_urls = ListAttribute(UnicodeAttribute(), null=True, attr_name="ClientRedirectUrls")
 
     # AWS Organization configuration
     organization_id = UnicodeAttribute(null=True, attr_name="OrganizationId")
@@ -331,6 +334,11 @@ class ClientFact(DatabaseRecord):
         alias="ClientId",
         description="Alternative client identifier for external system integration",
     )
+    client_secret: Optional[str] = Field(
+        None,
+        alias="ClientSecret",
+        description="Client secret used for confidential client authentication",
+    )
     client_type: Optional[str] = Field(
         None,
         alias="ClientType",
@@ -351,6 +359,16 @@ class ClientFact(DatabaseRecord):
         None,
         alias="ClientName",
         description="Human-readable client organization name for display purposes",
+    )
+    client_scopes: Optional[list[str]] = Field(
+        None,
+        alias="ClientScopes",
+        description="List of OAuth 2.0 scopes granted to the client",
+    )
+    client_redirect_urls = Field(
+        None,
+        alias="ClientRedirectUrls",
+        description="List of redirect URIs for the client",
     )
     # AWS Organization Configuration
     organization_id: Optional[str] = Field(
@@ -541,6 +559,18 @@ class ClientFact(DatabaseRecord):
         # Remove None values and check if more than one unique account
         accounts.discard(None)
         return len(accounts) > 1
+
+    def model_dump(self, **kwargs) -> dict:
+        """Dump the model fields to a dictionary.
+
+        Returns:
+            dict: Dictionary representation of the model fields
+        """
+        if "exclude" in kwargs:
+            kwargs["exclude"] = set(kwargs["exclude"]) | {"client_secret"}
+        else:
+            kwargs["exclude"] = {"client_secret"}
+        return super().model_dump(by_alias=False, exclude_none=True, **kwargs)
 
     def __repr__(self) -> str:
         """Return a string representation of the ClientFact instance.

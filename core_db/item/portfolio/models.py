@@ -13,7 +13,7 @@ Portfolio items enable logical grouping and management of related services and r
 at the top of the deployment hierarchy: Portfolio -> App -> Branch -> Build -> Component
 """
 
-from typing import Type, Dict, Any, Self
+from typing import Type, Dict, Any
 
 from pynamodb.attributes import UnicodeAttribute
 

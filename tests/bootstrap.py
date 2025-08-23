@@ -8,10 +8,10 @@ import core_framework as util
 
 from core_db.event import EventModelFactory
 from core_db.item.portfolio.models import PortfolioModelFactory
-from core_db.registry.client import ClientFactsFactory
-from core_db.registry.portfolio import PortfolioFactsFactory
-from core_db.registry.app import AppFactsFactory
-from core_db.registry.zone import ZoneFactsFactory
+from core_db.registry.client.models import ClientFactsFactory
+from core_db.registry.portfolio.models import PortfolioFactsFactory
+from core_db.registry.app.models import AppFactsFactory
+from core_db.registry.zone.models import ZoneFactsFactory
 from core_db.profile.model import ProfileModelFactory
 
 import core_logging as log
