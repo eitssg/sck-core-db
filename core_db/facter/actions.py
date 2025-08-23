@@ -64,7 +64,9 @@ class FactsActions(TableActions):
     """
 
     @classmethod
-    def validate_prn_scope(cls, prn: str | None) -> tuple[str | None, str | None, str | None, str | None, str | None]:
+    def validate_prn_scope(
+        cls, prn: str | None
+    ) -> tuple[str | None, str | None, str | None, str | None, str | None]:
         """Validate PRN format and extract scope components.
 
         Validates the provided PRN against the expected format for its scope
@@ -290,7 +292,9 @@ class FactsActions(TableActions):
             raise BadRequestException("Client is required to retrieve Facts")
 
         if not portfolio or not app:
-            raise BadRequestException("Client, portfolio, and app are required in the PRN to retrieve Facts")
+            raise BadRequestException(
+                "Client, portfolio, and app are required in the PRN to retrieve Facts"
+            )
 
         deployment_details = DeploymentDetails(
             Client=client,

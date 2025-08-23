@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from typing import Type, Optional, Dict, Any
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import Field, field_validator
 
 
 from pynamodb.attributes import (
@@ -121,7 +121,9 @@ class ProfileModel(DatabaseTable):
 
     # UserID and Password.  user_pwd is only stored on pfoile 'default'
     user_id = UnicodeAttribute(hash_key=True, attr_name="UserId")
-    profile_name = UnicodeAttribute(range_key=True, attr_name="ProfileName", default="default")
+    profile_name = UnicodeAttribute(
+        range_key=True, attr_name="ProfileName", default="default"
+    )
 
     # Encrypted and stored credentials
     credentials = MapAttribute(attr_name="Credentials", null=True)
@@ -138,7 +140,9 @@ class ProfileModel(DatabaseTable):
     timezone = UnicodeAttribute(attr_name="Timezone", null=True, default="UTC")
     language = UnicodeAttribute(attr_name="Language", null=True, default="en-US")
     theme = UnicodeAttribute(attr_name="Theme", null=True, default="light")
-    notifications_enabled = BooleanAttribute(attr_name="NotificationsEnabled", null=True, default=True)
+    notifications_enabled = BooleanAttribute(
+        attr_name="NotificationsEnabled", null=True, default=True
+    )
 
     # Timestamps (per profile)
     last_login = UTCDateTimeAttribute(attr_name="LastLogin", null=True)
@@ -149,7 +153,9 @@ class ProfileModel(DatabaseTable):
     aws_account_id = UnicodeAttribute(attr_name="AwsAccountId", null=True)
     aws_user_arn = UnicodeAttribute(attr_name="AwsUserArn", null=True)
     access_key_prefix = UnicodeAttribute(attr_name="AccessKeyPrefix", null=True)
-    preferred_region = UnicodeAttribute(attr_name="PreferredRegion", null=True, default="us-east-1")
+    preferred_region = UnicodeAttribute(
+        attr_name="PreferredRegion", null=True, default="us-east-1"
+    )
 
     # Profile-specific attributes
     permissions = MapAttribute(attr_name="Permissions", null=True, default=dict)
@@ -312,6 +318,7 @@ class UserProfile(DatabaseRecord):
         min_length=1,
         alias="UserId",
     )
+    # The name of the profile, e.g. "default", "admin", "user"
     profile_name: str = Field(
         ...,
         description="Profile identifier/role name used as range key",
@@ -330,6 +337,7 @@ class UserProfile(DatabaseRecord):
         description="User's email address for contact and notifications",
         alias="Email",
     )
+    # How you want your name to appear on the browser
     display_name: Optional[str] = Field(
         None,
         description="User's preferred display name shown in UI for this profile",
@@ -392,7 +400,6 @@ class UserProfile(DatabaseRecord):
         alias="UpdatedAt",
         default_factory=lambda: datetime.now(timezone.utc),
     )
-
     # AWS-specific information
     aws_account_id: Optional[str] = Field(
         None,

@@ -30,7 +30,9 @@ def get_table_command(action: str) -> tuple[str, str]:
     return action[:i], action[i + 1 :]
 
 
-@pytest.mark.skip(reason="This test is skipped by default. Enable it if you want to run it.")
+@pytest.mark.skip(
+    reason="This test is skipped by default. Enable it if you want to run it."
+)
 @pytest.mark.parametrize("request_data,expected_result", test_data)
 def test_table_actions(bootstrap_dynamo, request_data, expected_result):
 

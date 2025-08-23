@@ -15,7 +15,10 @@ portfolio_data = {
     "client": client,
     "name": "test-portfolio",
     "contact_email": "test@example.com",
-    "metadata": {"tags": {"environment": "test", "team": "qa"}, "description": "Test portfolio for integration tests"},
+    "metadata": {
+        "tags": {"environment": "test", "team": "qa"},
+        "description": "Test portfolio for integration tests",
+    },
 }
 app_data = {
     "client": client,
@@ -125,7 +128,9 @@ def test_portfolio_items_list():
 
 def test_portfolio_items_update():
     """Update portfolio item - depends on list test."""
-    assert test_data["portfolio"] is not None, "Portfolio create and list tests must run first"
+    assert (
+        test_data["portfolio"] is not None
+    ), "Portfolio create and list tests must run first"
 
     portfolio_prn = "prn:test-portfolio"
 
@@ -145,7 +150,9 @@ def test_portfolio_items_update():
     assert response.data is not None
     assert response.data["contact_email"] == update_data["contact_email"]
     assert response.data["metadata"]["tags"]["updated"] == "true"
-    assert response.data["metadata"]["description"] == "Updated test portfolio description"
+    assert (
+        response.data["metadata"]["description"] == "Updated test portfolio description"
+    )
 
     # Update stored data
     test_data["portfolio"] = response.data
@@ -154,7 +161,9 @@ def test_portfolio_items_update():
 
 def test_portfolio_items_delete():
     """Delete portfolio item - depends on update test."""
-    assert test_data["portfolio"] is not None, "Portfolio create, list, and update tests must run first"
+    assert (
+        test_data["portfolio"] is not None
+    ), "Portfolio create, list, and update tests must run first"
 
     portfolio_prn = "prn:test-portfolio"
 
@@ -231,7 +240,10 @@ def test_app_items_update():
     assert isinstance(response, SuccessResponse)
     assert response.data is not None
     assert response.data["contact_email"] == update_data["contact_email"]
-    assert response.data["metadata"]["description"] == "Updated test application description"
+    assert (
+        response.data["metadata"]["description"]
+        == "Updated test application description"
+    )
     assert response.data["metadata"]["tags"]["updated"] == "true"
 
     # Update stored data
@@ -241,7 +253,9 @@ def test_app_items_update():
 
 def test_app_items_delete():
     """Delete app item - depends on update test."""
-    assert test_data["app"] is not None, "App create, list, and update tests must run first"
+    assert (
+        test_data["app"] is not None
+    ), "App create, list, and update tests must run first"
 
     app_prn = "prn:test-portfolio:test-app"
 
@@ -297,7 +311,9 @@ def test_branch_items_list():
 
 def test_branch_items_update():
     """Update branch item - depends on list test."""
-    assert test_data["branch"] is not None, "Branch create and list tests must run first"
+    assert (
+        test_data["branch"] is not None
+    ), "Branch create and list tests must run first"
 
     branch_prn = "prn:test-portfolio:test-app:main"
 
@@ -321,7 +337,10 @@ def test_branch_items_update():
     assert response.data["metadata"]["description"] == "Updated main branch description"
     assert response.data["metadata"]["tags"]["updated"] == "true"
     # The prn will be normalized as '.' characters are not allowed and replaced with '-'
-    assert response.data["released_build"]["prn"] == "prn:test-portfolio:test-app:main:1-0-0"
+    assert (
+        response.data["released_build"]["prn"]
+        == "prn:test-portfolio:test-app:main:1-0-0"
+    )
 
     # Update stored data
     test_data["branch"] = response.data
@@ -330,7 +349,9 @@ def test_branch_items_update():
 
 def test_branch_items_delete():
     """Delete branch item - depends on update test."""
-    assert test_data["branch"] is not None, "Branch create, list, and update tests must run first"
+    assert (
+        test_data["branch"] is not None
+    ), "Branch create, list, and update tests must run first"
 
     branch_prn = "prn:test-portfolio:test-app:main"
 
@@ -418,7 +439,9 @@ def test_build_items_update():
 
 def test_build_items_delete():
     """Delete build item - depends on update test."""
-    assert test_data["build"] is not None, "Build create, list, and update tests must run first"
+    assert (
+        test_data["build"] is not None
+    ), "Build create, list, and update tests must run first"
 
     build_prn = "prn:test-portfolio:test-app:main:1-0-0"
 
@@ -475,7 +498,9 @@ def test_component_items_list():
 
 def test_component_items_update():
     """Update component item - depends on list test."""
-    assert test_data["component"] is not None, "Component create and list tests must run first"
+    assert (
+        test_data["component"] is not None
+    ), "Component create and list tests must run first"
 
     component_prn = "prn:test-portfolio:test-app:main:1-0-0:api-gateway"
 
@@ -492,7 +517,10 @@ def test_component_items_update():
 
     assert isinstance(response, SuccessResponse)
     assert response.data is not None
-    assert response.data["metadata"]["description"] == "Updated API Gateway component description"
+    assert (
+        response.data["metadata"]["description"]
+        == "Updated API Gateway component description"
+    )
     assert response.data["metadata"]["tags"]["updated"] == "true"
 
     # Update stored data
@@ -502,7 +530,9 @@ def test_component_items_update():
 
 def test_component_items_delete():
     """Delete component item - depends on update test."""
-    assert test_data["component"] is not None, "Component create, list, and update tests must run first"
+    assert (
+        test_data["component"] is not None
+    ), "Component create, list, and update tests must run first"
 
     component_prn = "prn:test-portfolio:test-app:main:1-0-0:api-gateway"
 

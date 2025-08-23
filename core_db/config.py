@@ -165,8 +165,8 @@ def get_table_name(model: type, client: str = None, default: Optional[str] = Non
     tables = {
         # OAuth Authorizations Table
         "AuthorizationsModel": f"{prefix}core-{V_CORE_AUTOMATION}-oauth",
-        # OAuth Rate Limits Table
         "RateLimitsModel": f"{prefix}core-{V_CORE_AUTOMATION}-oauth",
+        "OAuthTableModel": f"{prefix}core-{V_CORE_AUTOMATION}-oauth",
         # Client Facts is the base tenant registration table (no "client" prefix)
         "ClientFactsModel": f"{prefix}core-{V_CORE_AUTOMATION}-clients",
         # Profiles for user-defined configurations

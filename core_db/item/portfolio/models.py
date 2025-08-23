@@ -58,7 +58,9 @@ class PortfolioModel(ItemModel):
         Returns:
             str: String representation showing key fields
         """
-        return f"<Portfolio(prn={self.prn},name={self.name},contact={self.contact_email})>"
+        return (
+            f"<Portfolio(prn={self.prn},name={self.name},contact={self.contact_email})>"
+        )
 
 
 PortfolioModelType = Type[PortfolioModel]
@@ -137,7 +139,11 @@ class PortfolioItem(ItemModelRecord):
     """
 
     # Portfolio-specific field with PascalCase alias
-    contact_email: str = Field(..., alias="ContactEmail", description="Contact email for the portfolio team or owner")
+    contact_email: str = Field(
+        ...,
+        alias="ContactEmail",
+        description="Contact email for the portfolio team or owner",
+    )
 
     @model_validator(mode="before")
     @classmethod
@@ -167,7 +173,9 @@ class PortfolioItem(ItemModelRecord):
 
         parent_prn = cls.get_parent_prn(portfolio_prn)
         if parent_prn != "prn":
-            raise ValueError(f"Portfolio PRN must be at the top level, got: {portfolio_prn}")
+            raise ValueError(
+                f"Portfolio PRN must be at the top level, got: {portfolio_prn}"
+            )
         values["parent_prn"] = parent_prn
 
         name = values.get("name")

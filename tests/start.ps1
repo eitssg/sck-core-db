@@ -5,7 +5,6 @@ param(
     [Parameter(Position=0)]
     [ValidateSet("start", "stop", "restart", "status", "logs", "clean", "admin", "tools")]
     [string]$Action = "start",
-    
     [switch]$Detached = $true,
     [switch]$WithAdmin,
     [switch]$WithTools,

@@ -4,12 +4,12 @@ from pynamodb.attributes import UnicodeAttribute, UTCDateTimeAttribute, BooleanA
 from pydantic import Field
 
 from ..models import TableFactory
-from .oauthtable import OAuthTable, OAuthRecord
+from .oauthtable import OAuthTableModel, OAuthRecord
 
 
-class AuthorizationsModel(OAuthTable):
+class AuthorizationsModel(OAuthTableModel):
 
-    class Meta(OAuthTable.Meta):
+    class Meta(OAuthTableModel.Meta):
         pass
 
     client_id = UnicodeAttribute(null=False, attr_name="ClientId")

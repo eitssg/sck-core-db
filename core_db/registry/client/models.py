@@ -88,8 +88,8 @@ class ClientFactsModel(DatabaseTable):
     client_status = UnicodeAttribute(null=True, attr_name="ClientStatus")
     client_description = UnicodeAttribute(null=True, attr_name="ClientDescription")
     client_name = UnicodeAttribute(null=True, attr_name="ClientName")
-    client_scopes = ListAttribute(UnicodeAttribute(), null=True, attr_name="ClientScopes")
-    client_redirect_urls = ListAttribute(UnicodeAttribute(), null=True, attr_name="ClientRedirectUrls")
+    client_scopes = ListAttribute(of=UnicodeAttribute, null=True, attr_name="ClientScopes")
+    client_redirect_urls = ListAttribute(of=UnicodeAttribute, null=True, attr_name="ClientRedirectUrls")
 
     # AWS Organization configuration
     organization_id = UnicodeAttribute(null=True, attr_name="OrganizationId")
@@ -365,7 +365,7 @@ class ClientFact(DatabaseRecord):
         alias="ClientScopes",
         description="List of OAuth 2.0 scopes granted to the client",
     )
-    client_redirect_urls = Field(
+    client_redirect_urls: list[str] = Field(
         None,
         alias="ClientRedirectUrls",
         description="List of redirect URIs for the client",
@@ -507,7 +507,7 @@ class ClientFact(DatabaseRecord):
 
         """
         model_class = ClientFactsFactory.get_model(client)
-        return model_class(**self.model_dump(by_alias=False, exclude_none=True))
+        return model_class(**self.model_dump(include_secrets=True, by_alias=False, exclude_none=True))
 
     def get_resource_prefix(self) -> str:
         """Get the resource prefix for this client including scope.
@@ -566,11 +566,10 @@ class ClientFact(DatabaseRecord):
         Returns:
             dict: Dictionary representation of the model fields
         """
-        if "exclude" in kwargs:
-            kwargs["exclude"] = set(kwargs["exclude"]) | {"client_secret"}
-        else:
-            kwargs["exclude"] = {"client_secret"}
-        return super().model_dump(by_alias=False, exclude_none=True, **kwargs)
+        if "include_secrets" in kwargs and not kwargs.pop("include_secrets", False):
+            kwargs["exclude"] = {kwargs.get("exclude", set()) | {"client_secret"}}
+
+        return super().model_dump(**kwargs)
 
     def __repr__(self) -> str:
         """Return a string representation of the ClientFact instance.

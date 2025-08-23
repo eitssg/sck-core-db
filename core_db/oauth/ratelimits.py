@@ -1,19 +1,18 @@
-from datetime import datetime
-
-from pynamodb.attributes import UnicodeAttribute
+from typing import List
+from pynamodb.attributes import NumberAttribute, ListAttribute
 from pydantic import Field
 
 from ..models import TableFactory
-from .oauthtable import OAuthTable, OAuthRecord
+from .oauthtable import OAuthTableModel, OAuthRecord
 
 
-class RateLimitsModel(OAuthTable):
+class RateLimitsModel(OAuthTableModel):
 
-    class Meta(OAuthTable.Meta):
+    class Meta(OAuthTableModel.Meta):
         pass
 
-    attempts = UnicodeAttribute(null=False, attr_name="Attempts")
-    ttl = UnicodeAttribute(null=False, attr_name="TTL")
+    attempts = ListAttribute(of=NumberAttribute, null=False, attr_name="Attempts")
+    ttl = NumberAttribute(null=False, attr_name="TTL")
 
     # created_at is defined in DatabaseTable parent class
     # updated_at is defined in DatabaseTable parent class
@@ -40,12 +39,12 @@ class RateLimitModelFactory(TableFactory):
 
 class RateLimits(OAuthRecord):
 
-    attempts: str = Field(
+    attempts: List[int] = Field(
         ...,
         description="Number of attempts",
         alias="Attempts",
     )
-    ttl: str = Field(
+    ttl: int = Field(
         ...,
         description="Time to live",
         alias="TTL",

@@ -726,7 +726,11 @@ test_data = [
             "action": "registry:portfolio:list",
             "data": {"Client": "client"},
         },
-        {"status": "ok", "code": 200, "data": [{"Client": "client", "Portfolio": "portfolio"}]},
+        {
+            "status": "ok",
+            "code": 200,
+            "data": [{"Client": "client", "Portfolio": "portfolio"}],
+        },
     ),
     # Case 40
     (
@@ -801,7 +805,11 @@ test_data = [
             "action": "registry:app:list",
             "data": {"client-portfolio": "client:portfolio"},
         },
-        {"status": "ok", "code": 200, "data": [{"ClientPortfolio": "client:portfolio", "AppRegex": r"^app(.*)$"}]},
+        {
+            "status": "ok",
+            "code": 200,
+            "data": [{"ClientPortfolio": "client:portfolio", "AppRegex": r"^app(.*)$"}],
+        },
     ),
     # Case 46
     (

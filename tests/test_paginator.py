@@ -13,7 +13,12 @@ def cursor():
 
 @pytest.fixture
 def paginator_data(cursor):
-    return {"limit": 5, "email_filter": "jbarwick@me.comn", "cursor": cursor, "sort": "descending"}
+    return {
+        "limit": 5,
+        "email_filter": "jbarwick@me.comn",
+        "cursor": cursor,
+        "sort": "descending",
+    }
 
 
 def test_paginator_initialization(paginator_data, cursor):

@@ -170,19 +170,41 @@ class ComponentItem(ItemModelRecord):
     """
 
     # Component-specific fields with PascalCase aliases
-    status: str = Field(default="INIT", alias="Status", description="Status of the component (INIT, RUNNING, SUCCESS, FAILED)")
+    status: str = Field(
+        default="INIT",
+        alias="Status",
+        description="Status of the component (INIT, RUNNING, SUCCESS, FAILED)",
+    )
     message: Optional[str] = Field(
-        None, alias="Message", description="Message details for the component providing status or error information"
+        None,
+        alias="Message",
+        description="Message details for the component providing status or error information",
     )
     component_type: Optional[str] = Field(
-        None, alias="ComponentType", description="Component type classification (e.g., 'ec2', 's3', 'eni', 'rds', 'lambda')"
+        None,
+        alias="ComponentType",
+        description="Component type classification (e.g., 'ec2', 's3', 'eni', 'rds', 'lambda')",
     )
-    image_id: Optional[str] = Field(None, alias="ImageId", description="Image ID of the EC2 component")
-    image_alias: Optional[str] = Field(None, alias="ImageAlias", description="Image alias name of the EC2 component")
-    portfolio_prn: str = Field(None, alias="PortfolioPrn", description="Portfolio PRN that this component belongs to")
-    app_prn: str = Field(None, alias="AppPrn", description="App PRN that this component belongs to")
-    branch_prn: str = Field(None, alias="BranchPrn", description="Branch PRN that this component belongs to")
-    build_prn: str = Field(None, alias="BuildPrn", description="Build PRN that this component belongs to")
+    image_id: Optional[str] = Field(
+        None, alias="ImageId", description="Image ID of the EC2 component"
+    )
+    image_alias: Optional[str] = Field(
+        None, alias="ImageAlias", description="Image alias name of the EC2 component"
+    )
+    portfolio_prn: str = Field(
+        None,
+        alias="PortfolioPrn",
+        description="Portfolio PRN that this component belongs to",
+    )
+    app_prn: str = Field(
+        None, alias="AppPrn", description="App PRN that this component belongs to"
+    )
+    branch_prn: str = Field(
+        None, alias="BranchPrn", description="Branch PRN that this component belongs to"
+    )
+    build_prn: str = Field(
+        None, alias="BuildPrn", description="Build PRN that this component belongs to"
+    )
 
     @model_validator(mode="before")
     def validate_fields(cls, ov: Dict[str, Any]) -> Dict[str, Any]:
@@ -205,13 +227,17 @@ class ComponentItem(ItemModelRecord):
         component_prn = values.get("prn", values.get("component_prn", None))
         if not component_prn:
             component_prn = util.generate_component_prn(values)
-        normalized_component_prn = component_prn.replace(".", "-")  # Normalize PRN format just in case
+        normalized_component_prn = component_prn.replace(
+            ".", "-"
+        )  # Normalize PRN format just in case
         if not util.validate_component_prn(normalized_component_prn):
             raise ValueError(f"Invalid component_prn: {normalized_component_prn}")
         values["prn"] = normalized_component_prn
 
         parent_prn = cls.get_parent_prn(normalized_component_prn)
-        normalized_parent_prn = parent_prn.replace(".", "-")  # Normalize PRN format just in case
+        normalized_parent_prn = parent_prn.replace(
+            ".", "-"
+        )  # Normalize PRN format just in case
         if not util.validate_build_prn(normalized_parent_prn):
             raise ValueError(f"Invalid or missing parent PRN: {normalized_parent_prn}")
         values["parent_prn"] = normalized_parent_prn
@@ -219,7 +245,9 @@ class ComponentItem(ItemModelRecord):
         build_prn = values.get("build_prn")
         if not build_prn:
             build_prn = util.generate_build_prn(values)
-        normalized_build_prn = build_prn.replace(".", "-")  # Normalize PRN format just in case
+        normalized_build_prn = build_prn.replace(
+            ".", "-"
+        )  # Normalize PRN format just in case
         if not util.validate_build_prn(normalized_build_prn):
             raise ValueError(f"Invalid build_prn: {normalized_build_prn}")
         values["build_prn"] = normalized_build_prn

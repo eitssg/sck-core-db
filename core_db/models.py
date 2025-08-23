@@ -48,7 +48,14 @@ from dateutil import parser
 import json
 
 # Third-party imports
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator, validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_validator,
+    model_validator,
+    validator,
+)
 from pynamodb.attributes import (
     Attribute,
     BinaryAttribute,
@@ -975,7 +982,12 @@ class Paginator(BaseModel):
     model_config = ConfigDict(from_attributes=True, validate_assignment=True)
 
     cursor: dict | None = Field(default=None, description="Last evaluated key from AWS for pagination")
-    limit: int = Field(default=10, ge=1, le=100, description="Maximum number of items to return per page")
+    limit: int = Field(
+        default=10,
+        ge=1,
+        le=100,
+        description="Maximum number of items to return per page",
+    )
 
     earliest_time: datetime | None = Field(default=None, description="Earliest time to filter items")
     latest_time: datetime | None = Field(default=None, description="Latest time to filter items")

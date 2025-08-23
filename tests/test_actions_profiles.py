@@ -80,12 +80,16 @@ def test_create_all_profiles(bootstrap_dynamo):
         # Verify profile was saved
         created_item: Response = ProfileActions.create(client=client, **profile_data)
 
-        assert created_item.data is not None, f"Profile creation failed for {profile_data['profile_name']}"
+        assert (
+            created_item.data is not None
+        ), f"Profile creation failed for {profile_data['profile_name']}"
 
         try:
             data = UserProfile(**created_item.data)
         except Exception as e:
-            pytest.fail(f"Failed to create UserProfile from data: {created_item.data}. Error: {e}")
+            pytest.fail(
+                f"Failed to create UserProfile from data: {created_item.data}. Error: {e}"
+            )
 
         assert data.user_id == profile_data["user_id"]
         assert data.profile_name == profile_data["profile_name"]
@@ -113,7 +117,9 @@ def test_get_single_profile():
     user_id = "test_single_user123"
     profile_name = "default"
 
-    result: Response = ProfileActions.get(client=client, user_id=user_id, profile_name=profile_name)
+    result: Response = ProfileActions.get(
+        client=client, user_id=user_id, profile_name=profile_name
+    )
 
     assert result.data is not None, "Profile not found"
     assert isinstance(result.data, dict)
@@ -139,7 +145,9 @@ def test_get_active_profiles_by_user():
     """Test getting only active profiles for a user."""
     user_id = "test_single_user123"
 
-    result: Response = ProfileActions.get(client=client, user_id=user_id, include_inactive=False)
+    result: Response = ProfileActions.get(
+        client=client, user_id=user_id, include_inactive=False
+    )
 
     assert result.data is not None, "No active profiles found for user"
     assert isinstance(result.data, list)
@@ -194,7 +202,13 @@ def test_patch_profile():
     profile_name = "personal"
 
     # Only update email and theme, leave other fields unchanged
-    patch_data = {"client": client, "user_id": user_id, "profile_name": profile_name, "email": "patched@gmail.com", "theme": "dark"}
+    patch_data = {
+        "client": client,
+        "user_id": user_id,
+        "profile_name": profile_name,
+        "email": "patched@gmail.com",
+        "theme": "dark",
+    }
 
     result = ProfileActions.patch(**patch_data)
     assert isinstance(result, SuccessResponse)
@@ -214,17 +228,29 @@ def test_session_tracking_per_profile():
     profile_name = "default"
 
     # First increment (should start at 1)
-    result1 = ProfileActions.patch(client=client, user_id=user_id, profile_name=profile_name, increment_session="true")
+    result1 = ProfileActions.patch(
+        client=client,
+        user_id=user_id,
+        profile_name=profile_name,
+        increment_session="true",
+    )
 
     assert isinstance(result1, SuccessResponse), "Failed to increment session count"
     assert result1.data is not None, "No data returned after incrementing session"
 
     data1 = UserProfile(**result1.data)
-    assert data1.session_count is not None and data1.session_count > 0, "Session count should be incremented"
+    assert (
+        data1.session_count is not None and data1.session_count > 0
+    ), "Session count should be incremented"
     first_count = data1.session_count
 
     # Second increment (should increment further)
-    result2 = ProfileActions.patch(client=client, user_id=user_id, profile_name=profile_name, increment_session="true")
+    result2 = ProfileActions.patch(
+        client=client,
+        user_id=user_id,
+        profile_name=profile_name,
+        increment_session="true",
+    )
 
     data2 = UserProfile(**result2.data)
     assert data2.session_count == first_count + 1, "Session count should increment by 1"
@@ -255,7 +281,9 @@ def test_list_profiles_with_pagination():
 
     # Get second page if cursor exists
     if hasattr(page1, "metadata") and page1.metadata.get("cursor"):
-        page2 = ProfileActions.list(client=client, limit=2, cursor=page1.metadata["cursor"])
+        page2 = ProfileActions.list(
+            client=client, limit=2, cursor=page1.metadata["cursor"]
+        )
         assert isinstance(page2, SuccessResponse)
 
         # Ensure different data (no overlap)
@@ -280,7 +308,11 @@ def test_create_duplicate_profile():
 def test_get_nonexistent_profile():
     """Test getting non-existent profile."""
     with pytest.raises(NotFoundException):
-        ProfileActions.get(client=client, user_id="nonexistent_user", profile_name="nonexistent_profile")
+        ProfileActions.get(
+            client=client,
+            user_id="nonexistent_user",
+            profile_name="nonexistent_profile",
+        )
 
 
 def test_get_nonexistent_email():
@@ -293,7 +325,10 @@ def test_update_nonexistent_profile():
     """Test updating non-existent profile."""
     with pytest.raises(NotFoundException):
         ProfileActions.update(
-            client=client, user_id="nonexistent_user", profile_name="nonexistent_profile", email="test@example.com"
+            client=client,
+            user_id="nonexistent_user",
+            profile_name="nonexistent_profile",
+            email="test@example.com",
         )
 
 
@@ -301,7 +336,10 @@ def test_patch_nonexistent_profile():
     """Test patching non-existent profile."""
     with pytest.raises(NotFoundException):
         ProfileActions.patch(
-            client=client, user_id="nonexistent_user", profile_name="nonexistent_profile", email="test@example.com"
+            client=client,
+            user_id="nonexistent_user",
+            profile_name="nonexistent_profile",
+            email="test@example.com",
         )
 
 
@@ -314,7 +352,9 @@ def test_missing_required_parameters():
 
     # Missing user_id for update
     with pytest.raises(BadRequestException):
-        ProfileActions.update(client=client, profile_name="test", email="test@example.com")
+        ProfileActions.update(
+            client=client, profile_name="test", email="test@example.com"
+        )
 
     # Missing profile_name for update
     with pytest.raises(BadRequestException):
@@ -364,11 +404,15 @@ def test_delete_single_profile():
     profile_name = "work"
 
     # Verify profile exists first
-    existing = ProfileActions.get(client=client, user_id=user_id, profile_name=profile_name)
+    existing = ProfileActions.get(
+        client=client, user_id=user_id, profile_name=profile_name
+    )
     assert existing.data is not None
 
     # Delete the profile
-    result = ProfileActions.delete(client=client, user_id=user_id, profile_name=profile_name)
+    result = ProfileActions.delete(
+        client=client, user_id=user_id, profile_name=profile_name
+    )
 
     assert isinstance(result, SuccessResponse)
     assert "successfully" in result.message.lower()
@@ -422,7 +466,11 @@ def test_delete_user_by_user_id():
 def test_delete_nonexistent_profile():
     """Test deleting non-existent profile."""
     with pytest.raises(NotFoundException):
-        ProfileActions.delete(client=client, user_id="nonexistent_user", profile_name="nonexistent_profile")
+        ProfileActions.delete(
+            client=client,
+            user_id="nonexistent_user",
+            profile_name="nonexistent_profile",
+        )
 
 
 # =============================================================================
@@ -452,15 +500,25 @@ def test_client_isolation():
 
     # Should not be visible in original client
     with pytest.raises(NotFoundException):
-        ProfileActions.get(client=client, user_id="isolated_user", profile_name="isolated_profile")  # Original client
+        ProfileActions.get(
+            client=client, user_id="isolated_user", profile_name="isolated_profile"
+        )  # Original client
 
     # Should be visible in the different client
-    isolated_result = ProfileActions.get(client=different_client, user_id="isolated_user", profile_name="isolated_profile")
+    isolated_result = ProfileActions.get(
+        client=different_client,
+        user_id="isolated_user",
+        profile_name="isolated_profile",
+    )
     assert isinstance(isolated_result, SuccessResponse)
     assert isolated_result.data["UserId"] == "isolated_user"
 
     # Cleanup - delete from different client
-    ProfileActions.delete(client=different_client, user_id="isolated_user", profile_name="isolated_profile")
+    ProfileActions.delete(
+        client=different_client,
+        user_id="isolated_user",
+        profile_name="isolated_profile",
+    )
 
 
 # =============================================================================
@@ -474,22 +532,42 @@ def test_session_tracking_edge_cases():
     profile_name = "personal"
 
     # Test increment with string "true"
-    result1 = ProfileActions.patch(client=client, user_id=user_id, profile_name=profile_name, increment_session="true")
+    result1 = ProfileActions.patch(
+        client=client,
+        user_id=user_id,
+        profile_name=profile_name,
+        increment_session="true",
+    )
     profile1 = UserProfile(**result1.data)
     first_session_count = profile1.session_count
 
     # Test increment with string "false" (should not increment)
     result2 = ProfileActions.patch(
-        client=client, user_id=user_id, profile_name=profile_name, increment_session="false", email="no_increment@example.com"
+        client=client,
+        user_id=user_id,
+        profile_name=profile_name,
+        increment_session="false",
+        email="no_increment@example.com",
     )
     profile2 = UserProfile(**result2.data)
-    assert profile2.session_count == first_session_count, "Session count should not increment when false"
-    assert profile2.email == "no_increment@example.com", "Other fields should still update"
+    assert (
+        profile2.session_count == first_session_count
+    ), "Session count should not increment when false"
+    assert (
+        profile2.email == "no_increment@example.com"
+    ), "Other fields should still update"
 
     # Test increment with boolean True
-    result3 = ProfileActions.patch(client=client, user_id=user_id, profile_name=profile_name, increment_session=True)
+    result3 = ProfileActions.patch(
+        client=client,
+        user_id=user_id,
+        profile_name=profile_name,
+        increment_session=True,
+    )
     profile3 = UserProfile(**result3.data)
-    assert profile3.session_count == first_session_count + 1, "Session count should increment with boolean True"
+    assert (
+        profile3.session_count == first_session_count + 1
+    ), "Session count should increment with boolean True"
 
 
 def test_large_profile_data():
@@ -543,7 +621,9 @@ def test_large_profile_data():
     assert created_profile.permissions["can_read"] is True
 
     # Cleanup
-    ProfileActions.delete(client=client, user_id="test_large_user", profile_name="large_profile")
+    ProfileActions.delete(
+        client=client, user_id="test_large_user", profile_name="large_profile"
+    )
 
 
 def test_empty_response_handling():

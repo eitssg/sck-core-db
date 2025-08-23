@@ -22,7 +22,12 @@ from core_framework.constants import (
 from core_framework.time_utils import make_default_time
 
 from ..models import DatabaseTable, TableFactory, DatabaseRecord, Paginator
-from ..exceptions import BadRequestException, ConflictException, UnknownException, NotFoundException
+from ..exceptions import (
+    BadRequestException,
+    ConflictException,
+    UnknownException,
+    NotFoundException,
+)
 
 
 def convert_level_name(value: Union[int, str]) -> str:
@@ -118,7 +123,9 @@ class EventModel(DatabaseTable):
 
     # Keys for events
     prn = UnicodeAttribute(hash_key=True, attr_name="Prn")
-    timestamp = UTCDateTimeAttribute(range_key=True, default_for_new=make_default_time, attr_name="Timestamp")
+    timestamp = UTCDateTimeAttribute(
+        range_key=True, default_for_new=make_default_time, attr_name="Timestamp"
+    )
 
     # Event details
     event_type = UnicodeAttribute(default_for_new="STATUS", attr_name="EventType")

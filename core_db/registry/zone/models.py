@@ -85,7 +85,9 @@ class KmsFacts(EnhancedMapAttribute):
     aws_account_id = UnicodeAttribute(null=False, attr_name="AwsAccountId")
     kms_key_arn = UnicodeAttribute(null=True, attr_name="KmsKeyArn")
     kms_key = UnicodeAttribute(null=True, attr_name="KmsKey")
-    delegate_aws_account_ids = ListAttribute(of=UnicodeAttribute, null=False, attr_name="DelegateAwsAccountIds")
+    delegate_aws_account_ids = ListAttribute(
+        of=UnicodeAttribute, null=False, attr_name="DelegateAwsAccountIds"
+    )
     allow_sns = BooleanAttribute(null=True, attr_name="AllowSNS")
 
 
@@ -139,7 +141,9 @@ class AccountFacts(EnhancedMapAttribute):
     resource_namespace = UnicodeAttribute(null=True, attr_name="ResourceNamespace")
     network_name = UnicodeAttribute(null=True, attr_name="NetworkName")
     vpc_aliases = ListAttribute(of=UnicodeAttribute, null=True, attr_name="VpcAliases")
-    subnet_aliases = ListAttribute(of=UnicodeAttribute, null=True, attr_name="SubnetAliases")
+    subnet_aliases = ListAttribute(
+        of=UnicodeAttribute, null=True, attr_name="SubnetAliases"
+    )
     tags = MapAttribute(null=True, attr_name="Tags")
 
 
@@ -232,16 +236,26 @@ class RegionFacts(EnhancedMapAttribute):
 
     aws_region = UnicodeAttribute(null=False, attr_name="AwsRegion")
     az_count = NumberAttribute(null=True, attr_name="AzCount")
-    image_aliases = MapAttribute(of=UnicodeAttribute, null=True, attr_name="ImageAliases")
-    min_successful_instances_percent = NumberAttribute(null=True, attr_name="MinSuccessfulInstancesPercent")
-    security_aliases = MapAttribute(null=True, of=ListAttribute(of=SecurityAliasFacts), attr_name="SecurityAliases")
-    security_group_aliases = MapAttribute(of=UnicodeAttribute, null=True, attr_name="SecurityGroupAliases")
+    image_aliases = MapAttribute(
+        of=UnicodeAttribute, null=True, attr_name="ImageAliases"
+    )
+    min_successful_instances_percent = NumberAttribute(
+        null=True, attr_name="MinSuccessfulInstancesPercent"
+    )
+    security_aliases = MapAttribute(
+        null=True, of=ListAttribute(of=SecurityAliasFacts), attr_name="SecurityAliases"
+    )
+    security_group_aliases = MapAttribute(
+        of=UnicodeAttribute, null=True, attr_name="SecurityGroupAliases"
+    )
     proxy = ListAttribute(of=ProxyFacts, null=True, attr_name="Proxy")
     proxy_host = UnicodeAttribute(null=True, attr_name="ProxyHost")
     proxy_port = NumberAttribute(null=True, attr_name="ProxyPort")
     proxy_url = UnicodeAttribute(null=True, attr_name="ProxyUrl")
     no_proxy = UnicodeAttribute(null=True, attr_name="NoProxy")
-    name_servers = ListAttribute(of=UnicodeAttribute, null=True, attr_name="NameServers")
+    name_servers = ListAttribute(
+        of=UnicodeAttribute, null=True, attr_name="NameServers"
+    )
     tags = MapAttribute(null=True, attr_name="Tags")
 
 

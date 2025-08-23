@@ -182,11 +182,16 @@ class ReleaseInfo(BaseModel):
         """
         values = util.pascal_case_to_snake_case(values)
 
-        prn = values.pop("released_build_prn", values.pop("ReleasedBuildPrn", values.pop("prn", values.pop("Prn", None))))
+        prn = values.pop(
+            "released_build_prn",
+            values.pop("ReleasedBuildPrn", values.pop("prn", values.pop("Prn", None))),
+        )
         if not prn:
             raise ValueError("PRN is required for ReleaseInfo")
 
-        build = values.pop("build", values.pop("Build", prn[prn.rindex(":") + 1 :] if prn else None))
+        build = values.pop(
+            "build", values.pop("Build", prn[prn.rindex(":") + 1 :] if prn else None)
+        )
         if not build:
             raise ValueError("Build is required for ReleaseInfo")
         values["build"] = build
@@ -224,7 +229,11 @@ class BranchItem(ItemModelRecord):
         alias="ShortName",
         description="Short name of the branch, typically the Git branch name without prefixes",
     )
-    portfolio_prn: str = Field(None, alias="PortfolioPrn", description="Portfolio PRN that this branch belongs to")
+    portfolio_prn: str = Field(
+        None,
+        alias="PortfolioPrn",
+        description="Portfolio PRN that this branch belongs to",
+    )
     app_prn: str = Field(
         None,
         alias="AppPrn",

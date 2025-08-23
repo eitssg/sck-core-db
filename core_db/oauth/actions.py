@@ -244,7 +244,7 @@ class OAuthActions(TableActions):
             raise UnknownException(f"Failed to delete authorization: {e}") from e
 
 
-class AuthActions(TableActions):
+class AuthActions(OAuthActions):
 
     @classmethod
     def create(cls, **kwargs) -> Response:
@@ -271,7 +271,7 @@ class AuthActions(TableActions):
         super().delete(record_type=Authorizations, **kwargs)
 
 
-class RateLimitActions(TableActions):
+class RateLimitActions(OAuthActions):
 
     @classmethod
     def create(cls, **kwargs) -> Response:

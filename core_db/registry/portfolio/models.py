@@ -43,7 +43,7 @@ class ContactFacts(EnhancedMapAttribute):
 
     name = UnicodeAttribute(attr_name="Name")
     email = UnicodeAttribute(null=True, attr_name="Email")
-    attributes = MapAttribute(of=UnicodeAttribute, null=True, attr_name="Attributes")
+    attributes = MapAttribute(null=True, attr_name="Attributes")
     enabled = BooleanAttribute(default=True, attr_name="Enabled")
 
 

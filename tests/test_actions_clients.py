@@ -7,7 +7,12 @@ import core_framework as util
 from core_db.registry.client.actions import ClientActions
 from core_db.registry.client.models import ClientFact
 from core_db.response import Response, SuccessResponse, ErrorResponse
-from core_db.exceptions import BadRequestException, NotFoundException, ConflictException, UnknownException
+from core_db.exceptions import (
+    BadRequestException,
+    NotFoundException,
+    ConflictException,
+    UnknownException,
+)
 
 from .bootstrap import *
 
@@ -208,7 +213,9 @@ def test_list_with_pagination():
 
     # Check if there's more data
     if page1.metadata.get("cursor"):
-        page2 = ClientActions.list(client=client, limit=2, cursor=page1.metadata["cursor"])
+        page2 = ClientActions.list(
+            client=client, limit=2, cursor=page1.metadata["cursor"]
+        )
         assert isinstance(page2, SuccessResponse)
 
         # Verify different data
@@ -229,7 +236,9 @@ def test_response_structure():
     if response.data:
         first_item = response.data[0]
         assert "Client" in first_item  # PascalCase key
-        assert "ClientName" in first_item or "client_name" not in first_item  # Verify PascalCase
+        assert (
+            "ClientName" in first_item or "client_name" not in first_item
+        )  # Verify PascalCase
 
 
 # =============================================================================
@@ -276,7 +285,9 @@ def test_patch_client_partial():
     assert isinstance(response, SuccessResponse)
 
     patched_client = ClientFact(**response.data)
-    assert patched_client.client_description == "Updated healthcare description via PATCH"
+    assert (
+        patched_client.client_description == "Updated healthcare description via PATCH"
+    )
     assert patched_client.client_status == "maintenance"
     # Other fields should remain unchanged
     assert patched_client.client_name == "HealthcarePlus Solutions"
@@ -354,13 +365,17 @@ def test_get_nonexistent_client():
 def test_update_nonexistent_client():
     """Test updating non-existent client."""
     with pytest.raises(NotFoundException):
-        ClientActions.update(client="nonexistent-client", client_name="This Should Fail")
+        ClientActions.update(
+            client="nonexistent-client", client_name="This Should Fail"
+        )
 
 
 def test_patch_nonexistent_client():
     """Test patching non-existent client."""
     with pytest.raises(NotFoundException):
-        ClientActions.patch(client="nonexistent-client", client_description="This Should Fail")
+        ClientActions.patch(
+            client="nonexistent-client", client_description="This Should Fail"
+        )
 
 
 def test_missing_client_parameter():
@@ -544,7 +559,9 @@ def test_client_timestamps():
     original_updated_at = created_client.updated_at
 
     # Update client (should change updated_at)
-    patch_response = ClientActions.patch(client="timestamp-test", client_description="Updated description")
+    patch_response = ClientActions.patch(
+        client="timestamp-test", client_description="Updated description"
+    )
     updated_client = ClientFact(**patch_response.data)
 
     assert updated_client.created_at == created_client.created_at  # Should not change
@@ -563,7 +580,11 @@ def test_response_casing_consistency():
     """Test that all responses follow proper casing conventions."""
 
     # Test create response
-    create_data = {"client": "casing-test", "client_name": "Casing Test Client", "client_type": "test"}
+    create_data = {
+        "client": "casing-test",
+        "client_name": "Casing Test Client",
+        "client_type": "test",
+    }
 
     create_response = ClientActions.create(**create_data)
 
@@ -573,12 +594,20 @@ def test_response_casing_consistency():
 
     # Data content should be PascalCase
     data_dict = create_response.data
-    expected_pascal_keys = ["Client", "ClientName", "ClientType", "CreatedAt", "UpdatedAt"]
+    expected_pascal_keys = [
+        "Client",
+        "ClientName",
+        "ClientType",
+        "CreatedAt",
+        "UpdatedAt",
+    ]
 
     for key in expected_pascal_keys:
         if key in ["CreatedAt", "UpdatedAt"]:
             continue  # These might be None in some cases
-        assert key in data_dict, f"Expected PascalCase key '{key}' not found in response data"
+        assert (
+            key in data_dict
+        ), f"Expected PascalCase key '{key}' not found in response data"
 
     # Test get response
     get_response = ClientActions.get(client="casing-test")
@@ -615,7 +644,9 @@ def test_metadata_structure():
         # Not all metadata keys may be present depending on implementation
         if hasattr(metadata, key) or (isinstance(metadata, dict) and key in metadata):
             # Key exists, verify it's snake_case (no caps)
-            assert key.islower() or "_" in key, f"Metadata key '{key}' should be snake_case"
+            assert (
+                key.islower() or "_" in key
+            ), f"Metadata key '{key}' should be snake_case"
 
 
 def test_error_response_casing():

@@ -254,26 +254,46 @@ def test_create_all_events_and_test_pagination():
             response = EventActions.create(**event_data)
 
             # Verify response is successful
-            assert response.status == "ok", f"Record {i}: Response status should be 'ok'"
+            assert (
+                response.status == "ok"
+            ), f"Record {i}: Response status should be 'ok'"
             assert response.code == 200, f"Record {i}: Response code should be 200"
 
-            assert response.data is not None, f"Record {i}: Response data should not be None"
+            assert (
+                response.data is not None
+            ), f"Record {i}: Response data should not be None"
 
             # Verify the created event data matches input
-            assert response.data["prn"] == event_data["prn"], f"Record {i}: PRN mismatch"
-            assert response.data["event_type"] == event_data["event_type"], f"Record {i}: Status mismatch"
-            assert response.data["message"] == event_data["message"], f"Record {i}: Message mismatch"
+            assert (
+                response.data["prn"] == event_data["prn"]
+            ), f"Record {i}: PRN mismatch"
+            assert (
+                response.data["event_type"] == event_data["event_type"]
+            ), f"Record {i}: Status mismatch"
+            assert (
+                response.data["message"] == event_data["message"]
+            ), f"Record {i}: Message mismatch"
 
             created_events.append(response.data)
-            print(f"✅ Created event {i+1}/25: {event_data['prn']} - {event_data['event_type']}")
+            print(
+                f"✅ Created event {i+1}/25: {event_data['prn']} - {event_data['event_type']}"
+            )
 
         except Exception as e:
-            failed_events.append({"index": i, "event_data": event_data, "error": str(e)})
-            print(f"❌ Failed to create event {i+1}/25: {event_data['prn']} - Error: {str(e)}")
+            failed_events.append(
+                {"index": i, "event_data": event_data, "error": str(e)}
+            )
+            print(
+                f"❌ Failed to create event {i+1}/25: {event_data['prn']} - Error: {str(e)}"
+            )
 
     # Assert all events were created successfully
-    assert len(failed_events) == 0, f"Failed to create {len(failed_events)} events: {failed_events}"
-    assert len(created_events) == 25, f"Expected 25 events created, got {len(created_events)}"
+    assert (
+        len(failed_events) == 0
+    ), f"Failed to create {len(failed_events)} events: {failed_events}"
+    assert (
+        len(created_events) == 25
+    ), f"Expected 25 events created, got {len(created_events)}"
 
     print(f"\n🎉 Successfully created all {len(created_events)} events!")
 
@@ -294,21 +314,37 @@ def test_create_all_events_and_test_pagination():
     first_page_response = EventActions.list(**request)
 
     # Verify first page response
-    assert first_page_response.status == "ok", "First page response should be successful"
-    assert first_page_response.code == 200, "First page response should have HTTP event_type code 200"
-    assert first_page_response.data is not None, "First page: Response data should not be None"
-    assert isinstance(first_page_response.data, list), "First page: Response data should be a list"
+    assert (
+        first_page_response.status == "ok"
+    ), "First page response should be successful"
+    assert (
+        first_page_response.code == 200
+    ), "First page response should have HTTP event_type code 200"
+    assert (
+        first_page_response.data is not None
+    ), "First page: Response data should not be None"
+    assert isinstance(
+        first_page_response.data, list
+    ), "First page: Response data should be a list"
 
     first_page_events = first_page_response.data
     print(f"📊 First page returned {len(first_page_events)} events")
 
     # Should have 5 events since we created 25 with same PRN
-    assert len(first_page_events) == 5, f"Expected 5 events on first page, got {len(first_page_events)}"
+    assert (
+        len(first_page_events) == 5
+    ), f"Expected 5 events on first page, got {len(first_page_events)}"
 
     # Verify metadata structure
-    assert hasattr(first_page_response, "metadata"), "First page: Response should have metadata"
-    assert "page_size" in first_page_response.metadata, "First page: Metadata should contain page_size"
-    assert "has_more_pages" in first_page_response.metadata, "First page: Metadata should contain has_more_pages"
+    assert hasattr(
+        first_page_response, "metadata"
+    ), "First page: Response should have metadata"
+    assert (
+        "page_size" in first_page_response.metadata
+    ), "First page: Metadata should contain page_size"
+    assert (
+        "has_more_pages" in first_page_response.metadata
+    ), "First page: Metadata should contain has_more_pages"
 
     print(f"📈 First page metadata: {first_page_response.metadata}")
 
@@ -317,8 +353,12 @@ def test_create_all_events_and_test_pagination():
     has_more_pages = first_page_response.metadata.get("has_more_pages", False)
 
     # Should have more pages since we have 25 records
-    assert cursor_value is not None, "Cursor should be populated since we have more than 5 records"
-    assert has_more_pages, "has_more_pages should be True since we have more than 5 records"
+    assert (
+        cursor_value is not None
+    ), "Cursor should be populated since we have more than 5 records"
+    assert (
+        has_more_pages
+    ), "has_more_pages should be True since we have more than 5 records"
 
     print(f"🔗 Cursor found: {cursor_value[:50]}... (truncated)")
     print(f"📄 Testing second page with cursor...")
@@ -327,18 +367,28 @@ def test_create_all_events_and_test_pagination():
     request["cursor"] = cursor_value
 
     second_page_response = EventActions.list(**request)
-    assert second_page_response.status == "ok", "Second page response should be successful"
-    assert second_page_response.code == 200, "Second page response should have HTTP event_type code 200"
+    assert (
+        second_page_response.status == "ok"
+    ), "Second page response should be successful"
+    assert (
+        second_page_response.code == 200
+    ), "Second page response should have HTTP event_type code 200"
 
     # Verify second page response
-    assert second_page_response.data is not None, "Second page: Response data should not be None"
-    assert isinstance(second_page_response.data, list), "Second page: Response data should be a list"
+    assert (
+        second_page_response.data is not None
+    ), "Second page: Response data should not be None"
+    assert isinstance(
+        second_page_response.data, list
+    ), "Second page: Response data should be a list"
 
     second_page_events = second_page_response.data
     print(f"📊 Second page returned {len(second_page_events)} events")
 
     # Should have 5 more events
-    assert len(second_page_events) == 5, f"Expected 5 events on second page, got {len(second_page_events)}"
+    assert (
+        len(second_page_events) == 5
+    ), f"Expected 5 events on second page, got {len(second_page_events)}"
 
     # Verify we got different events (no duplicates from first page)
     first_page_timestamps = {event["timestamp"] for event in first_page_events}
@@ -346,7 +396,9 @@ def test_create_all_events_and_test_pagination():
 
     # Check for duplicates (there shouldn't be any)
     overlapping_timestamps = first_page_timestamps.intersection(second_page_timestamps)
-    assert len(overlapping_timestamps) == 0, f"Found duplicate timestamps between pages: {overlapping_timestamps}"
+    assert (
+        len(overlapping_timestamps) == 0
+    ), f"Found duplicate timestamps between pages: {overlapping_timestamps}"
 
     print(f"✅ No duplicate events between first and second page")
 
@@ -365,9 +417,15 @@ def test_create_all_events_and_test_pagination():
     print(f"   Status: {actual_sixth_event.get('event_type')}")
     print(f"   Message: {actual_sixth_event.get('message')}")
 
-    assert actual_sixth_event["timestamp"] == expected_sixth_event["timestamp"], "Timestamp should match 6th record"
-    assert actual_sixth_event["event_type"] == expected_sixth_event["event_type"], "Status should match 6th record"
-    assert actual_sixth_event["message"] == expected_sixth_event["message"], "Message should match 6th record"
+    assert (
+        actual_sixth_event["timestamp"] == expected_sixth_event["timestamp"]
+    ), "Timestamp should match 6th record"
+    assert (
+        actual_sixth_event["event_type"] == expected_sixth_event["event_type"]
+    ), "Status should match 6th record"
+    assert (
+        actual_sixth_event["message"] == expected_sixth_event["message"]
+    ), "Message should match 6th record"
 
     print(f"✅ Verified: First event on second page is the 6th record from test data!")
 
@@ -426,7 +484,9 @@ def test_list_events_basic():
     assert isinstance(list_response, SuccessResponse)
     assert list_response.data is not None
     assert isinstance(list_response.data, list)
-    assert len(list_response.data) >= 1, "Should have at least the event we just created"
+    assert (
+        len(list_response.data) >= 1
+    ), "Should have at least the event we just created"
 
     # Verify the event we created is in the results
     found_event = None
@@ -460,6 +520,8 @@ def test_list_events_with_date_range():
     assert isinstance(list_response, SuccessResponse)
     assert list_response.data is not None
     assert isinstance(list_response.data, list)
-    assert len(list_response.data) == 3, "Should have only the three events in the date range"
+    assert (
+        len(list_response.data) == 3
+    ), "Should have only the three events in the date range"
 
     print(f"✅ Date range list test passed")

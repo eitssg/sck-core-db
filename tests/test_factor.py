@@ -5,7 +5,13 @@ from core_db.registry.portfolio import PortfolioActions
 from core_db.registry.app import AppActions
 from core_db.registry.zone import ZoneActions
 
-from core_db.facter import get_facts, get_client_facts, get_portfolio_facts, get_app_facts, get_zone_facts
+from core_db.facter import (
+    get_facts,
+    get_client_facts,
+    get_portfolio_facts,
+    get_app_facts,
+    get_zone_facts,
+)
 
 from .bootstrap import *
 
@@ -57,7 +63,11 @@ zone_facts = {
             "aws_account_id": "123456789012",
             "kms_key_arn": "arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012",
             "kms_key": "12345678-1234-1234-1234-123456789012",
-            "delegate_aws_account_ids": ["123456789012", "123456789013", "123456789014"],
+            "delegate_aws_account_ids": [
+                "123456789012",
+                "123456789013",
+                "123456789014",
+            ],
             "allow_sns": True,
         },
         "resource_namespace": "acme-prod",
@@ -103,17 +113,45 @@ zone_facts = {
             "min_successful_instances_percent": 100,
             "security_aliases": {
                 "corporate-cidrs": [
-                    {"type": "CIDR", "value": "10.0.0.0/8", "description": "Corporate headquarters network range"},
-                    {"type": "CIDR", "value": "172.16.0.0/12", "description": "Corporate VPN network range"},
-                    {"type": "CIDR", "value": "192.168.100.0/24", "description": "Corporate WiFi guest network"},
+                    {
+                        "type": "CIDR",
+                        "value": "10.0.0.0/8",
+                        "description": "Corporate headquarters network range",
+                    },
+                    {
+                        "type": "CIDR",
+                        "value": "172.16.0.0/12",
+                        "description": "Corporate VPN network range",
+                    },
+                    {
+                        "type": "CIDR",
+                        "value": "192.168.100.0/24",
+                        "description": "Corporate WiFi guest network",
+                    },
                 ],
                 "admin-cidrs": [
-                    {"type": "CIDR", "value": "192.168.1.0/24", "description": "IT Admin access network"},
-                    {"type": "CIDR", "value": "10.100.0.0/16", "description": "DevOps team access network"},
+                    {
+                        "type": "CIDR",
+                        "value": "192.168.1.0/24",
+                        "description": "IT Admin access network",
+                    },
+                    {
+                        "type": "CIDR",
+                        "value": "10.100.0.0/16",
+                        "description": "DevOps team access network",
+                    },
                 ],
                 "office-cidrs": [
-                    {"type": "CIDR", "value": "203.0.113.0/24", "description": "Seattle office public IP range"},
-                    {"type": "CIDR", "value": "198.51.100.0/24", "description": "New York office public IP range"},
+                    {
+                        "type": "CIDR",
+                        "value": "203.0.113.0/24",
+                        "description": "Seattle office public IP range",
+                    },
+                    {
+                        "type": "CIDR",
+                        "value": "198.51.100.0/24",
+                        "description": "New York office public IP range",
+                    },
                 ],
             },
             "security_group_aliases": {
@@ -143,7 +181,13 @@ zone_facts = {
             "proxy_port": 8080,
             "proxy_url": "http://proxy.acme.com:8080",
             "no_proxy": "*.acme.com,10.0.0.0/8,172.16.0.0/12,169.254.169.254,localhost",
-            "name_servers": ["8.8.8.8", "8.8.4.4", "1.1.1.1", "1.0.0.1", "208.67.222.222"],
+            "name_servers": [
+                "8.8.8.8",
+                "8.8.4.4",
+                "1.1.1.1",
+                "1.0.0.1",
+                "208.67.222.222",
+            ],
             "tags": {
                 "Region": "us-east-1",
                 "AZ": "multi-az",
@@ -169,10 +213,24 @@ zone_facts = {
             "min_successful_instances_percent": 75,
             "security_aliases": {
                 "corporate-cidrs": [
-                    {"type": "CIDR", "value": "10.0.0.0/8", "description": "Corporate headquarters network range"},
-                    {"type": "CIDR", "value": "172.16.0.0/12", "description": "Corporate VPN network range"},
+                    {
+                        "type": "CIDR",
+                        "value": "10.0.0.0/8",
+                        "description": "Corporate headquarters network range",
+                    },
+                    {
+                        "type": "CIDR",
+                        "value": "172.16.0.0/12",
+                        "description": "Corporate VPN network range",
+                    },
                 ],
-                "office-cidrs": [{"type": "CIDR", "value": "203.0.113.0/24", "description": "Seattle office public IP range"}],
+                "office-cidrs": [
+                    {
+                        "type": "CIDR",
+                        "value": "203.0.113.0/24",
+                        "description": "Seattle office public IP range",
+                    }
+                ],
             },
             "security_group_aliases": {
                 "web-tier-sg": "sg-web-prod-west-12345",
@@ -685,7 +743,9 @@ def test_get_portfolio_facts():
     assert facts["Domain"] == "platform.acme.com"
     assert facts["Project"]["Name"] == "ACME Enterprise Platform"
     assert facts["Project"]["Code"] == "AEP"
-    assert facts["Project"]["Repository"] == "https://github.com/acme/enterprise-platform"
+    assert (
+        facts["Project"]["Repository"] == "https://github.com/acme/enterprise-platform"
+    )
 
 
 def test_get_app_facts():
@@ -948,7 +1008,14 @@ def test_get_facts():
     assert isinstance(facts, dict)
 
     # Ensure no None values in critical paths
-    critical_keys = ["Client", "Portfolio", "App", "AwsAccountId", "AwsRegion", "Environment"]
+    critical_keys = [
+        "Client",
+        "Portfolio",
+        "App",
+        "AwsAccountId",
+        "AwsRegion",
+        "Environment",
+    ]
     for key in critical_keys:
         assert facts.get(key) is not None, f"Critical key {key} should not be None"
 
@@ -956,7 +1023,9 @@ def test_get_facts():
     assert isinstance(facts["Tags"], dict)
     for tag_key, tag_value in facts["Tags"].items():
         assert isinstance(tag_key, str), f"Tag key {tag_key} should be string"
-        assert isinstance(tag_value, (str, int, float, bool)), f"Tag value for {tag_key} should be primitive type"
+        assert isinstance(
+            tag_value, (str, int, float, bool)
+        ), f"Tag value for {tag_key} should be primitive type"
 
     # ========== Integration Validation ==========
     # Verify that zone matches app configuration

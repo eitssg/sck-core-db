@@ -14,7 +14,14 @@ Key Features:
 
 from typing import Any, Dict
 from pydantic import ValidationError
-from pynamodb.exceptions import DoesNotExist, PutError, DeleteError, ScanError, GetError, UpdateError
+from pynamodb.exceptions import (
+    DoesNotExist,
+    PutError,
+    DeleteError,
+    ScanError,
+    GetError,
+    UpdateError,
+)
 from pynamodb.expressions.update import Action
 
 import core_framework as util
@@ -53,7 +60,7 @@ class ClientActions(RegistryAction):
         Returns:
             Response: SuccessResponse containing list of client records and pagination metadata.
         """
-        client = kwargs.get("client")
+        client = kwargs.get("client") or kwargs.get("Client")
 
         if not client:
             raise BadRequestException("Client identifier is required to load ClientFact")
@@ -98,12 +105,21 @@ class ClientActions(RegistryAction):
         Returns:
             Response: SuccessResponse containing the client data.
         """
-        client = kwargs.get("client")
+        client = kwargs.get("client") or kwargs.get("Client")
+        client_id = kwargs.get("client_id") or kwargs.get("ClientId")
 
-        if not client:
+        if not client and not client_id:
             raise BadRequestException("Client identifier is required to load ClientFact")
 
-        model_class = ClientFact.model_class(client)
+        if client_id:
+            return cls._lookup_by_client_id(client_id)
+        else:
+            return cls._lookup_by_client(client)
+
+    @classmethod
+    def _lookup_by_client(cls, client: str) -> ClientFact | None:
+
+        model_class = ClientFact.model_class("global")
 
         try:
             # Retrieve the client item from the database
@@ -112,10 +128,28 @@ class ClientActions(RegistryAction):
             data = ClientFact.from_model(item).model_dump(mode="json")
 
             return SuccessResponse(data=data)
-        except GetError as e:
-            raise UnknownException(f"Failed to retrieve client '{client}'") from e
+        except DoesNotExist:
+            raise NotFoundException(f"Client '{client}' not found")
         except Exception as e:
             raise UnknownException(f"Failed to retrieve client '{client}'") from e
+
+    @classmethod
+    def _lookup_by_client_id(cls, client_id: str) -> ClientFact | None:
+
+        model_class = ClientFact.model_class("global")
+
+        try:
+            # Retrieve the client item from the database
+            item = model_class.scan(filter_condition=(model_class.client_id == client_id)).next()
+
+            # Validate and convert PynamoDB item to ClientFact instance
+            data = ClientFact.from_model(item).model_dump(mode="json")
+
+            return SuccessResponse(data=data)
+        except GetError as e:
+            raise UnknownException(f"Failed to retrieve client '{client_id}'") from e
+        except Exception as e:
+            raise UnknownException(f"Failed to retrieve client '{client_id}'") from e
 
     @classmethod
     def create(cls, **kwargs) -> Response:
@@ -128,7 +162,7 @@ class ClientActions(RegistryAction):
             Response: SuccessResponse containing the created client data.
         """
 
-        client = kwargs.get("client")
+        client = kwargs.get("client") or kwargs.get("Client")
         if not client:
             raise BadRequestException("Client identifier is required to create ClientFact")
 
@@ -184,7 +218,7 @@ class ClientActions(RegistryAction):
             Response: SuccessResponse with deletion confirmation.
         """
 
-        client = kwargs.get("client")
+        client = kwargs.get("client") or kwargs.get("Client")
 
         if not client:
             raise ValueError("Client identifier is required to delete ClientFact")
@@ -215,10 +249,10 @@ class ClientActions(RegistryAction):
             NotFoundException: If the client record is not found in the database
             UnknownException: If database update operation fails
         """
-        client = kwargs.get("client")
+        client = kwargs.get("client") or kwargs.get("Client")
 
         if not client:
-            raise BadRequestException("Client identifier is required to update ClientFact")
+            raise BadRequestException("Client identifier is required to update")
 
         try:
             if remove_none:

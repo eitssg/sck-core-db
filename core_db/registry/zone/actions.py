@@ -75,7 +75,12 @@ from pynamodb.expressions.update import Action
 
 from ...models import Paginator
 from ...response import SuccessResponse, Response, NoContentResponse
-from ...exceptions import ConflictException, UnknownException, BadRequestException, NotFoundException
+from ...exceptions import (
+    ConflictException,
+    UnknownException,
+    BadRequestException,
+    NotFoundException,
+)
 
 from ..actions import RegistryAction
 
@@ -154,7 +159,9 @@ class ZoneActions(RegistryAction):
 
         if not client:
             log.error("Client name missing in list request")
-            raise BadRequestException('Client name is required in content: { "client": "<name>", ... }')
+            raise BadRequestException(
+                'Client name is required in content: { "client": "<name>", ... }'
+            )
 
         try:
             paginator = Paginator(**kwargs)
@@ -185,7 +192,9 @@ class ZoneActions(RegistryAction):
 
             results = model_class.scan(**query_args)
 
-            result = [ZoneFact.from_model(item).model_dump(mode="json") for item in results]
+            result = [
+                ZoneFact.from_model(item).model_dump(mode="json") for item in results
+            ]
 
             paginator.cursor = getattr(results, "last_evaluated_key", None)
             paginator.total_count = getattr(results, "total_count", len(result))
@@ -196,7 +205,9 @@ class ZoneActions(RegistryAction):
 
         except ScanError as e:
             log.error("Scan error for client %s: %s", client, str(e))
-            raise UnknownException(f"Failed to scan zones for client {client}: {str(e)}") from e
+            raise UnknownException(
+                f"Failed to scan zones for client {client}: {str(e)}"
+            ) from e
         except Exception as e:
             log.error("Failed to query zones for client %s: %s", client, str(e))
             raise UnknownException(f"Failed to query zones - {str(e)}") from e
@@ -216,7 +227,10 @@ class ZoneActions(RegistryAction):
 
             data = []
             for item in results:
-                if not isinstance(item, model_class) or item.account_facts.aws_account_id != aws_account_id:
+                if (
+                    not isinstance(item, model_class)
+                    or item.account_facts.aws_account_id != aws_account_id
+                ):
                     continue
                 data.append(ZoneFact.from_model(item).model_dump(mode="json"))
 
@@ -226,7 +240,9 @@ class ZoneActions(RegistryAction):
 
         except ScanError as e:
             log.error("Scan error for client %s: %s", client, str(e))
-            raise UnknownException(f"Failed to scan zones for client {client}: {str(e)}") from e
+            raise UnknownException(
+                f"Failed to scan zones for client {client}: {str(e)}"
+            ) from e
         except Exception as e:
             log.error("Failed to query zones for client %s: %s", client, str(e))
             raise UnknownException(f"Failed to query zones - {str(e)}") from e
@@ -261,12 +277,16 @@ class ZoneActions(RegistryAction):
         client = kwargs.get("client", kwargs.get("Client")) or util.get_client()
         if not client:
             log.error("Client name missing in get request")
-            raise BadRequestException('Client name is required in content: { "client": "<name>", ... }')
+            raise BadRequestException(
+                'Client name is required in content: { "client": "<name>", ... }'
+            )
 
         zone = kwargs.get("zone", kwargs.get("Zone"))
         if not zone:
             log.error("Zone name missing in get request")
-            raise BadRequestException('Zone name is required in content: { "zone": "<name>", ... }')
+            raise BadRequestException(
+                'Zone name is required in content: { "zone": "<name>", ... }'
+            )
 
         model_class = ZoneFact.model_class(client)
 
@@ -316,12 +336,16 @@ class ZoneActions(RegistryAction):
         client = kwargs.get("client", kwargs.get("Client")) or util.get_client()
         if not client:
             log.error("Client name missing in get request")
-            raise BadRequestException('Client name is required in content: { "client": "<name>", ... }')
+            raise BadRequestException(
+                'Client name is required in content: { "client": "<name>", ... }'
+            )
 
         zone = kwargs.get("zone", kwargs.get("Zone"))
         if not zone:
             log.error("Zone name missing in get request")
-            raise BadRequestException('Zone name is required in content: { "zone": "<name>", ... }')
+            raise BadRequestException(
+                'Zone name is required in content: { "zone": "<name>", ... }'
+            )
 
         model_class = ZoneFact.model_class(client)
 
@@ -329,7 +353,9 @@ class ZoneActions(RegistryAction):
             log.debug("Deleting zone: %s:%s", client, zone)
 
             item = model_class(zone=zone)
-            item.delete(condition=model_class.zone.exists())  # Use snake_case attribute for condition
+            item.delete(
+                condition=model_class.zone.exists()
+            )  # Use snake_case attribute for condition
 
             log.info("Successfully deleted zone: %s:%s", client, zone)
             return SuccessResponse(message=f"Zone deleted: {client}:{zone}")
@@ -339,7 +365,9 @@ class ZoneActions(RegistryAction):
                 log.warning("Zone not found for deletion: %s:%s", client, zone)
                 return NoContentResponse(message=f"Zone not found: {client}:{zone}")
             log.error("Delete error for zone %s:%s: %s", client, zone, str(e))
-            raise UnknownException(f"Failed to delete zone {client}:{zone}: {str(e)}") from e
+            raise UnknownException(
+                f"Failed to delete zone {client}:{zone}: {str(e)}"
+            ) from e
         except Exception as e:
             log.error("Failed to delete zone %s:%s: %s", client, zone, str(e))
             raise UnknownException(f"Failed to delete - {str(e)}") from e
@@ -451,12 +479,16 @@ class ZoneActions(RegistryAction):
         client = kwargs.get("client", kwargs.get("Client")) or util.get_client()
         if not client:
             log.error("Client name missing in get request")
-            raise BadRequestException('Client name is required in content: { "client": "<name>", ... }')
+            raise BadRequestException(
+                'Client name is required in content: { "client": "<name>", ... }'
+            )
 
         zone = kwargs.get("zone", kwargs.get("Zone"))
         if not zone:
             log.error("Zone name missing in get request")
-            raise BadRequestException('Zone name is required in content: { "zone": "<name>", ... }')
+            raise BadRequestException(
+                'Zone name is required in content: { "zone": "<name>", ... }'
+            )
 
         model_class = ZoneFact.model_class(client)
 
@@ -480,7 +512,9 @@ class ZoneActions(RegistryAction):
                 log.error("Zone already exists: %s:%s", client, zone)
                 raise ConflictException(f"Zone already exists: {client}:{zone}") from e
             log.error("Save error for zone %s:%s: %s", client, zone, str(e))
-            raise UnknownException(f"Failed to create zone {client}:{zone}: {str(e)}") from e
+            raise UnknownException(
+                f"Failed to create zone {client}:{zone}: {str(e)}"
+            ) from e
         except Exception as e:
             log.error("Failed to create zone %s:%s: %s", client, zone, str(e))
             raise UnknownException(f"Failed to create zone: {str(e)}") from e
@@ -610,12 +644,16 @@ class ZoneActions(RegistryAction):
         client = kwargs.get("client", kwargs.get("Client")) or util.get_client()
         if not client:
             log.error("Client name missing in get request")
-            raise BadRequestException('Client name is required in content: { "client": "<name>", ... }')
+            raise BadRequestException(
+                'Client name is required in content: { "client": "<name>", ... }'
+            )
 
         zone = kwargs.get("zone", kwargs.get("Zone"))
         if not zone:
             log.error("Zone name missing in get request")
-            raise BadRequestException('Zone name is required in content: { "zone": "<name>", ... }')
+            raise BadRequestException(
+                'Zone name is required in content: { "zone": "<name>", ... }'
+            )
 
         # if any of these are in the 'new' data, then we skip them because users cannot update them
         excluded_fields = {"client", "zone", "created_at", "updated_at"}
@@ -623,8 +661,12 @@ class ZoneActions(RegistryAction):
             model_class = ZoneFact.model_class(client)
 
             item = model_class.get(zone)
-            current_data = ZoneFact.from_model(item).model_dump(by_alias=False, exclude_none=False)
-            new_data = ZoneFact.model_construct(**kwargs).model_dump(by_alias=False, exclude_none=False, exclude=excluded_fields)
+            current_data = ZoneFact.from_model(item).model_dump(
+                by_alias=False, exclude_none=False
+            )
+            new_data = ZoneFact.model_construct(**kwargs).model_dump(
+                by_alias=False, exclude_none=False, exclude=excluded_fields
+            )
 
             def update_current_data(current: dict, new: dict) -> dict:
                 """Update current field with new value or remove if None."""
@@ -654,7 +696,9 @@ class ZoneActions(RegistryAction):
         except DoesNotExist as e:
             raise NotFoundException(f"Zone not found: {client}:{zone}") from e
         except PutError as e:
-            raise UnknownException(f"Failed to patch zone {client}:{zone}: {str(e)}") from e
+            raise UnknownException(
+                f"Failed to patch zone {client}:{zone}: {str(e)}"
+            ) from e
         except Exception as e:
             log.error("Failed to patch zone %s:%s: %s", client, zone, str(e))
             raise UnknownException(f"Failed to patch zone: {str(e)}") from e
@@ -696,12 +740,16 @@ class ZoneActions(RegistryAction):
         client = kwargs.get("client", kwargs.get("Client")) or util.get_client()
         if not client:
             log.error("Client name missing in get request")
-            raise BadRequestException('Client name is required in content: { "client": "<name>", ... }')
+            raise BadRequestException(
+                'Client name is required in content: { "client": "<name>", ... }'
+            )
 
         zone = kwargs.get("zone", kwargs.get("Zone"))
         if not zone:
             log.error("Zone name missing in get request")
-            raise BadRequestException('Zone name is required in content: { "zone": "<name>", ... }')
+            raise BadRequestException(
+                'Zone name is required in content: { "zone": "<name>", ... }'
+            )
 
         model_class = ZoneFact.model_class(client)
 
@@ -719,7 +767,9 @@ class ZoneActions(RegistryAction):
 
         try:
 
-            values = data.model_dump(by_alias=False, exclude_none=False, exclude=excluded_fields)
+            values = data.model_dump(
+                by_alias=False, exclude_none=False, exclude=excluded_fields
+            )
 
             attributes = model_class.get_attributes()
 
@@ -751,7 +801,9 @@ class ZoneActions(RegistryAction):
                 log.warning("Zone not found for patching: %s:%s", client, zone)
                 raise NotFoundException(f"Zone not found: {client}:{zone}") from e
             log.error("Update error patching zone %s:%s: %s", client, zone, str(e))
-            raise UnknownException(f"Failed to patch zone {client}:{zone}: Permission denied or condition check failed") from e
+            raise UnknownException(
+                f"Failed to patch zone {client}:{zone}: Permission denied or condition check failed"
+            ) from e
         except Exception as e:
             log.error("Failed to patch zone %s:%s: %s", client, zone, str(e))
             raise UnknownException(f"Unexpected error patching zone: {str(e)}") from e

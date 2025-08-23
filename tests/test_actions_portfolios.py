@@ -5,7 +5,12 @@ import core_framework as util
 from core_db.registry.portfolio.actions import PortfolioActions
 from core_db.registry.portfolio.models import PortfolioFact
 from core_db.response import SuccessResponse, NoContentResponse
-from core_db.exceptions import BadRequestException, NotFoundException, ConflictException, UnknownException
+from core_db.exceptions import (
+    BadRequestException,
+    NotFoundException,
+    ConflictException,
+    UnknownException,
+)
 
 from .bootstrap import *
 
@@ -21,7 +26,11 @@ portfolio_facts: list[dict] = [
             "repository": "https://github.com/acme/web-services",
             "description": "Core web services and REST APIs for customer-facing applications",
         },
-        "owner": {"name": "Sarah Johnson", "email": "sarah.johnson@acme.com", "phone": "+1-555-0123"},
+        "owner": {
+            "name": "Sarah Johnson",
+            "email": "sarah.johnson@acme.com",
+            "phone": "+1-555-0123",
+        },
         "contacts": [
             {"name": "Tech Lead", "email": "techm@acme.com", "enabled": True},
             {"name": "DevOps Engineer", "email": "devops@acme.com", "enabled": True},
@@ -34,10 +43,24 @@ portfolio_facts: list[dict] = [
                 "roles": ["deployment", "infrastructure"],
                 "enabled": True,
             },
-            {"sequence": 2, "name": "Platform Director", "email": "platform-dir@acme.com", "depends_on": [1], "enabled": True},
+            {
+                "sequence": 2,
+                "name": "Platform Director",
+                "email": "platform-dir@acme.com",
+                "depends_on": [1],
+                "enabled": True,
+            },
         ],
-        "tags": {"Environment": "production", "Team": "platform", "CostCenter": "engineering"},
-        "metadata": {"deployment_strategy": "blue-green", "monitoring_level": "enhanced", "backup_retention": "30days"},
+        "tags": {
+            "Environment": "production",
+            "Team": "platform",
+            "CostCenter": "engineering",
+        },
+        "metadata": {
+            "deployment_strategy": "blue-green",
+            "monitoring_level": "enhanced",
+            "backup_retention": "30days",
+        },
     },
     {
         "portfolio": "mobile-apps",
@@ -48,8 +71,18 @@ portfolio_facts: list[dict] = [
             "repository": "https://github.com/acme/mobile-apps",
             "description": "iOS and Android mobile applications for customer engagement",
         },
-        "owner": {"name": "Michael Chen", "email": "michael.chen@acme.com", "phone": "+1-555-0456"},
-        "contacts": [{"name": "Mobile Team Lead", "email": "mobile-lead@acme.com", "enabled": True}],
+        "owner": {
+            "name": "Michael Chen",
+            "email": "michael.chen@acme.com",
+            "phone": "+1-555-0456",
+        },
+        "contacts": [
+            {
+                "name": "Mobile Team Lead",
+                "email": "mobile-lead@acme.com",
+                "enabled": True,
+            }
+        ],
         "approvers": [
             {
                 "sequence": 1,
@@ -59,8 +92,15 @@ portfolio_facts: list[dict] = [
                 "enabled": True,
             }
         ],
-        "tags": {"Environment": "production", "Team": "mobile", "Platform": "cross-platform"},
-        "attributes": {"app_store_id": "com.acme.mobile", "target_platforms": "ios,android"},
+        "tags": {
+            "Environment": "production",
+            "Team": "mobile",
+            "Platform": "cross-platform",
+        },
+        "attributes": {
+            "app_store_id": "com.acme.mobile",
+            "target_platforms": "ios,android",
+        },
     },
     {
         "portfolio": "data-analytics",
@@ -76,10 +116,18 @@ portfolio_facts: list[dict] = [
             "code": "bi-suite",
             "description": "Comprehensive BI tools and dashboards",
         },
-        "owner": {"name": "Dr. Lisa Wang", "email": "lisa.wang@acme.com", "phone": "+1-555-0789"},
+        "owner": {
+            "name": "Dr. Lisa Wang",
+            "email": "lisa.wang@acme.com",
+            "phone": "+1-555-0789",
+        },
         "contacts": [
             {"name": "Data Engineer", "email": "data-eng@acme.com", "enabled": True},
-            {"name": "Analytics Lead", "email": "analytics-lead@acme.com", "enabled": True},
+            {
+                "name": "Analytics Lead",
+                "email": "analytics-lead@acme.com",
+                "enabled": True,
+            },
         ],
         "approvers": [
             {
@@ -98,8 +146,16 @@ portfolio_facts: list[dict] = [
                 "enabled": True,
             },
         ],
-        "tags": {"Environment": "production", "Team": "data", "DataClassification": "sensitive"},
-        "metadata": {"data_retention": "7years", "compliance": "gdpr,ccpa", "encryption": "required"},
+        "tags": {
+            "Environment": "production",
+            "Team": "data",
+            "DataClassification": "sensitive",
+        },
+        "metadata": {
+            "data_retention": "7years",
+            "compliance": "gdpr,ccpa",
+            "encryption": "required",
+        },
     },
     {
         "portfolio": "internal-tools",
@@ -110,7 +166,9 @@ portfolio_facts: list[dict] = [
             "description": "Internal productivity and development tools",
         },
         "owner": {"name": "Alex Rodriguez", "email": "alex.rodriguez@acme.com"},
-        "contacts": [{"name": "DevEx Team", "email": "devex@acme.com", "enabled": True}],
+        "contacts": [
+            {"name": "DevEx Team", "email": "devex@acme.com", "enabled": True}
+        ],
         "approvers": [
             {
                 "sequence": 1,
@@ -121,7 +179,10 @@ portfolio_facts: list[dict] = [
             }
         ],
         "tags": {"Environment": "internal", "Team": "devex", "Visibility": "private"},
-        "attributes": {"access_level": "employees-only", "deployment_frequency": "weekly"},
+        "attributes": {
+            "access_level": "employees-only",
+            "deployment_frequency": "weekly",
+        },
     },
     {
         "portfolio": "legacy-migration",
@@ -131,10 +192,22 @@ portfolio_facts: list[dict] = [
             "code": "legacy-mig",
             "description": "Migration of legacy systems to cloud-native architecture",
         },
-        "owner": {"name": "Robert Kim", "email": "robert.kim@acme.com", "phone": "+1-555-0321"},
+        "owner": {
+            "name": "Robert Kim",
+            "email": "robert.kim@acme.com",
+            "phone": "+1-555-0321",
+        },
         "contacts": [
-            {"name": "Migration Architect", "email": "migration@acme.com", "enabled": True},
-            {"name": "Legacy Systems SME", "email": "legacy-sme@acme.com", "enabled": True},
+            {
+                "name": "Migration Architect",
+                "email": "migration@acme.com",
+                "enabled": True,
+            },
+            {
+                "name": "Legacy Systems SME",
+                "email": "legacy-sme@acme.com",
+                "enabled": True,
+            },
         ],
         "approvers": [
             {
@@ -151,11 +224,28 @@ portfolio_facts: list[dict] = [
                 "roles": ["migration-deployment"],
                 "enabled": True,
             },
-            {"sequence": 3, "name": "CTO", "email": "cto@acme.com", "depends_on": [1, 2], "enabled": True},
+            {
+                "sequence": 3,
+                "name": "CTO",
+                "email": "cto@acme.com",
+                "depends_on": [1, 2],
+                "enabled": True,
+            },
         ],
-        "tags": {"Environment": "migration", "Team": "architecture", "Priority": "high"},
-        "metadata": {"migration_phase": "assessment", "target_completion": "Q4-2025", "risk_level": "medium"},
-        "attributes": {"legacy_systems": "mainframe,cobol", "target_architecture": "microservices"},
+        "tags": {
+            "Environment": "migration",
+            "Team": "architecture",
+            "Priority": "high",
+        },
+        "metadata": {
+            "migration_phase": "assessment",
+            "target_completion": "Q4-2025",
+            "risk_level": "medium",
+        },
+        "attributes": {
+            "legacy_systems": "mainframe,cobol",
+            "target_architecture": "microservices",
+        },
     },
 ]
 
@@ -241,7 +331,9 @@ def test_portfolio_list_with_pagination():
 
     # Check if there's more data
     if page1.metadata.get("cursor"):
-        page2 = PortfolioActions.list(client=client, limit=2, cursor=page1.metadata["cursor"])
+        page2 = PortfolioActions.list(
+            client=client, limit=2, cursor=page1.metadata["cursor"]
+        )
         assert isinstance(page2, SuccessResponse)
 
         # Verify different data using PascalCase keys
@@ -269,8 +361,16 @@ def test_portfolio_update_full():
             "repository": "https://github.com/acme/mobile-apps-v2",
             "description": "Next generation mobile applications",
         },
-        "owner": {"name": "Michael Chen", "email": "michael.chen@acme.com", "phone": "+1-555-9999"},
-        "tags": {"Environment": "production", "Team": "mobile-updated", "Version": "2.0"},
+        "owner": {
+            "name": "Michael Chen",
+            "email": "michael.chen@acme.com",
+            "phone": "+1-555-9999",
+        },
+        "tags": {
+            "Environment": "production",
+            "Team": "mobile-updated",
+            "Version": "2.0",
+        },
     }
 
     response = PortfolioActions.update(**update_data)
@@ -330,7 +430,10 @@ def test_portfolio_patch_with_none_values():
     patch_data = {
         "client": client,
         "portfolio": portfolio_name,
-        "attributes": {"access_level": "all-employees", "deployment_frequency": "daily"},
+        "attributes": {
+            "access_level": "all-employees",
+            "deployment_frequency": "daily",
+        },
         "domain": None,  # This should not remove the field in PATCH mode
     }
 
@@ -367,11 +470,18 @@ def test_portfolio_update_with_none_values():
             "phone": current_data["Owner"]["Phone"],
         },
         "contacts": [
-            {"name": contact["Name"], "email": contact["Email"], "enabled": contact["Enabled"]}
+            {
+                "name": contact["Name"],
+                "email": contact["Email"],
+                "enabled": contact["Enabled"],
+            }
             for contact in current_data.get("Contacts", [])
         ],
         "domain": None,  # This should remove the field in UPDATE mode
-        "metadata": {"migration_phase": "implementation", "target_completion": "Q2-2026"},
+        "metadata": {
+            "migration_phase": "implementation",
+            "target_completion": "Q2-2026",
+        },
     }
 
     response = PortfolioActions.update(**update_data)
@@ -401,7 +511,13 @@ def test_portfolio_with_complex_approvers():
         },
         "owner": {"name": "Test Owner", "email": "test@acme.com"},
         "approvers": [
-            {"sequence": 1, "name": "First Approver", "email": "first@acme.com", "roles": ["initial-review"], "enabled": True},
+            {
+                "sequence": 1,
+                "name": "First Approver",
+                "email": "first@acme.com",
+                "roles": ["initial-review"],
+                "enabled": True,
+            },
             {
                 "sequence": 2,
                 "name": "Second Approver",
@@ -439,8 +555,16 @@ def test_portfolio_with_both_project_and_bizapp():
     dual_project_portfolio = {
         "client": client,
         "portfolio": "dual-project-test",
-        "project": {"name": "Main Project", "code": "main", "description": "Primary project implementation"},
-        "bizapp": {"name": "Business Application", "code": "bizapp", "description": "Supporting business application"},
+        "project": {
+            "name": "Main Project",
+            "code": "main",
+            "description": "Primary project implementation",
+        },
+        "bizapp": {
+            "name": "Business Application",
+            "code": "bizapp",
+            "description": "Supporting business application",
+        },
         "owner": {"name": "Dual Project Owner", "email": "dual@acme.com"},
     }
 
@@ -468,7 +592,11 @@ def test_create_duplicate_portfolio():
     duplicate_data = {
         "client": client,
         "portfolio": "web-services",  # Already exists
-        "project": {"name": "Duplicate Test", "code": "dup", "description": "This should fail"},
+        "project": {
+            "name": "Duplicate Test",
+            "code": "dup",
+            "description": "This should fail",
+        },
         "owner": {"name": "Test Owner", "email": "test@acme.com"},
     }
 
@@ -489,7 +617,11 @@ def test_update_nonexistent_portfolio():
         PortfolioActions.update(
             client=client,
             portfolio="nonexistent-portfolio",
-            project={"name": "This Should Fail", "code": "fail", "description": "Should not work"},
+            project={
+                "name": "This Should Fail",
+                "code": "fail",
+                "description": "Should not work",
+            },
             owner={"name": "Test", "email": "test@test.com"},
         )
 
@@ -497,7 +629,9 @@ def test_update_nonexistent_portfolio():
 def test_patch_nonexistent_portfolio():
     """Test patching non-existent portfolio."""
     with pytest.raises(NotFoundException):
-        PortfolioActions.patch(client=client, portfolio="nonexistent-portfolio", domain="should-fail.com")
+        PortfolioActions.patch(
+            client=client, portfolio="nonexistent-portfolio", domain="should-fail.com"
+        )
 
 
 def test_missing_required_parameters():
@@ -557,7 +691,11 @@ def test_delete_portfolio():
     delete_test_data = {
         "client": client,
         "portfolio": "delete-test-portfolio",
-        "project": {"name": "Portfolio for Deletion Test", "code": "delete-test", "description": "This portfolio will be deleted"},
+        "project": {
+            "name": "Portfolio for Deletion Test",
+            "code": "delete-test",
+            "description": "This portfolio will be deleted",
+        },
         "owner": {"name": "Delete Test Owner", "email": "delete@test.com"},
     }
 
@@ -566,22 +704,30 @@ def test_delete_portfolio():
     assert isinstance(create_response, SuccessResponse)
 
     # Verify it exists
-    get_response = PortfolioActions.get(client=client, portfolio="delete-test-portfolio")
+    get_response = PortfolioActions.get(
+        client=client, portfolio="delete-test-portfolio"
+    )
     assert isinstance(get_response, SuccessResponse)
 
     # Delete the portfolio
-    delete_response = PortfolioActions.delete(client=client, portfolio="delete-test-portfolio")
+    delete_response = PortfolioActions.delete(
+        client=client, portfolio="delete-test-portfolio"
+    )
     assert isinstance(delete_response, SuccessResponse)
     assert "deleted" in delete_response.message.lower()
 
     # Verify it's gone
-    get_after_delete = PortfolioActions.get(client=client, portfolio="delete-test-portfolio")
+    get_after_delete = PortfolioActions.get(
+        client=client, portfolio="delete-test-portfolio"
+    )
     assert isinstance(get_after_delete, NoContentResponse)
 
 
 def test_delete_nonexistent_portfolio():
     """Test deleting non-existent portfolio."""
-    response = PortfolioActions.delete(client=client, portfolio="nonexistent-portfolio-for-deletion")
+    response = PortfolioActions.delete(
+        client=client, portfolio="nonexistent-portfolio-for-deletion"
+    )
     assert isinstance(response, NoContentResponse)
     assert "does not exist" in response.data["message"]
 
@@ -621,7 +767,11 @@ def test_portfolio_timestamps():
     timestamp_test_data = {
         "client": client,
         "portfolio": "timestamp-test",
-        "project": {"name": "Timestamp Test Project", "code": "timestamp", "description": "Testing timestamp behavior"},
+        "project": {
+            "name": "Timestamp Test Project",
+            "code": "timestamp",
+            "description": "Testing timestamp behavior",
+        },
         "owner": {"name": "Timestamp Test Owner", "email": "timestamp@test.com"},
     }
 
@@ -637,10 +787,14 @@ def test_portfolio_timestamps():
     original_updated_at = create_response.data["UpdatedAt"]
 
     # Update portfolio (should change updated_at)
-    patch_response = PortfolioActions.patch(client=client, portfolio="timestamp-test", domain="timestamp-updated.test.com")
+    patch_response = PortfolioActions.patch(
+        client=client, portfolio="timestamp-test", domain="timestamp-updated.test.com"
+    )
 
     # Verify timestamp behavior with PascalCase keys
-    assert patch_response.data["CreatedAt"] == create_response.data["CreatedAt"]  # Should not change
+    assert (
+        patch_response.data["CreatedAt"] == create_response.data["CreatedAt"]
+    )  # Should not change
     assert patch_response.data["UpdatedAt"] != original_updated_at  # Should be updated
 
     # Clean up
@@ -659,7 +813,11 @@ def test_response_casing_consistency():
     create_data = {
         "client": client,
         "portfolio": "casing-test",
-        "project": {"name": "Casing Test Project", "code": "casing", "description": "Testing response casing"},
+        "project": {
+            "name": "Casing Test Project",
+            "code": "casing",
+            "description": "Testing response casing",
+        },
         "owner": {"name": "Casing Test Owner", "email": "casing@test.com"},
     }
 
@@ -676,7 +834,9 @@ def test_response_casing_consistency():
     for key in expected_pascal_keys:
         if key in ["CreatedAt", "UpdatedAt"]:
             continue  # These might be None in some cases
-        assert key in data_dict, f"Expected PascalCase key '{key}' not found in response data"
+        assert (
+            key in data_dict
+        ), f"Expected PascalCase key '{key}' not found in response data"
 
     # Test get response
     get_response = PortfolioActions.get(client=client, portfolio="casing-test")
@@ -713,7 +873,9 @@ def test_metadata_structure():
         # Not all metadata keys may be present depending on implementation
         if hasattr(metadata, key) or (isinstance(metadata, dict) and key in metadata):
             # Key exists, verify it's snake_case (no caps)
-            assert key.islower() or "_" in key, f"Metadata key '{key}' should be snake_case"
+            assert (
+                key.islower() or "_" in key
+            ), f"Metadata key '{key}' should be snake_case"
 
 
 def test_nested_data_structure_casing():
@@ -728,12 +890,24 @@ def test_nested_data_structure_casing():
             "repository": "https://github.com/test/nested",
             "description": "Testing nested structure casing",
         },
-        "owner": {"name": "Nested Owner", "email": "nested@test.com", "phone": "+1-555-1234"},
+        "owner": {
+            "name": "Nested Owner",
+            "email": "nested@test.com",
+            "phone": "+1-555-1234",
+        },
         "contacts": [
             {"name": "Contact 1", "email": "c1@test.com", "enabled": True},
             {"name": "Contact 2", "email": "c2@test.com", "enabled": False},
         ],
-        "approvers": [{"sequence": 1, "name": "Approver 1", "email": "a1@test.com", "roles": ["deploy"], "enabled": True}],
+        "approvers": [
+            {
+                "sequence": 1,
+                "name": "Approver 1",
+                "email": "a1@test.com",
+                "roles": ["deploy"],
+                "enabled": True,
+            }
+        ],
         "tags": {"Environment": "test", "Team": "qa"},
         "metadata": {"test_type": "nested", "complexity": "high"},
     }

@@ -13,6 +13,7 @@ from core_db.registry.portfolio.models import PortfolioFactsFactory
 from core_db.registry.app.models import AppFactsFactory
 from core_db.registry.zone.models import ZoneFactsFactory
 from core_db.profile.model import ProfileModelFactory
+from core_db.oauth.models import OAuthTableModelFactory
 
 import core_logging as log
 
@@ -61,6 +62,10 @@ def bootstrap_dynamo():
         if ProfileModelFactory.exists(different_client):
             ProfileModelFactory.delete_table(different_client, wait=True)
         ProfileModelFactory.create_table(different_client, wait=True)
+
+        if OAuthTableModelFactory.exists(client):
+            OAuthTableModelFactory.delete_table(client, wait=True)
+        OAuthTableModelFactory.create_table(client, wait=True)
 
     except Exception as e:
         log.error(f"Error during bootstrap: {e}")

@@ -15,7 +15,12 @@ from core_db.registry import (
     AppFactsModel,
     AppFact,
 )
-from core_db.registry.portfolio.models import ContactFacts, ApproverFacts, ProjectFacts, OwnerFacts
+from core_db.registry.portfolio.models import (
+    ContactFacts,
+    ApproverFacts,
+    ProjectFacts,
+    OwnerFacts,
+)
 
 client = util.get_client()
 
@@ -111,7 +116,10 @@ def portfolio_facts():
                 # Only fields that actually exist in ContactFacts
                 "name": "Tech Lead",
                 "email": "tech-lead@acme.com",
-                "attributes": {"department": "engineering", "location": "san-francisco"},
+                "attributes": {
+                    "department": "engineering",
+                    "location": "san-francisco",
+                },
                 "enabled": True,
             },
             {
@@ -166,9 +174,21 @@ def portfolio_facts():
             "attributes": {"department": "engineering", "budget_code": "ENG-PLT-001"},
         },
         # Metadata and attributes - all MapAttribute of UnicodeAttribute
-        "tags": {"Environment": "production", "Team": "platform", "Service": "infrastructure"},
-        "metadata": {"deploy_strategy": "blue-green", "scaling_policy": "auto", "backup_retention": "30d"},
-        "attributes": {"max_instances": "10", "min_instances": "2", "health_check_path": "/health"},
+        "tags": {
+            "Environment": "production",
+            "Team": "platform",
+            "Service": "infrastructure",
+        },
+        "metadata": {
+            "deploy_strategy": "blue-green",
+            "scaling_policy": "auto",
+            "backup_retention": "30d",
+        },
+        "attributes": {
+            "max_instances": "10",
+            "min_instances": "2",
+            "health_check_path": "/health",
+        },
     }
 
 
@@ -184,13 +204,19 @@ def portfolio_fact_alias():
             {
                 "Name": "Tech Lead",  # alias for name
                 "Email": "tech-lead@acme.com",  # alias for email
-                "Attributes": {"department": "engineering", "location": "san-francisco"},  # alias for attributes
+                "Attributes": {
+                    "department": "engineering",
+                    "location": "san-francisco",
+                },  # alias for attributes
                 "Enabled": True,  # alias for enabled
             },
             {
                 "Name": "Product Manager",  # alias for name
                 "Email": "pm@acme.com",  # alias for email
-                "Attributes": {"department": "product", "location": "new-york"},  # alias for attributes
+                "Attributes": {
+                    "department": "product",
+                    "location": "new-york",
+                },  # alias for attributes
                 "Enabled": True,  # alias for enabled
             },
         ],
@@ -220,7 +246,10 @@ def portfolio_fact_alias():
             "Code": "platform-svc",  # alias for code
             "Repository": "https://github.com/acme/platform-services",  # alias for repository
             "Description": "Core platform infrastructure and services",  # alias for description
-            "Attributes": {"type": "infrastructure", "priority": "high"},  # alias for attributes
+            "Attributes": {
+                "type": "infrastructure",
+                "priority": "high",
+            },  # alias for attributes
         },
         # Domain field - PascalCase alias
         "Domain": "platform.acme.com",  # alias for domain
@@ -236,12 +265,27 @@ def portfolio_fact_alias():
             "Name": "Platform Team",  # alias for name
             "Email": "platform-team@acme.com",  # alias for email
             "Phone": "+1-555-0123",  # alias for phone
-            "Attributes": {"department": "engineering", "budget_code": "ENG-PLT-001"},  # alias for attributes
+            "Attributes": {
+                "department": "engineering",
+                "budget_code": "ENG-PLT-001",
+            },  # alias for attributes
         },
         # Metadata and attributes - PascalCase aliases for MapAttribute fields
-        "Tags": {"Environment": "production", "Team": "platform", "Service": "infrastructure"},  # alias for tags
-        "Metadata": {"deploy_strategy": "blue-green", "scaling_policy": "auto", "backup_retention": "30d"},  # alias for metadata
-        "Attributes": {"max_instances": "10", "min_instances": "2", "health_check_path": "/health"},  # alias for attributes
+        "Tags": {
+            "Environment": "production",
+            "Team": "platform",
+            "Service": "infrastructure",
+        },  # alias for tags
+        "Metadata": {
+            "deploy_strategy": "blue-green",
+            "scaling_policy": "auto",
+            "backup_retention": "30d",
+        },  # alias for metadata
+        "Attributes": {
+            "max_instances": "10",
+            "min_instances": "2",
+            "health_check_path": "/health",
+        },  # alias for attributes
     }
 
 
@@ -262,32 +306,66 @@ def zone_facts():
                 "aws_account_id": "123456789012",
                 "kms_key_arn": "arn:aws:kms:us-west-2:123456789012:key/12345678-1234-1234-1234-123456789012",
                 "kms_key": "12345678-1234-1234-1234-123456789012",
-                "delegate_aws_account_ids": ["123456789012", "123456789013", "123456789014"],
+                "delegate_aws_account_ids": [
+                    "123456789012",
+                    "123456789013",
+                    "123456789014",
+                ],
                 "allow_sns": True,
             },
             "resource_namespace": "acme-prod-west",
             "network_name": "acme-production-network",
             # These are ListAttribute, not MapAttribute!
             "vpc_aliases": ["vpc-12345abcde", "vpc-67890fghij"],
-            "subnet_aliases": ["subnet-web1a12345", "subnet-app1a11111", "subnet-db1a33333"],
-            "tags": {"Environment": "production", "Region": "us-west-2", "Owner": "platform-team"},
+            "subnet_aliases": [
+                "subnet-web1a12345",
+                "subnet-app1a11111",
+                "subnet-db1a33333",
+            ],
+            "tags": {
+                "Environment": "production",
+                "Region": "us-west-2",
+                "Owner": "platform-team",
+            },
         },
         # RegionFacts with correct nested structures
         "region_facts": {
             "us-west-2": {
                 "aws_region": "us-west-2",
                 "az_count": 3,
-                "image_aliases": {"latest": "ami-12345abcde", "stable": "ami-67890fghij", "ubuntu-22": "ami-22222bbbbb"},
+                "image_aliases": {
+                    "latest": "ami-12345abcde",
+                    "stable": "ami-67890fghij",
+                    "ubuntu-22": "ami-22222bbbbb",
+                },
                 "min_successful_instances_percent": 75,
                 # MapAttribute of ListAttribute of SecurityAliasFacts
                 "security_aliases": {
                     "corporate-cidrs": [
-                        {"type": "CIDR", "value": "10.0.0.0/8", "description": "Corporate network range"},
-                        {"type": "CIDR", "value": "172.16.0.0/12", "description": "Private network range"},
+                        {
+                            "type": "CIDR",
+                            "value": "10.0.0.0/8",
+                            "description": "Corporate network range",
+                        },
+                        {
+                            "type": "CIDR",
+                            "value": "172.16.0.0/12",
+                            "description": "Private network range",
+                        },
                     ],
-                    "office-locations": [{"type": "CIDR", "value": "203.0.113.0/24", "description": "San Francisco office"}],
+                    "office-locations": [
+                        {
+                            "type": "CIDR",
+                            "value": "203.0.113.0/24",
+                            "description": "San Francisco office",
+                        }
+                    ],
                 },
-                "security_group_aliases": {"web-sg": "sg-web12345", "app-sg": "sg-app67890", "db-sg": "sg-db11111"},
+                "security_group_aliases": {
+                    "web-sg": "sg-web12345",
+                    "app-sg": "sg-app67890",
+                    "db-sg": "sg-db11111",
+                },
                 # ListAttribute of ProxyFacts
                 "proxy": [
                     {
@@ -303,11 +381,19 @@ def zone_facts():
                 "proxy_url": "http://proxy-west-1.acme.com:8080",
                 "no_proxy": "localhost,127.0.0.1,.acme.com,.amazonaws.com",
                 "name_servers": ["8.8.8.8", "8.8.4.4", "1.1.1.1"],
-                "tags": {"Region": "us-west-2", "Tier": "production", "Availability": "high"},
+                "tags": {
+                    "Region": "us-west-2",
+                    "Tier": "production",
+                    "Availability": "high",
+                },
             }
         },
         # Global zone tags
-        "tags": {"Environment": "production", "Zone": "production-west", "Owner": "platform-team"},
+        "tags": {
+            "Environment": "production",
+            "Zone": "production-west",
+            "Owner": "platform-team",
+        },
     }
 
 
@@ -329,15 +415,27 @@ def zone_fact_alias():
                 "AwsAccountId": "123456789012",  # alias for aws_account_id
                 "KmsKeyArn": "arn:aws:kms:us-west-2:123456789012:key/12345678-1234-1234-1234-123456789012",  # alias for kms_key_arn
                 "KmsKey": "12345678-1234-1234-1234-123456789012",  # alias for kms_key
-                "DelegateAwsAccountIds": ["123456789012", "123456789013", "123456789014"],  # alias for delegate_aws_account_ids
+                "DelegateAwsAccountIds": [
+                    "123456789012",
+                    "123456789013",
+                    "123456789014",
+                ],  # alias for delegate_aws_account_ids
                 "AllowSNS": True,  # alias for allow_sns
             },
             "ResourceNamespace": "acme-prod-west",  # alias for resource_namespace
             "NetworkName": "acme-production-network",  # alias for network_name
             # These remain as lists (no PascalCase needed for list items)
             "VpcAliases": ["vpc-12345abcde", "vpc-67890fghij"],  # alias for vpc_aliases
-            "SubnetAliases": ["subnet-web1a12345", "subnet-app1a11111", "subnet-db1a33333"],  # alias for subnet_aliases
-            "Tags": {"Environment": "production", "Region": "us-west-2", "Owner": "platform-team"},  # alias for tags
+            "SubnetAliases": [
+                "subnet-web1a12345",
+                "subnet-app1a11111",
+                "subnet-db1a33333",
+            ],  # alias for subnet_aliases
+            "Tags": {
+                "Environment": "production",
+                "Region": "us-west-2",
+                "Owner": "platform-team",
+            },  # alias for tags
         },
         # RegionFactsItem with PascalCase aliases for all nested fields
         "RegionFacts": {  # alias for region_facts
@@ -358,9 +456,19 @@ def zone_fact_alias():
                             "Value": "10.0.0.0/8",
                             "Description": "Corporate network range",
                         },  # SecurityAliasFacts PascalCase
-                        {"Type": "CIDR", "Value": "172.16.0.0/12", "Description": "Private network range"},
+                        {
+                            "Type": "CIDR",
+                            "Value": "172.16.0.0/12",
+                            "Description": "Private network range",
+                        },
                     ],
-                    "office-locations": [{"Type": "CIDR", "Value": "203.0.113.0/24", "Description": "San Francisco office"}],
+                    "office-locations": [
+                        {
+                            "Type": "CIDR",
+                            "Value": "203.0.113.0/24",
+                            "Description": "San Francisco office",
+                        }
+                    ],
                 },
                 "SecurityGroupAliases": {
                     "web-sg": "sg-web12345",
@@ -381,12 +489,24 @@ def zone_fact_alias():
                 "ProxyPort": 8080,  # alias for proxy_port
                 "ProxyUrl": "http://proxy-west-1.acme.com:8080",  # alias for proxy_url
                 "NoProxy": "localhost,127.0.0.1,.acme.com,.amazonaws.com",  # alias for no_proxy
-                "NameServers": ["8.8.8.8", "8.8.4.4", "1.1.1.1"],  # alias for name_servers
-                "Tags": {"Region": "us-west-2", "Tier": "production", "Availability": "high"},  # alias for tags
+                "NameServers": [
+                    "8.8.8.8",
+                    "8.8.4.4",
+                    "1.1.1.1",
+                ],  # alias for name_servers
+                "Tags": {
+                    "Region": "us-west-2",
+                    "Tier": "production",
+                    "Availability": "high",
+                },  # alias for tags
             }
         },
         # Global zone tags - PascalCase alias
-        "Tags": {"Environment": "production", "Zone": "production-west", "Owner": "platform-team"},  # alias for tags
+        "Tags": {
+            "Environment": "production",
+            "Zone": "production-west",
+            "Owner": "platform-team",
+        },  # alias for tags
     }
 
 
@@ -406,8 +526,16 @@ def app_facts():
         "repository": "https://github.com/acme/user-service",
         "enforce_validation": "true",
         # Complex Attributes - MapAttribute fields
-        "image_aliases": {"latest": "ami-12345abcde", "stable": "ami-67890fghij", "ubuntu-22": "ami-22222bbbbb"},
-        "tags": {"Service": "user-management", "Team": "backend", "Environment": "production"},
+        "image_aliases": {
+            "latest": "ami-12345abcde",
+            "stable": "ami-67890fghij",
+            "ubuntu-22": "ami-22222bbbbb",
+        },
+        "tags": {
+            "Service": "user-management",
+            "Team": "backend",
+            "Environment": "production",
+        },
         "metadata": {
             "build_date": "2024-03-15T10:30:00Z",
             "commit_hash": "abc123def456",
@@ -437,7 +565,11 @@ def app_facts_alias():
             "stable": "ami-67890fghij",
             "ubuntu-22": "ami-22222bbbbb",
         },  # alias for image_aliases
-        "Tags": {"Service": "user-management", "Team": "backend", "Environment": "production"},  # alias for tags
+        "Tags": {
+            "Service": "user-management",
+            "Team": "backend",
+            "Environment": "production",
+        },  # alias for tags
         "Metadata": {  # alias for metadata
             "build_date": "2024-03-15T10:30:00Z",
             "commit_hash": "abc123def456",
@@ -454,7 +586,10 @@ def validate_client_facts_model(result: ClientFactsModel):
     assert result.client_id == "acme-corp-2024"
     assert result.client_type == "enterprise"
     assert result.client_status == "active"
-    assert result.client_description == "Large enterprise corporation specializing in technology solutions"
+    assert (
+        result.client_description
+        == "Large enterprise corporation specializing in technology solutions"
+    )
     assert result.client_name == "ACME Corporation"
     # AWS Organization configuration
     assert result.organization_id == "o-123456789abc"
@@ -499,7 +634,10 @@ def validate_client_facts_snake_case(data: dict):
     assert data["client_id"] == "acme-corp-2024"
     assert data["client_type"] == "enterprise"
     assert data["client_status"] == "active"
-    assert data["client_description"] == "Large enterprise corporation specializing in technology solutions"
+    assert (
+        data["client_description"]
+        == "Large enterprise corporation specializing in technology solutions"
+    )
     assert data["client_name"] == "ACME Corporation"
     assert data["organization_id"] == "o-123456789abc"
     assert data["organization_name"] == "ACME Holdings Inc"
@@ -525,7 +663,10 @@ def validate_client_facts_snake_case(data: dict):
 def validate_client_facts_pascal_case(data: dict):
     assert data["ClientType"] == "enterprise"
     assert data["ClientStatus"] == "active"
-    assert data["ClientDescription"] == "Large enterprise corporation specializing in technology solutions"
+    assert (
+        data["ClientDescription"]
+        == "Large enterprise corporation specializing in technology solutions"
+    )
     assert data["ClientName"] == "ACME Corporation"
     assert data["OrganizationId"] == "o-123456789abc"
     assert data["OrganizationName"] == "ACME Holdings Inc"
@@ -553,7 +694,10 @@ def validate_client_fact_model(result: ClientFact):
     assert result.client_id == "acme-corp-2024"
     assert result.client_type == "enterprise"
     assert result.client_status == "active"
-    assert result.client_description == "Large enterprise corporation specializing in technology solutions"
+    assert (
+        result.client_description
+        == "Large enterprise corporation specializing in technology solutions"
+    )
     assert result.client_name == "ACME Corporation"
     assert result.organization_id == "o-123456789abc"
     assert result.organization_name == "ACME Holdings Inc"
@@ -1187,7 +1331,9 @@ def test_zone_facts_model_instantiation(zone_facts: dict):
     assert us_west_2.proxy[0].host == "proxy-west-1.acme.com"
 
 
-def test_portfolio_fact_pydantic_instantiation(portfolio_facts: dict, portfolio_fact_alias: dict):
+def test_portfolio_fact_pydantic_instantiation(
+    portfolio_facts: dict, portfolio_fact_alias: dict
+):
     """Test PortfolioFact Pydantic model instantiation with all fields."""
 
     for data in [portfolio_facts, portfolio_fact_alias]:

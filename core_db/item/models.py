@@ -18,7 +18,12 @@ from pydantic import Field, ConfigDict, model_validator
 from core_framework.time_utils import make_default_time
 
 from ..models import DatabaseTable, DatabaseRecord, Paginator
-from ..exceptions import BadRequestException, UnknownException, NotFoundException, ConflictException
+from ..exceptions import (
+    BadRequestException,
+    UnknownException,
+    NotFoundException,
+    ConflictException,
+)
 
 
 class ParentCreatedAtIndex(GlobalSecondaryIndex):

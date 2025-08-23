@@ -235,7 +235,7 @@ Note:
     cloud operations.
 """
 
-__version__ = "0.0.11-pre.5+9d887fe"
+__version__ = "0.0.11-pre.17+9c39af8"
 
 # Import main registry components for convenience
 from .registry import (
