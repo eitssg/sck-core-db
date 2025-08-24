@@ -19,6 +19,7 @@ class AuthorizationsModel(OAuthTableModel):
     used = BooleanAttribute(null=False, attr_name="Used")
     code_challenge = UnicodeAttribute(null=True, attr_name="CodeChallenge")
     code_challenge_method = UnicodeAttribute(null=True, attr_name="CodeChallengeMethod")
+    jwt_signature = UnicodeAttribute(null=True, attr_name="JwtSignature")
 
     # created_at is defined in DatabaseTable parent class
     # updated_at is defined in DatabaseTable parent class
@@ -79,6 +80,11 @@ class Authorizations(OAuthRecord):
         None,
         description="Method used for code challenge (e.g., 'S256')",
         alias="CodeChallengeMethod",
+    )
+    jwt_signature: str | None = Field(
+        None,
+        description="JWT signature for the authorization code",
+        alias="JwtSignature",
     )
 
     # created_at is defined in DatabaseRecord parent class
