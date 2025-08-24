@@ -467,7 +467,6 @@ class ClientFact(DatabaseRecord):
         alias="UiBucket",
         description="Alternative S3 bucket name for UI hosting (legacy field, deprecated)",
     )
-
     # Resource Naming
     scope: Optional[str] = Field(
         None,

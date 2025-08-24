@@ -8,6 +8,7 @@ from pynamodb.exceptions import (
 from pydantic import ValidationError
 
 from core_framework.time_utils import make_default_time
+from test.test_reprlib import r
 
 from ..response import Response, SuccessResponse, NoContentResponse
 from ..exceptions import (
@@ -194,14 +195,14 @@ class OAuthActions(TableActions):
             if not actions:
                 # Nothing to update; return current record
                 current = model_class.get(code)
-                data = m.from_model(current).model_dump(by_alias=False, mode="json")
+                data = record_type.from_model(current).model_dump(by_alias=False, mode="json")
                 return SuccessResponse(data=data)
 
             item = model_class(code)
             item.update(actions=actions, condition=type(item).code.exists())
             item.refresh()
 
-            data = m.from_model(item).model_dump(by_alias=False, mode="json")
+            data = record_type.from_model(item).model_dump(by_alias=False, mode="json")
             return SuccessResponse(data=data)
 
         except UpdateError as e:
@@ -248,51 +249,51 @@ class AuthActions(OAuthActions):
 
     @classmethod
     def create(cls, **kwargs) -> Response:
-        super().create(record_type=Authorizations, **kwargs)
+        return super().create(record_type=Authorizations, **kwargs)
 
     @classmethod
     def list(cls, **kwargs) -> Response:
-        super().list(record_type=Authorizations, **kwargs)
+        return super().list(record_type=Authorizations, **kwargs)
 
     @classmethod
     def get(cls, **kwargs) -> Response:
-        super().get(record_type=Authorizations, **kwargs)
+        return super().get(record_type=Authorizations, **kwargs)
 
     @classmethod
     def update(cls, **kwargs) -> Response:
-        super().update(record_type=Authorizations, **kwargs)
+        return super().update(record_type=Authorizations, **kwargs)
 
     @classmethod
     def patch(cls, **kwargs) -> Response:
-        super().patch(record_type=Authorizations, **kwargs)
+        return super().patch(record_type=Authorizations, **kwargs)
 
     @classmethod
     def delete(cls, **kwargs) -> Response:
-        super().delete(record_type=Authorizations, **kwargs)
+        return super().delete(record_type=Authorizations, **kwargs)
 
 
 class RateLimitActions(OAuthActions):
 
     @classmethod
     def create(cls, **kwargs) -> Response:
-        super().create(record_type=RateLimits, **kwargs)
+        return super().create(record_type=RateLimits, **kwargs)
 
     @classmethod
     def list(cls, **kwargs) -> Response:
-        super().list(record_type=RateLimits, **kwargs)
+        return super().list(record_type=RateLimits, **kwargs)
 
     @classmethod
     def get(cls, **kwargs) -> Response:
-        super().get(record_type=RateLimits, **kwargs)
+        return super().get(record_type=RateLimits, **kwargs)
 
     @classmethod
     def update(cls, **kwargs) -> Response:
-        super().update(record_type=RateLimits, **kwargs)
+        return super().update(record_type=RateLimits, **kwargs)
 
     @classmethod
     def patch(cls, **kwargs) -> Response:
-        super().patch(record_type=RateLimits, **kwargs)
+        return super().patch(record_type=RateLimits, **kwargs)
 
     @classmethod
     def delete(cls, **kwargs) -> Response:
-        super().delete(record_type=RateLimits, **kwargs)
+        return super().delete(record_type=RateLimits, **kwargs)
