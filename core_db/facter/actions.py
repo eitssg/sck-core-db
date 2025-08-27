@@ -1,6 +1,7 @@
 """Defines the get method for the Facts table view."""
 
-import os
+from csv import Error
+import core_logging as log
 import core_framework as util
 
 from core_framework.constants import (
@@ -18,7 +19,7 @@ from core_framework.models import DeploymentDetails
 from ..constants import PRN
 from ..actions import TableActions
 
-from ..response import Response, SuccessResponse
+from ..response import Response, SuccessResponse, ErrorResponse
 from ..exceptions import BadRequestException
 
 from .facter import get_facts
@@ -64,9 +65,7 @@ class FactsActions(TableActions):
     """
 
     @classmethod
-    def validate_prn_scope(
-        cls, prn: str | None
-    ) -> tuple[str | None, str | None, str | None, str | None, str | None]:
+    def validate_prn_scope(cls, prn: str | None) -> tuple[str | None, str | None, str | None, str | None, str | None]:
         """Validate PRN format and extract scope components.
 
         Validates the provided PRN against the expected format for its scope
@@ -147,7 +146,12 @@ class FactsActions(TableActions):
         if prn is None:
             raise BadRequestException("PRN must be provided to the facts API")
 
+        log.debug(f"Validating PRN: {prn}")
+
         scope = util.prn_utils.get_prn_scope(prn)
+
+        log.debug(f"Detected PRN scope: {scope}")
+
         parts = prn.split(":")
 
         # Default values
@@ -177,6 +181,10 @@ class FactsActions(TableActions):
             build = parts[4]
         if len(parts) >= 6:  # Component
             component = parts[5]
+
+        log.debug(
+            f"Extracted PRN components: portfolio={portfolio}, app={app}, branch={branch}, build={build}, component={component}"
+        )
 
         return portfolio, app, branch, build, component
 
@@ -276,12 +284,12 @@ class FactsActions(TableActions):
             from the environment using util.get_client(). Both PRN and zone
             parameters are supported for backward compatibility.
         """
+        log.debug(f"Retrieving Facts with parameters:", details=kwargs)
+
         # The client information can come from the query string or the environment variables
         # client must come from pathParameters
-        client = str(kwargs.pop(SCOPE_CLIENT, util.get_client()))
-
-        # based on the scope, is the PRN valid? The PRN must be specified in the query parameters
-        prn = str(kwargs.pop(PRN, kwargs.pop(SCOPE_ZONE, None)))
+        client = str(kwargs.pop("client", util.get_client()))
+        prn = str(kwargs.pop("prn", None))
 
         if not prn or prn == "None":
             raise BadRequestException("PRN must be provided to retrieve Facts")
@@ -292,9 +300,7 @@ class FactsActions(TableActions):
             raise BadRequestException("Client is required to retrieve Facts")
 
         if not portfolio or not app:
-            raise BadRequestException(
-                "Client, portfolio, and app are required in the PRN to retrieve Facts"
-            )
+            raise BadRequestException("Client, portfolio, and app are required in the PRN to retrieve Facts")
 
         deployment_details = DeploymentDetails(
             Client=client,
@@ -305,6 +311,13 @@ class FactsActions(TableActions):
             Component=component,
         )
 
-        the_facts = get_facts(deployment_details)
+        log.debug(f"Deployment details extracted from PRN:", details=deployment_details.model_dump())
 
-        return SuccessResponse(data=the_facts, metadata={"client": client, "prn": prn})
+        try:
+            the_facts = get_facts(deployment_details)
+
+            log.debug("Facter is return facts: ", details=the_facts)
+
+            return SuccessResponse(data=the_facts, metadata={"client": client, "prn": prn})
+        except Exception as e:
+            return ErrorResponse(code=404, message=str(e))

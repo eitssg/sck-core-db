@@ -1,11 +1,11 @@
 """Provides a set of Exceptions that the DB engine uses to provide feedback of operations.
 
 This module defines a hierarchy of custom exceptions for database operations, each
-corresponding to specific HTTP status codes. All exceptions inherit from TableException
+corresponding to specific HTTP status codes. All exceptions inherit from OperationException
 and provide structured error handling for the Core-DB system.
 
 Exception Hierarchy:
-    TableException (Base)
+    OperationException (Base)
     ├── NotFoundException (404)
     ├── ForbiddenException (403)
     ├── UnauthorizedException (401)
@@ -37,7 +37,7 @@ Examples:
     >>> # Exception handling with context
     >>> try:
     ...     operation_result = some_db_operation()
-    ... except TableException as e:
+    ... except OperationException as e:
     ...     logger.error(f"Database error: {e.message}", extra=e.context)
     ...     return {"error": e.message, "code": e.code}
 """
@@ -52,7 +52,7 @@ from core_framework.constants import (
 )
 
 
-class TableException(Exception):
+class OperationException(Exception):
     """Base exception class for DB table operation errors.
 
     This class is used to raise exceptions when a table operation fails.
@@ -73,10 +73,10 @@ class TableException(Exception):
 
     Examples:
         >>> # Basic exception with just message and code
-        >>> raise TableException("Database connection failed", 500)
+        >>> raise OperationException("Database connection failed", 500)
 
         >>> # Exception with additional context
-        >>> raise TableException(
+        >>> raise OperationException(
         ...     "Failed to update item",
         ...     500,
         ...     context={"prn": "portfolio:acme:web", "table": "items"}
@@ -85,14 +85,14 @@ class TableException(Exception):
         >>> # Catching and handling base exception
         >>> try:
         ...     perform_database_operation()
-        ... except TableException as e:
+        ... except OperationException as e:
         ...     logger.error(f"DB Error {e.code}: {e.message}", extra=e.context)
         ...     return error_response(e.message, e.code)
 
         >>> # Accessing exception properties
         >>> try:
         ...     client_action.get(client="missing")
-        ... except TableException as e:
+        ... except OperationException as e:
         ...     print(f"Error: {e.message}")          # Human readable message
         ...     print(f"HTTP Code: {e.code}")         # 404, 500, etc.
         ...     print(f"Context: {e.context}")        # Additional debug info
@@ -105,7 +105,7 @@ class TableException(Exception):
         self.context = context or {}
 
 
-class NotFoundException(TableException):
+class NotFoundException(OperationException):
     """Exception raised when a requested resource is not found.
 
     This exception corresponds to HTTP status code 404 (Not Found).
@@ -148,7 +148,7 @@ class NotFoundException(TableException):
         super().__init__(message, HTTP_NOT_FOUND)
 
 
-class ForbiddenException(TableException):
+class ForbiddenException(OperationException):
     """Exception raised when access to a resource is forbidden.
 
     This exception corresponds to HTTP status code 403 (Forbidden).
@@ -192,7 +192,7 @@ class ForbiddenException(TableException):
         super().__init__(message, HTTP_FORBIDDEN)
 
 
-class UnauthorizedException(TableException):
+class UnauthorizedException(OperationException):
     """Exception raised when authentication is required but not provided.
 
     This exception corresponds to HTTP status code 401 (Unauthorized).
@@ -233,7 +233,7 @@ class UnauthorizedException(TableException):
         super().__init__(message, HTTP_UNAUTHORIZED)
 
 
-class ConflictException(TableException):
+class ConflictException(OperationException):
     """Exception raised when a resource conflict occurs.
 
     This exception corresponds to HTTP status code 409 (Conflict).
@@ -279,7 +279,7 @@ class ConflictException(TableException):
         super().__init__(message, HTTP_CONFLICT)
 
 
-class BadRequestException(TableException):
+class BadRequestException(OperationException):
     """Exception raised when a request is malformed or invalid.
 
     This exception corresponds to HTTP status code 400 (Bad Request).
@@ -329,7 +329,7 @@ class BadRequestException(TableException):
         super().__init__(message, HTTP_BAD_REQUEST)
 
 
-class UnknownException(TableException):
+class UnknownException(OperationException):
     """Exception raised when an unexpected internal error occurs.
 
     This exception corresponds to HTTP status code 500 (Internal Server Error).

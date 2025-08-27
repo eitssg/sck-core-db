@@ -10,7 +10,7 @@ from pynamodb.attributes import (
     ListAttribute,
 )
 
-from ...constants import CLIENT_KEY, PORTFOLIO_KEY
+from ...constants import PORTFOLIO_KEY
 from ...models import TableFactory, DatabaseRecord, DatabaseTable, EnhancedMapAttribute
 
 

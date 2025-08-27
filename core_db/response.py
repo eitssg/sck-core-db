@@ -17,6 +17,7 @@ Features:
     - **HTTP Status Codes**: Proper status code mapping for REST APIs
     - **Flexible Data**: Support for various data types (dict, list, string)
     - **Audit Information**: Timestamps and metadata for tracking
+    - **Cookie Support**: FastAPI-compatible cookie handling for OAuth/session management
 
 Examples:
     >>> # Success response
@@ -31,12 +32,18 @@ Examples:
     ...     response = ErrorResponse(exception=e)
     >>> print(response.status)  # "error"
     >>> print(response.code)    # 500
+
+    >>> # Response with cookies for OAuth flows
+    >>> response = SuccessResponse(data={"access_token": "abc123"})
+    >>> response.set_cookie("session_id", "xyz789", max_age=3600, httponly=True, secure=True)
+    >>> print(len(response.cookies))  # 1
 """
 
+import datetime
 import traceback
 
-from typing import Any, Literal, Self
-from datetime import timezone, datetime as dt
+from typing import Any, Literal, Self, Optional, Union
+from datetime import timezone, datetime
 
 from pydantic import BaseModel, Field, ConfigDict, model_validator
 from pydantic import ValidationError
@@ -45,6 +52,7 @@ from core_framework.constants import (
     HTTP_OK,
     HTTP_INTERNAL_SERVER_ERROR,
     HTTP_NO_CONTENT,
+    HTTP_CREATED,
 )
 
 
@@ -53,7 +61,8 @@ class Response(BaseModel):
 
     This object is returned by all database actions and can be serialized
     to JSON for API responses. It provides a consistent structure for both
-    successful and error responses.
+    successful and error responses, with optional cookie support for OAuth
+    and session management.
 
     Args:
         status (Literal["ok", "error"], optional): The status of the response, either "ok" for
@@ -69,6 +78,8 @@ class Response(BaseModel):
             conventions. Defaults to None.
         metadata (dict | None, optional): Additional metadata about the response or operation.
             Defaults to None.
+        cookies (list[str] | None, optional): Set-Cookie header values for browser session
+            management. Excluded from JSON serialization. Defaults to None.
 
     Attributes:
         status (str): Response status indicator
@@ -76,6 +87,7 @@ class Response(BaseModel):
         data (dict | list | str | None): Response payload
         links (list[dict] | None): Related resource links
         metadata (dict | None): Additional response metadata
+        cookies (list[str] | None): Cookie header values (excluded from serialization)
 
     Properties:
         timestamp (str): ISO formatted timestamp of when the response was created
@@ -104,6 +116,12 @@ class Response(BaseModel):
         ... )
         >>> print(response.data)  # {"message": "Invalid client name"}
 
+        >>> # Response with cookies for OAuth
+        >>> response = Response(status="ok", code=302, data="/redirect")
+        >>> response.set_cookie("oauth_state", "abc123", max_age=600, httponly=True)
+        >>> response.set_cookie("session_id", "xyz789", httponly=True, secure=True)
+        >>> print(len(response.cookies))  # 2
+
         >>> # PascalCase aliases for DynamoDB compatibility
         >>> response = Response(
         ...     Status="ok",
@@ -116,6 +134,9 @@ class Response(BaseModel):
 
         **For Gateway Handler**: This object is serialized to JSON and returned as the
         response body in a GatewayResponse object.
+
+        **For OAuth Handler**: Cookies are extracted and converted to AWS API Gateway
+        multi-value headers format.
 
         **Validation**: The data field must be a dictionary, list, or string. Other types
         will raise a ValueError during model validation.
@@ -138,7 +159,8 @@ class Response(BaseModel):
 
     message: str | None = Field(
         default=None,
-        description="Custom error message",
+        description="Custom error message for convenience (excluded from serialization)",
+        exclude=True,
     )
 
     links: list[dict] | None = Field(
@@ -151,12 +173,136 @@ class Response(BaseModel):
         description="Additional metadata about the response or operation",
     )
 
+    # Add optional cookie support for OAuth/session endpoints
+    cookies: list[str] | None = Field(
+        None,
+        description="Set-Cookie header values for browser session management",
+        exclude=True,  # Exclude from JSON serialization to maintain API compatibility
+    )
+
+    def set_cookie(
+        self,
+        key: str,
+        value: str = "",
+        max_age: Optional[int] = None,
+        expires: Optional[Union[datetime, str, int]] = None,
+        path: str = "/",
+        domain: Optional[str] = None,
+        secure: bool = False,
+        httponly: bool = False,
+        samesite: Optional[str] = "lax",
+    ) -> None:
+        """Set a cookie in the response.
+
+        This method signature matches FastAPI's Response.set_cookie() exactly,
+        allowing drop-in replacement without code modifications. The generated
+        cookie string follows the HTTP Set-Cookie header format specification.
+
+        Args:
+            key (str): Cookie name (e.g., "session_id", "oauth_state")
+            value (str): Cookie value (default: "")
+            max_age (Optional[int]): Cookie lifetime in seconds. Takes precedence over expires.
+            expires (Optional[Union[datetime, str, int]]): Cookie expiration as datetime,
+                string, or Unix timestamp. Ignored if max_age is set.
+            path (str): Cookie path scope (default: "/")
+            domain (Optional[str]): Cookie domain scope (e.g., ".example.com")
+            secure (bool): Secure flag - only send over HTTPS (default: False)
+            httponly (bool): HttpOnly flag - not accessible via JavaScript (default: False)
+            samesite (Optional[str]): SameSite policy: "strict", "lax", or "none" (default: "lax")
+
+        Returns:
+            None: Modifies the response's cookies list in-place
+
+        Examples:
+            >>> response = SuccessResponse(data={"token": "abc123"})
+
+            >>> # Basic session cookie
+            >>> response.set_cookie("session_id", "abc123", max_age=3600, httponly=True)
+            >>> print(response.cookies[0])
+            # "session_id=abc123; Max-Age=3600; Path=/; HttpOnly; SameSite=Lax"
+
+            >>> # Secure OAuth state cookie
+            >>> response.set_cookie(
+            ...     "oauth_state", "xyz789",
+            ...     max_age=600,
+            ...     httponly=True,
+            ...     secure=True,
+            ...     samesite="strict"
+            ... )
+
+            >>> # Cookie with custom domain and path
+            >>> response.set_cookie(
+            ...     "tracking", "abc123",
+            ...     path="/api",
+            ...     domain=".example.com",
+            ...     max_age=86400
+            ... )
+
+            >>> # Clear a cookie (set empty value with max_age=0)
+            >>> response.set_cookie("old_session", "", max_age=0)
+
+        Note:
+            **Cookie Precedence**: If both max_age and expires are provided, max_age takes
+            precedence as per HTTP specification.
+
+            **SameSite Handling**: The samesite value is automatically title-cased to match
+            HTTP specification ("Lax", "Strict", "None").
+
+            **Datetime Handling**: datetime objects are converted to HTTP-date format
+            automatically. Unix timestamps are converted to datetime first.
+
+            **AWS API Gateway**: These cookies are automatically converted to multi-value
+            Set-Cookie headers when used with ProxyResponse.
+        """
+        if self.cookies is None:
+            self.cookies = []
+
+        # Build cookie string following HTTP Set-Cookie format
+        cookie_parts = [f"{key}={value}"]
+
+        if max_age is not None:
+            cookie_parts.append(f"Max-Age={max_age}")
+
+        if expires is not None:
+            if isinstance(expires, datetime):
+                expires_str = expires.strftime("%a, %d %b %Y %H:%M:%S GMT")
+            elif isinstance(expires, str):
+                expires_str = expires
+            elif isinstance(expires, int):
+                # Assume Unix timestamp
+                expires_dt = datetime.fromtimestamp(expires)
+                expires_str = expires_dt.strftime("%a, %d %b %Y %H:%M:%S GMT")
+            else:
+                expires_str = str(expires)
+            cookie_parts.append(f"Expires={expires_str}")
+
+        if path:
+            cookie_parts.append(f"Path={path}")
+
+        if domain:
+            cookie_parts.append(f"Domain={domain}")
+
+        if secure:
+            cookie_parts.append("Secure")
+
+        if httponly:
+            cookie_parts.append("HttpOnly")
+
+        if samesite:
+            cookie_parts.append(f"SameSite={samesite.title()}")
+
+        cookie_string = "; ".join(cookie_parts)
+        self.cookies.append(cookie_string)
+
     @property
     def timestamp(self) -> str:
         """Get the current timestamp in ISO format.
 
+        Returns the current UTC timestamp whenever accessed, providing a
+        fresh timestamp for each property access.
+
         Returns:
-            str: ISO formatted timestamp in UTC timezone
+            str: ISO formatted timestamp in UTC timezone with microsecond precision
 
         Examples:
             >>> response = Response()
@@ -168,20 +314,29 @@ class Response(BaseModel):
             >>> ts1 = response.timestamp
             >>> time.sleep(1)
             >>> ts2 = response.timestamp
-            >>> print(ts1 != ts2)  # True
+            >>> print(ts1 != ts2)  # True - different timestamps
+
+        Note:
+            This property generates a new timestamp on each access rather than
+            storing a creation timestamp. For audit trails requiring a fixed
+            creation time, store the timestamp value when the response is created.
         """
-        return dt.now(timezone.utc).isoformat()
+        return datetime.now(timezone.utc).isoformat()
 
     @model_validator(mode="before")
     @classmethod
     def validate_model(cls, values: Any) -> Any:
         """Validate the response model before instantiation.
 
+        Performs validation on the input values, ensuring the data field contains
+        only supported types (dict, list, str) and handles both snake_case and
+        PascalCase field naming conventions.
+
         Args:
-            values: The values to validate
+            values (Any): The input values to validate, typically a dictionary
 
         Returns:
-            Any: Validated values
+            Any: Validated values with data field properly typed
 
         Raises:
             ValueError: If data field is not a dictionary, list, or string
@@ -196,7 +351,22 @@ class Response(BaseModel):
             >>> try:
             ...     Response(data=42)  # int - not allowed
             ... except ValueError as e:
-            ...     print("Validation failed")
+            ...     print("Validation failed: data must be dict, list, or string")
+
+            >>> # BaseModel conversion
+            >>> from pydantic import BaseModel
+            >>> class TestModel(BaseModel):
+            ...     name: str
+            >>> model_instance = TestModel(name="test")
+            >>> response = Response(data=model_instance)
+            >>> print(type(response.data))  # <class 'dict'> - converted automatically
+
+        Note:
+            **BaseModel Handling**: If data is a Pydantic BaseModel, it's automatically
+            converted to a dictionary using model_dump(mode="json").
+
+            **Case Sensitivity**: Supports both "data" and "Data" field names for
+            compatibility with DynamoDB PascalCase conventions.
         """
         if isinstance(values, dict):
             # Check both snake_case and PascalCase field names
@@ -212,19 +382,23 @@ class Response(BaseModel):
     def model_dump(self, **kwargs) -> dict:
         """Convert the model to a dictionary, excluding None values by default.
 
+        Provides consistent serialization behavior across all response types,
+        with sensible defaults for API responses.
+
         Args:
             **kwargs: Additional arguments for model dumping. Common options:
                 - exclude_none (bool): Exclude None values (default: True)
                 - by_alias (bool): Use field aliases (default: False)
                 - exclude (set): Fields to exclude from output
+                - include (set): Fields to include in output
 
         Returns:
-            dict: Dictionary representation of the response
+            dict: Dictionary representation of the response with None values excluded
 
         Examples:
             >>> response = Response(status="ok", code=200, data={"test": "value"})
 
-            >>> # Default serialization (excludes None values)
+            >>> # Default serialization (excludes None values and excluded fields)
             >>> result = response.model_dump()
             >>> print(result)  # {"status": "ok", "code": 200, "data": {"test": "value"}}
 
@@ -235,13 +409,26 @@ class Response(BaseModel):
             >>> # Use PascalCase aliases
             >>> result = response.model_dump(by_alias=True)
             >>> print(result)  # {"Status": "ok", "Code": 200, "Data": {"test": "value"}}
+
+            >>> # Exclude specific fields
+            >>> result = response.model_dump(exclude={"metadata"})
+
+        Note:
+            **Default Behavior**: Unlike standard Pydantic models, this method defaults
+            to exclude_none=True for cleaner API responses.
+
+            **Excluded Fields**: Fields marked with exclude=True (like cookies and message)
+            are automatically excluded from serialization.
         """
         # Set default exclude_none=True if not specified
-        kwargs["exclude_none"] = True
+        kwargs.setdefault("exclude_none", True)
         return super().model_dump(**kwargs)
 
     def __repr__(self) -> str:
         """Return string representation of the Response.
+
+        Provides a concise string representation showing the key response attributes
+        for debugging and logging purposes.
 
         Returns:
             str: String representation showing status, code, and data
@@ -254,6 +441,12 @@ class Response(BaseModel):
             >>> error_response = Response(status="error", code=404, data="Not found")
             >>> repr(error_response)
             "Response(status=error, code=404, data=Not found)"
+
+            >>> # Response with cookies (cookies not shown in repr)
+            >>> response = Response(status="ok", code=200, data="Success")
+            >>> response.set_cookie("session", "abc123")
+            >>> repr(response)
+            "Response(status=ok, code=200, data=Success)"
         """
         return f"Response(status={self.status}, code={self.code}, data={self.data})"
 
@@ -349,6 +542,19 @@ class SuccessResponse(Response):
             "SuccessResponse(data=Success!)"
         """
         return f"SuccessResponse(data={self.data})"
+
+
+class CreatedResponse(Response):
+    """Convenience class for created responses.
+
+    This class is used when a resource is successfully created. Sets status to "ok" and code to 201 (Created).
+    """
+
+    @model_validator(mode="after")
+    def validate_after(self) -> Self:
+        self.status = "ok"
+        self.code = HTTP_CREATED
+        return self
 
 
 class NoContentResponse(Response):
@@ -731,11 +937,7 @@ def _build_error_chain(exc: Exception) -> list[ErrorDetail]:
 
         for error in exc.errors():
             # Extract field path
-            field_path = (
-                " -> ".join(str(loc) for loc in error["loc"])
-                if error["loc"]
-                else "root"
-            )
+            field_path = " -> ".join(str(loc) for loc in error["loc"]) if error["loc"] else "root"
 
             # Build detailed error message
             error_type = error["type"]
@@ -751,9 +953,7 @@ def _build_error_chain(exc: Exception) -> list[ErrorDetail]:
             error_detail = ErrorDetail(
                 type=f"ValidationError.{error_type}",
                 message=message,
-                track="".join(
-                    traceback.format_exception(type(exc), exc, exc.__traceback__)
-                ),
+                track="".join(traceback.format_exception(type(exc), exc, exc.__traceback__)),
             )
             error_chain.append(error_detail)
 
@@ -765,11 +965,14 @@ def _build_error_chain(exc: Exception) -> list[ErrorDetail]:
         error_detail = ErrorDetail(
             type=type(exc).__name__,
             message=str(exc),
-            track="".join(
-                traceback.format_exception(type(exc), exc, exc.__traceback__)
-            ),
+            track="".join(traceback.format_exception(type(exc), exc, exc.__traceback__)),
         )
         error_chain.append(error_detail)
         exc = exc.__cause__ or exc.__context__
 
     return error_chain
+
+
+class RedirectResponse(Response):
+    def __init__(self, url: str, status_code: int = 302):
+        super().__init__(code=status_code, headers={"Location": url}, data=None)
