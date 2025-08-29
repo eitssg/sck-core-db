@@ -1,7 +1,7 @@
 - core-autmation-api-facts-teardown:
   type: delete-stack
   scope: branch
-  params:
+  spec:
     stack_name: {{ scope }}core-automation-api-facts-{{ branch }}
     account: {{ acccount }}
     region: {{ region }}
@@ -9,7 +9,7 @@
 - core-automation-api-items-teardown:
     type: delete-stack
     scope: branch
-    params:
+    spec:
         stack_name: {{ scope }}core-automation-api-items-{{ branch }}
         account: {{ acccount }}
         region: {{ region }}
@@ -17,7 +17,7 @@
 - core-automation-api-roles-teardown:
   type: delete-stack
   scope: branch
-  params:
+  spec:
     stack_name: {{ scope }}core-automation-api-roles-{{ branch }}
     account: {{ acccount }}
     region: {{ region }}

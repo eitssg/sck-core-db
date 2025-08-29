@@ -974,5 +974,15 @@ def _build_error_chain(exc: Exception) -> list[ErrorDetail]:
 
 
 class RedirectResponse(Response):
-    def __init__(self, url: str, status_code: int = 302):
-        super().__init__(code=status_code, headers={"Location": url}, data=None)
+
+    url: str = Field(
+        ...,
+        description="The URL to redirect to",
+        exclude=True,
+    )
+
+    @model_validator(mode="before")
+    @classmethod
+    def validate(cls, values: dict[str, Any]) -> dict[str, Any]:
+        values["code"] = 302
+        return values

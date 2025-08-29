@@ -81,7 +81,9 @@ def get_region() -> str:
     return util.get_dynamodb_region() or "us-east-1"
 
 
-def get_table_name(model: type, client: str = None, default: Optional[str] = None) -> str:
+def get_table_name(
+    model: type, client: str = None, default: Optional[str] = None
+) -> str:
     """Generate DynamoDB table name for the specified model type and client.
 
     Table names are constructed using standard conventions and may be customized

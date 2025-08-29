@@ -3,32 +3,30 @@ import boto3
 import os
 from boto3.dynamodb.conditions import Attr
 
+
 def handler(event, context):
-dynamodb = boto3.resource('dynamodb')
 
-log_level = os.environ.get('LOG_LEVEL', 'ERROR').upper()
+    dynamodb = boto3.resource("dynamodb")
 
-# Zones are not referenced in other FACTS, so, nothing to do yet
+    log_level = os.environ.get("LOG_LEVEL", "ERROR").upper()
 
-try:
-    count = 0
-    for record in event['Records']:
-        if record['eventName'] == 'REMOVE':
-            portfolio_facts = record['dynamodb']['OldImage']['ClientPortfolio']['S']
-            zone = record['dynamodb']['OldImage']['Zone']['S']
+    # Zones are not referenced in other FACTS, so, nothing to do yet
 
-            count += 1
-            if log_level == 'INFO':
-                print(f'SUCCESS: [{portfolio_facts}], zone: [{zone}] deleted')
+    try:
+        count = 0
+        for record in event["Records"]:
+            if record["eventName"] == "REMOVE":
+                portfolio_facts = record["dynamodb"]["OldImage"]["ClientPortfolio"]["S"]
+                zone = record["dynamodb"]["OldImage"]["Zone"]["S"]
 
-    print(f'SUCCESS: {count} records deleted')
-    return {
-        'statusCode': 200,
-        'body': json.dumps(f'Success: {count} records deleted')
-    }
-except Exception as e:
-    print(f'ERROR: {str(e)}')
-    return {
-        'statusCode': 500,
-        'body': json.dumps(f'Error: {str(e)}')
-    }
+                count += 1
+                if log_level == "INFO":
+                    print(f"SUCCESS: [{portfolio_facts}], zone: [{zone}] deleted")
+
+        print(f"SUCCESS: {count} records deleted")
+
+        return {"statusCode": 200, "body": json.dumps(f"Success: {count} records deleted")}
+
+    except Exception as e:
+        print(f"ERROR: {str(e)}")
+        return {"statusCode": 500, "body": json.dumps(f"Error: {str(e)}")}

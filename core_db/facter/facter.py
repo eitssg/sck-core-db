@@ -308,11 +308,16 @@ def get_zone_facts_by_account_id(client: str, account_id: str) -> list[dict] | N
 
         data = []
         for item in result:
-            if isinstance(item, ZoneFact) and item.account_facts.aws_account_id == account_id:
+            if (
+                isinstance(item, ZoneFact)
+                and item.account_facts.aws_account_id == account_id
+            ):
                 data.append(ZoneFact.from_model(item).model_dump())
 
         if not data:
-            log.warning(f"No zones found for account ID: {account_id} in client: {client}")
+            log.warning(
+                f"No zones found for account ID: {account_id} in client: {client}"
+            )
             return None
 
         return data
@@ -420,11 +425,17 @@ def get_app_facts(deployment_details: DeploymentDetails) -> list[dict] | None:
 
     data = []
     for app_facts in app_facts_list:
-        if isinstance(app_facts, model_class) and app_facts.app_regex and re.match(app_facts.app_regex, identity):
+        if (
+            isinstance(app_facts, model_class)
+            and app_facts.app_regex
+            and re.match(app_facts.app_regex, identity)
+        ):
             data.append(AppFact.from_model(app_facts).model_dump(mode="json"))
 
     if not data:
-        log.warning(f"No app facts found for client: {client}, portfolio: {portfolio}, app: {app}")
+        log.warning(
+            f"No app facts found for client: {client}, portfolio: {portfolio}, app: {app}"
+        )
         return None
 
     return data
@@ -488,8 +499,12 @@ def derive_environment_from_branch(branch: str) -> tuple[str, str]:
 
         # split the branch by '/' and retrieve the last part
         branch_parts = branch.split("/")
-        environment = branch_parts[-1]  # in this format, the branch name is the environment (master, main, dev, feature1/dev, etc)
-        region_alias = parts[1]  # override region_alias fact with the branch region alias definition
+        environment = branch_parts[
+            -1
+        ]  # in this format, the branch name is the environment (master, main, dev, feature1/dev, etc)
+        region_alias = parts[
+            1
+        ]  # override region_alias fact with the branch region alias definition
     else:
         environment = branch
         region_alias = V_DEFAULT_REGION_ALIAS
@@ -913,12 +928,18 @@ def get_facts(deployment_details: DeploymentDetails) -> dict:  # noqa: C901
     log.debug(f"App facts:", details=app_facts_list)
 
     if not app_facts_list:
-        log.info(f"No app facts found for {identity}. Contact DevOps to register this app.")
-        raise ValueError(f"App facts not found for {identity}. Contact DevOps to register this app.")
+        log.info(
+            f"No app facts found for {identity}. Contact DevOps to register this app."
+        )
+        raise ValueError(
+            f"App facts not found for {identity}. Contact DevOps to register this app."
+        )
 
     if len(app_facts_list) > 1:
         log.info(f"Multiple app facts found for {identity}. Abort!!!")
-        raise ValueError(f"Multiple app facts found for {identity}. Please refine your deployment details.")
+        raise ValueError(
+            f"Multiple app facts found for {identity}. Please refine your deployment details."
+        )
 
     app_facts = app_facts_list[0]
 
@@ -930,7 +951,9 @@ def get_facts(deployment_details: DeploymentDetails) -> dict:  # noqa: C901
     # if environment is not set, try to derive it from the branch. But facts ALWAYS come first.
     environment = app_facts.get(ENVIRONMENT, None)
     if not environment:
-        environment, branch_region_alias = derive_environment_from_branch(deployment_details.branch or "us-east-1")
+        environment, branch_region_alias = derive_environment_from_branch(
+            deployment_details.branch or "us-east-1"
+        )
 
     # FACTS always override user input. So, don't use the user input if FACTS are present.
     if region_alias is None:
@@ -938,7 +961,9 @@ def get_facts(deployment_details: DeploymentDetails) -> dict:  # noqa: C901
 
     zone = app_facts.get(ZONE_KEY, None)
     if not zone:
-        raise ValueError(f"App facts do not contain a Zone for {identity}. Please register the app with a zone.")
+        raise ValueError(
+            f"App facts do not contain a Zone for {identity}. Please register the app with a zone."
+        )
 
     # Get the zone facts dictionary for this deployment and environment
     zone_facts = get_zone_facts(client, zone)
@@ -946,7 +971,9 @@ def get_facts(deployment_details: DeploymentDetails) -> dict:  # noqa: C901
     log.debug(f"Zone facts:", details=zone_facts)
 
     if not zone_facts:
-        log.info(f"No zone facts found for {client}:{zone}. Contact DevOps to register this zone.")
+        log.info(
+            f"No zone facts found for {client}:{zone}. Contact DevOps to register this zone."
+        )
         raise ValueError(f"Zone facts not found for {client}:{zone}")
 
     account_facts = zone_facts.get(FACTS_ACCOUNT, None)
@@ -954,7 +981,9 @@ def get_facts(deployment_details: DeploymentDetails) -> dict:  # noqa: C901
     log.debug(f"Account facts:", details=account_facts)
 
     if account_facts is None:
-        log.info(f"No account facts found for {zone}. Contact DevOps to register this zone.")
+        log.info(
+            f"No account facts found for {zone}. Contact DevOps to register this zone."
+        )
         raise ValueError(f"Account facts not found for {zone}")
 
     # Get the region facts
@@ -963,7 +992,9 @@ def get_facts(deployment_details: DeploymentDetails) -> dict:  # noqa: C901
     log.debug(f"Region facts for {region_alias}:", details=region_facts)
 
     if region_facts is None:
-        log.info(f"Region {region_alias} has not been enabled for {zone}. Contact DevOps to enable this region.")
+        log.info(
+            f"Region {region_alias} has not been enabled for {zone}. Contact DevOps to enable this region."
+        )
         raise ValueError(f"Region {region_alias} has not been enabled for {zone}")
 
     compiler_facts = get_compiler_facts(deployment_details)
@@ -982,7 +1013,9 @@ def get_facts(deployment_details: DeploymentDetails) -> dict:  # noqa: C901
             TAG_ENVIRONMENT: environment,
             TAG_REGION: region_alias,
             TAG_OWNER: format_contact(portfolio_facts.get("Owner", {})),
-            TAG_CONTACTS: ",".join([format_contact(c) for c in portfolio_facts.get("Contacts", [])]),
+            TAG_CONTACTS: ",".join(
+                [format_contact(c) for c in portfolio_facts.get("Contacts", [])]
+            ),
         },
     )
     app_facts[FACTS_TAGS] = dict(tags)

@@ -25,21 +25,27 @@ def test_get_clients_table_name():
     """Get the name of the client table"""
     table = get_table_name(ClientFactsModel, client="test-client")
     assert table is not None, "Client table name should not be None"
-    assert table == "core-automation-clients", f"Expected 'core-automation-clients', got {table}"
+    assert (
+        table == "core-automation-clients"
+    ), f"Expected 'core-automation-clients', got {table}"
 
 
 def test_get_apps_table_name():
     """Get the name of the app table"""
     table = get_table_name(AppFactsModel)
     assert table is not None, "App table name should not be None"
-    assert table == f"test-client-{V_CORE_AUTOMATION}-apps", f"Expected 'test-client-{V_CORE_AUTOMATION}-apps', got {table}"
+    assert (
+        table == f"test-client-{V_CORE_AUTOMATION}-apps"
+    ), f"Expected 'test-client-{V_CORE_AUTOMATION}-apps', got {table}"
 
 
 def test_get_zones_table_name():
     """Get the name of the zone table"""
     table = get_table_name(ZoneFactsModel, client="test-client")
     assert table is not None, "Zone table name should not be None"
-    assert table == f"test-client-{V_CORE_AUTOMATION}-zones", f"Expected 'test-client-{V_CORE_AUTOMATION}-zones', got {table}"
+    assert (
+        table == f"test-client-{V_CORE_AUTOMATION}-zones"
+    ), f"Expected 'test-client-{V_CORE_AUTOMATION}-zones', got {table}"
 
 
 def test_get_portfolios_table_name():
@@ -55,11 +61,15 @@ def test_get_items_table_name():
     """Get the name of the item table"""
     table = get_table_name(ItemModel, client="test-client")
     assert table is not None, "Item table name should not be None"
-    assert table == f"test-client-{V_CORE_AUTOMATION}-items", f"Expected 'test-client-{V_CORE_AUTOMATION}-items', got {table}"
+    assert (
+        table == f"test-client-{V_CORE_AUTOMATION}-items"
+    ), f"Expected 'test-client-{V_CORE_AUTOMATION}-items', got {table}"
 
 
 def test_get_events_table_name():
     """Get the name of the event table"""
     table = get_table_name(EventModel)
     assert table is not None, "Event table name should not be None"
-    assert table == f"test-client-{V_CORE_AUTOMATION}-events", f"Expected 'test-client-{V_CORE_AUTOMATION}-events', got {table}"
+    assert (
+        table == f"test-client-{V_CORE_AUTOMATION}-events"
+    ), f"Expected 'test-client-{V_CORE_AUTOMATION}-events', got {table}"

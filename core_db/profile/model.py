@@ -121,12 +121,11 @@ class ProfileModel(DatabaseTable):
 
     # UserID and Password.  user_pwd is only stored on pfoile 'default'
     user_id = UnicodeAttribute(hash_key=True, attr_name="UserId")
-    profile_name = UnicodeAttribute(
-        range_key=True, attr_name="ProfileName", default="default"
-    )
+    profile_name = UnicodeAttribute(range_key=True, attr_name="ProfileName", default="default")
 
     # Encrypted and stored credentials
     credentials = MapAttribute(attr_name="Credentials", null=True)
+    identity = MapAttribute(attr_name="Identity", null=True)
 
     # Basic profile information
     email = UnicodeAttribute(attr_name="Email", null=True)
@@ -140,9 +139,7 @@ class ProfileModel(DatabaseTable):
     timezone = UnicodeAttribute(attr_name="Timezone", null=True, default="UTC")
     language = UnicodeAttribute(attr_name="Language", null=True, default="en-US")
     theme = UnicodeAttribute(attr_name="Theme", null=True, default="light")
-    notifications_enabled = BooleanAttribute(
-        attr_name="NotificationsEnabled", null=True, default=True
-    )
+    notifications_enabled = BooleanAttribute(attr_name="NotificationsEnabled", null=True, default=True)
 
     # Timestamps (per profile)
     last_login = UTCDateTimeAttribute(attr_name="LastLogin", null=True)
@@ -153,9 +150,7 @@ class ProfileModel(DatabaseTable):
     aws_account_id = UnicodeAttribute(attr_name="AwsAccountId", null=True)
     aws_user_arn = UnicodeAttribute(attr_name="AwsUserArn", null=True)
     access_key_prefix = UnicodeAttribute(attr_name="AccessKeyPrefix", null=True)
-    preferred_region = UnicodeAttribute(
-        attr_name="PreferredRegion", null=True, default="us-east-1"
-    )
+    preferred_region = UnicodeAttribute(attr_name="PreferredRegion", null=True, default="us-east-1")
 
     # Profile-specific attributes
     permissions = MapAttribute(attr_name="Permissions", null=True, default=dict)
@@ -330,6 +325,11 @@ class UserProfile(DatabaseRecord):
         None,
         alias="Credentials",
         description="Encrypted credentials for this profile",
+    )
+    identity: Optional[dict[str, Any]] = Field(
+        None,
+        description="Identity information for this profile",
+        alias="Identity",
     )
     # Basic profile information
     email: Optional[str] = Field(

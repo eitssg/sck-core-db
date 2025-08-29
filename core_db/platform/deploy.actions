@@ -4,7 +4,7 @@
     name: core-autmation-api-facts-deploy
     namespace: core
   scope: branch
-  params:
+  spec:
     account: {{ acccount }}
     region: {{ region }}
     stack_name: {{ scope }}core-automation-api-facts-{{ branch }}
@@ -27,7 +27,7 @@
     name: core-automation-api-items-deploy
     namespace: core
   scope: branch
-  params:
+  spec:
     account: {{ acccount }}
     region: {{ region }}
     stack_name: core-automation-api-items-{{ branch }}
@@ -48,7 +48,7 @@
     name: core-automation-api-roles-deploy
     namespace: core
   scope: branch
-  params:
+  spec:
     account: {{ acccount }}
     region: {{ region }}
     stack_name: {{ scope }}core-automation-api-roles-{{ branch }}
