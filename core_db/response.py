@@ -160,7 +160,6 @@ class Response(BaseModel):
     message: str | None = Field(
         default=None,
         description="Custom error message for convenience (excluded from serialization)",
-        exclude=True,
     )
 
     links: list[dict] | None = Field(
@@ -855,9 +854,6 @@ class ErrorResponse(Response):
         # Build error chain from exception if not already provided
         if not self.errors and self.exception:
             self.errors = _build_error_chain(self.exception)
-
-        if not self.errors:
-            self.errors = None
 
         return self
 
