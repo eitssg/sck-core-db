@@ -1,10 +1,6 @@
 from .authorization import Authorizations
 from .ratelimits import RateLimits
-from .actions import AuthActions, RateLimitActions
+from .forgotpass import ForgotPassword
+from .actions import AuthActions, RateLimitActions, ForgotPasswordActions
 
-__all__ = [
-    "Authorizations",
-    "RateLimits",
-    "AuthActions",
-    "RateLimitActions",
-]
+__all__ = ["Authorizations", "RateLimits", "AuthActions", "RateLimitActions", "ForgotPasswordActions", "ForgotPassword"]

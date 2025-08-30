@@ -21,6 +21,7 @@ from ..actions import TableActions
 from .oauthtable import OAuthRecord
 from .authorization import Authorizations
 from .ratelimits import RateLimits
+from .forgotpass import ForgotPassword
 
 
 class OAuthActions(TableActions):
@@ -79,14 +80,10 @@ class OAuthActions(TableActions):
         try:
             model_class = record_type.model_class(client)
             result = model_class.scan()
-            data = [
-                record_type.from_model(item).model_dump(mode="json") for item in result
-            ]
+            data = [record_type.from_model(item).model_dump(mode="json") for item in result]
 
             if len(data) == 0:
-                return NoContentResponse(
-                    metadata={"message": "There are no authorizations found."}
-                )
+                return NoContentResponse(metadata={"message": "There are no authorizations found."})
 
             return SuccessResponse(data=data, metadata={"total_count": len(data)})
         except ScanError as e:
@@ -152,9 +149,7 @@ class OAuthActions(TableActions):
         return cls._update(record_type, remove_none=False, **kwargs)
 
     @classmethod
-    def _update(
-        cls, record_type: OAuthRecord, remove_none: bool = True, **kwargs
-    ) -> Response:
+    def _update(cls, record_type: OAuthRecord, remove_none: bool = True, **kwargs) -> Response:
         """Internal update helper."""
         client = kwargs.get("client", kwargs.get("Client"))
         code = kwargs.get("code", kwargs.get("Code"))
@@ -201,9 +196,7 @@ class OAuthActions(TableActions):
             if not actions:
                 # Nothing to update; return current record
                 current = model_class.get(code)
-                data = record_type.from_model(current).model_dump(
-                    by_alias=False, mode="json"
-                )
+                data = record_type.from_model(current).model_dump(by_alias=False, mode="json")
                 return SuccessResponse(data=data)
 
             item = model_class(code)
@@ -305,3 +298,30 @@ class RateLimitActions(OAuthActions):
     @classmethod
     def delete(cls, **kwargs) -> Response:
         return super().delete(record_type=RateLimits, **kwargs)
+
+
+class ForgotPasswordActions(OAuthActions):
+
+    @classmethod
+    def create(cls, **kwargs) -> Response:
+        return super().create(record_type=ForgotPassword, **kwargs)
+
+    @classmethod
+    def list(cls, **kwargs) -> Response:
+        return super().list(record_type=ForgotPassword, **kwargs)
+
+    @classmethod
+    def get(cls, **kwargs) -> Response:
+        return super().get(record_type=ForgotPassword, **kwargs)
+
+    @classmethod
+    def update(cls, **kwargs) -> Response:
+        return super().update(record_type=ForgotPassword, **kwargs)
+
+    @classmethod
+    def patch(cls, **kwargs) -> Response:
+        return super().patch(record_type=ForgotPassword, **kwargs)
+
+    @classmethod
+    def delete(cls, **kwargs) -> Response:
+        return super().delete(record_type=ForgotPassword, **kwargs)

@@ -81,9 +81,7 @@ def get_region() -> str:
     return util.get_dynamodb_region() or "us-east-1"
 
 
-def get_table_name(
-    model: type, client: str = None, default: Optional[str] = None
-) -> str:
+def get_table_name(model: type, client: str = None, default: Optional[str] = None) -> str:
     """Generate DynamoDB table name for the specified model type and client.
 
     Table names are constructed using standard conventions and may be customized
@@ -169,6 +167,7 @@ def get_table_name(
         "AuthorizationsModel": f"{prefix}core-{V_CORE_AUTOMATION}-oauth",
         "RateLimitsModel": f"{prefix}core-{V_CORE_AUTOMATION}-oauth",
         "OAuthTableModel": f"{prefix}core-{V_CORE_AUTOMATION}-oauth",
+        "ForgotPasswordModel": f"{prefix}core-{V_CORE_AUTOMATION}-oauth",
         # Client Facts is the base tenant registration table (no "client" prefix)
         "ClientFactsModel": f"{prefix}core-{V_CORE_AUTOMATION}-clients",
         # Profiles for user-defined configurations
