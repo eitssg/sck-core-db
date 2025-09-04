@@ -64,6 +64,7 @@ class BuildModel(ItemModel):
     status = UnicodeAttribute(default_for_new="INIT", attr_name="Status")
     message = UnicodeAttribute(null=True, attr_name="Message")
     context = MapAttribute(null=True, attr_name="Context")
+
     portfolio_prn = UnicodeAttribute(null=False, attr_name="PortfolioPrn")
     app_prn = UnicodeAttribute(null=False, attr_name="AppPrn")
     branch_prn = UnicodeAttribute(null=False, attr_name="BranchPrn")

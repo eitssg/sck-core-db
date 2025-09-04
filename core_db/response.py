@@ -179,6 +179,37 @@ class Response(BaseModel):
         exclude=True,  # Exclude from JSON serialization to maintain API compatibility
     )
 
+    def delete_cookie(
+        self,
+        key: str,
+        path: str = "/",
+        domain: Optional[str] = None,
+        secure: bool = False,
+        httponly: bool = False,
+        samesite: Optional[str] = "lax",
+    ) -> None:
+        """Delete a cookie by setting it to empty value with immediate expiration.
+
+        Args:
+            key (str): Cookie name to delete
+            path (str): Cookie path scope (default: "/")
+            domain (Optional[str]): Cookie domain scope
+            secure (bool): Secure flag (default: False)
+            httponly (bool): HttpOnly flag (default: False)
+            samesite (Optional[str]): SameSite policy (default: "lax")
+        """
+        self.set_cookie(
+            key=key,
+            value="",
+            max_age=0,
+            expires="Thu, 01 Jan 1970 00:00:00 GMT",
+            path=path,
+            domain=domain,
+            secure=secure,
+            httponly=httponly,
+            samesite=samesite,
+        )
+
     def set_cookie(
         self,
         key: str,

@@ -4,26 +4,17 @@ This will be subclassed by portfolio, app, branch, build, component models to im
 specific field extensions.
 """
 
-from typing import Dict, Any, Optional, Type, Self
+from typing import Dict, Any, Optional, Type
 
-import core_framework as util
-
-from pynamodb.attributes import Attribute, MapAttribute
+from pynamodb.attributes import MapAttribute
 from pynamodb.indexes import GlobalSecondaryIndex, AllProjection
 from pynamodb.attributes import UnicodeAttribute, UTCDateTimeAttribute
-from pynamodb.expressions.update import Action
 
-from pydantic import Field, ConfigDict, model_validator
+from pydantic import Field
 
 from core_framework.time_utils import make_default_time
 
-from ..models import DatabaseTable, DatabaseRecord, Paginator
-from ..exceptions import (
-    BadRequestException,
-    UnknownException,
-    NotFoundException,
-    ConflictException,
-)
+from ..models import DatabaseTable, DatabaseRecord
 
 
 class ParentCreatedAtIndex(GlobalSecondaryIndex):

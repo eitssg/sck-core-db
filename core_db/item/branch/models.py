@@ -62,6 +62,7 @@ class BranchModel(ItemModel):
 
     short_name = UnicodeAttribute(null=False, attr_name="ShortName")
     released_build = MapAttribute(null=True, attr_name="ReleasedBuild")
+
     portfolio_prn = UnicodeAttribute(null=False, attr_name="PortfolioPrn")
     app_prn = UnicodeAttribute(null=False, attr_name="AppPrn")
 
@@ -189,9 +190,7 @@ class ReleaseInfo(BaseModel):
         if not prn:
             raise ValueError("PRN is required for ReleaseInfo")
 
-        build = values.pop(
-            "build", values.pop("Build", prn[prn.rindex(":") + 1 :] if prn else None)
-        )
+        build = values.pop("build", values.pop("Build", prn[prn.rindex(":") + 1 :] if prn else None))
         if not build:
             raise ValueError("Build is required for ReleaseInfo")
         values["build"] = build

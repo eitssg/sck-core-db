@@ -15,6 +15,7 @@ The client registry uses a single global table since it stores the client defini
 """
 
 import re
+from turtle import home
 from typing import Optional, Type
 from pydantic import Field
 
@@ -88,12 +89,8 @@ class ClientFactsModel(DatabaseTable):
     client_status = UnicodeAttribute(null=True, attr_name="ClientStatus")
     client_description = UnicodeAttribute(null=True, attr_name="ClientDescription")
     client_name = UnicodeAttribute(null=True, attr_name="ClientName")
-    client_scopes = ListAttribute(
-        of=UnicodeAttribute, null=True, attr_name="ClientScopes"
-    )
-    client_redirect_urls = ListAttribute(
-        of=UnicodeAttribute, null=True, attr_name="ClientRedirectUrls"
-    )
+    client_scopes = ListAttribute(of=UnicodeAttribute, null=True, attr_name="ClientScopes")
+    client_redirect_urls = ListAttribute(of=UnicodeAttribute, null=True, attr_name="ClientRedirectUrls")
 
     # AWS Organization configuration
     organization_id = UnicodeAttribute(null=True, attr_name="OrganizationId")
@@ -103,6 +100,7 @@ class ClientFactsModel(DatabaseTable):
 
     # Domain and networking
     domain = UnicodeAttribute(null=True, attr_name="Domain")
+    homepage = UnicodeAttribute(null=True, attr_name="Homepage")
 
     # AWS Account assignments for multi-account architecture
     iam_account = UnicodeAttribute(null=True, attr_name="IamAccount")
@@ -163,9 +161,7 @@ class ClientFactsModel(DatabaseTable):
         }
 
         if bucket_type not in bucket_mapping:
-            raise ValueError(
-                f"Unknown bucket type: {bucket_type}. Valid types: {list(bucket_mapping.keys())}"
-            )
+            raise ValueError(f"Unknown bucket type: {bucket_type}. Valid types: {list(bucket_mapping.keys())}")
 
         return bucket_mapping[bucket_type]
 
@@ -403,6 +399,11 @@ class ClientFact(DatabaseRecord):
         alias="Domain",
         description="Primary domain name for the organization's web presence",
     )
+    homepage: Optional[str] = Field(
+        None,
+        alias="Homepage",
+        description="Homepage URL for the organization's web presence",
+    )
     # AWS Account Assignments
     iam_account: Optional[str] = Field(
         None,
@@ -512,9 +513,7 @@ class ClientFact(DatabaseRecord):
 
         """
         model_class = ClientFactsFactory.get_model(client)
-        return model_class(
-            **self.model_dump(include_secrets=True, by_alias=False, exclude_none=True)
-        )
+        return model_class(**self.model_dump(include_secrets=True, by_alias=False, exclude_none=True))
 
     def get_resource_prefix(self) -> str:
         """Get the resource prefix for this client including scope.
@@ -545,9 +544,7 @@ class ClientFact(DatabaseRecord):
         }
 
         if bucket_type not in bucket_mapping:
-            raise ValueError(
-                f"Unknown bucket type: {bucket_type}. Valid types: {list(bucket_mapping.keys())}"
-            )
+            raise ValueError(f"Unknown bucket type: {bucket_type}. Valid types: {list(bucket_mapping.keys())}")
 
         return bucket_mapping[bucket_type]
 
