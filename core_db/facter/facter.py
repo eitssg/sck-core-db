@@ -8,6 +8,7 @@ dynamic, scalable configuration management for cloud deployments.
 """
 
 from collections import ChainMap
+from http import client
 import os
 from pydoc import cli
 import re
@@ -308,16 +309,11 @@ def get_zone_facts_by_account_id(client: str, account_id: str) -> list[dict] | N
 
         data = []
         for item in result:
-            if (
-                isinstance(item, ZoneFact)
-                and item.account_facts.aws_account_id == account_id
-            ):
+            if isinstance(item, ZoneFact) and item.account_facts.aws_account_id == account_id:
                 data.append(ZoneFact.from_model(item).model_dump())
 
         if not data:
-            log.warning(
-                f"No zones found for account ID: {account_id} in client: {client}"
-            )
+            log.warning(f"No zones found for account ID: {account_id} in client: {client}")
             return None
 
         return data
@@ -425,17 +421,11 @@ def get_app_facts(deployment_details: DeploymentDetails) -> list[dict] | None:
 
     data = []
     for app_facts in app_facts_list:
-        if (
-            isinstance(app_facts, model_class)
-            and app_facts.app_regex
-            and re.match(app_facts.app_regex, identity)
-        ):
+        if isinstance(app_facts, model_class) and app_facts.app_regex and re.match(app_facts.app_regex, identity):
             data.append(AppFact.from_model(app_facts).model_dump(mode="json"))
 
     if not data:
-        log.warning(
-            f"No app facts found for client: {client}, portfolio: {portfolio}, app: {app}"
-        )
+        log.warning(f"No app facts found for client: {client}, portfolio: {portfolio}, app: {app}")
         return None
 
     return data
@@ -499,12 +489,8 @@ def derive_environment_from_branch(branch: str) -> tuple[str, str]:
 
         # split the branch by '/' and retrieve the last part
         branch_parts = branch.split("/")
-        environment = branch_parts[
-            -1
-        ]  # in this format, the branch name is the environment (master, main, dev, feature1/dev, etc)
-        region_alias = parts[
-            1
-        ]  # override region_alias fact with the branch region alias definition
+        environment = branch_parts[-1]  # in this format, the branch name is the environment (master, main, dev, feature1/dev, etc)
+        region_alias = parts[1]  # override region_alias fact with the branch region alias definition
     else:
         environment = branch
         region_alias = V_DEFAULT_REGION_ALIAS
@@ -902,104 +888,46 @@ def get_facts(deployment_details: DeploymentDetails) -> dict:  # noqa: C901
         ... except ValueError as e:
         ...     print(f"Error: {e}")  # "App facts not found for prn:acme-enterprise-platform:nonexistent-app:*:*"
     """
+    client_facts = _get_client_facts(deployment_details)
 
-    log.debug(f"Getting facts for deployment:", details=deployment_details.model_dump())
+    scope = deployment_details.get_scope()
 
-    # Get the dictionary of client facts dictionary for this deployment
-    client = deployment_details.client
-    client_facts = get_client_facts(client)
-    if not client_facts:
-        raise ValueError(f"Client facts not found for {client}")
+    if scope in [SCOPE_PORTFOLIO, SCOPE_APP, SCOPE_BRANCH, SCOPE_BUILD]:
+        portfolio_facts = _get_portfolio_facts(deployment_details)
+    else:
+        portfolio_facts = {}
 
-    log.debug(f"Client facts:", details=client_facts)
+    if scope in [SCOPE_APP, SCOPE_BRANCH, SCOPE_BUILD]:
+        app_facts = _get_app_facts(deployment_details)
+        zone_facts = _get_zone_facts(deployment_details, app_facts)
+        region_facts = _get_region_facts(deployment_details, app_facts, zone_facts)
+        account_facts = _get_account_facts(deployment_details, zone_facts)
 
-    # Get the portfolio facts dictionary for this deployment
-    portfolio = deployment_details.portfolio
-    portfolio_facts = get_portfolio_facts(client, portfolio)
-    if not portfolio_facts:
-        raise ValueError(f"Portfolio facts not found for {client}:{portfolio}")
+        # if environment is not set, try to derive it from the branch. But facts ALWAYS come first.
+        environment = app_facts.get(ENVIRONMENT, None)
+        if not environment:
+            environment, branch_region_alias = derive_environment_from_branch(deployment_details.branch or "us-east-1")
 
-    log.debug(f"Portfolio facts:", details=portfolio_facts)
+        # FACTS always override user input. So, don't use the user input if FACTS are present.
+        region_alias = app_facts.get(REGION, None)
+        if region_alias is None:
+            region_alias = branch_region_alias
 
-    # Get the app facts dictionary for this deployment
-    identity = deployment_details.get_identity()
-    app_facts_list = get_app_facts(deployment_details)
-
-    log.debug(f"App facts:", details=app_facts_list)
-
-    if not app_facts_list:
-        log.info(
-            f"No app facts found for {identity}. Contact DevOps to register this app."
-        )
-        raise ValueError(
-            f"App facts not found for {identity}. Contact DevOps to register this app."
-        )
-
-    if len(app_facts_list) > 1:
-        log.info(f"Multiple app facts found for {identity}. Abort!!!")
-        raise ValueError(
-            f"Multiple app facts found for {identity}. Please refine your deployment details."
-        )
-
-    app_facts = app_facts_list[0]
-
-    # If the app facts do not contain a region, use the default region alias
-    region_alias = app_facts.get(REGION, None)
-    if not region_alias:
-        raise ValueError(f"Region alias not found for {identity}")
-
-    # if environment is not set, try to derive it from the branch. But facts ALWAYS come first.
-    environment = app_facts.get(ENVIRONMENT, None)
-    if not environment:
-        environment, branch_region_alias = derive_environment_from_branch(
-            deployment_details.branch or "us-east-1"
-        )
-
-    # FACTS always override user input. So, don't use the user input if FACTS are present.
-    if region_alias is None:
-        region_alias = branch_region_alias
-
-    zone = app_facts.get(ZONE_KEY, None)
-    if not zone:
-        raise ValueError(
-            f"App facts do not contain a Zone for {identity}. Please register the app with a zone."
-        )
-
-    # Get the zone facts dictionary for this deployment and environment
-    zone_facts = get_zone_facts(client, zone)
-
-    log.debug(f"Zone facts:", details=zone_facts)
-
-    if not zone_facts:
-        log.info(
-            f"No zone facts found for {client}:{zone}. Contact DevOps to register this zone."
-        )
-        raise ValueError(f"Zone facts not found for {client}:{zone}")
-
-    account_facts = zone_facts.get(FACTS_ACCOUNT, None)
-
-    log.debug(f"Account facts:", details=account_facts)
-
-    if account_facts is None:
-        log.info(
-            f"No account facts found for {zone}. Contact DevOps to register this zone."
-        )
-        raise ValueError(f"Account facts not found for {zone}")
-
-    # Get the region facts
-    region_facts = dict(zone_facts.get(FACTS_REGION, {})).get(region_alias, None)
-
-    log.debug(f"Region facts for {region_alias}:", details=region_facts)
-
-    if region_facts is None:
-        log.info(
-            f"Region {region_alias} has not been enabled for {zone}. Contact DevOps to enable this region."
-        )
-        raise ValueError(f"Region {region_alias} has not been enabled for {zone}")
+    else:
+        app_facts = {}
+        zone_facts = {}
+        region_facts = {}
+        account_facts = {}
+        environment = deployment_details.environment
+        region_alias = app_facts.get(REGION, None)
 
     compiler_facts = get_compiler_facts(deployment_details)
 
     log.debug(f"Compiler facts:", details=compiler_facts)
+
+    owner = format_contact(portfolio_facts.get("Owner", {}))
+
+    contacts = ",".join([format_contact(c) for c in portfolio_facts.get("Contacts", [])])
 
     # Now that we have ALL the facts, let's gather all the Tags for this deployment starting top down
     # Client -> Zone -> Region -> Portfolio -> App
@@ -1009,15 +937,16 @@ def get_facts(deployment_details: DeploymentDetails) -> dict:  # noqa: C901
         region_facts.get(FACTS_TAGS, {}),
         portfolio_facts.get(FACTS_TAGS, {}),
         app_facts.get(FACTS_TAGS, {}),
-        {
-            TAG_ENVIRONMENT: environment,
-            TAG_REGION: region_alias,
-            TAG_OWNER: format_contact(portfolio_facts.get("Owner", {})),
-            TAG_CONTACTS: ",".join(
-                [format_contact(c) for c in portfolio_facts.get("Contacts", [])]
-            ),
-        },
     )
+    if environment:
+        tags[TAG_ENVIRONMENT] = environment
+    if region_alias:
+        tags[TAG_REGION] = region_alias
+    if owner:
+        tags[TAG_OWNER] = owner
+    if contacts:
+        tags[TAG_CONTACTS] = contacts
+
     app_facts[FACTS_TAGS] = dict(tags)
 
     deployment_facts = deployment_details.model_dump()
@@ -1040,3 +969,126 @@ def get_facts(deployment_details: DeploymentDetails) -> dict:  # noqa: C901
     log.debug(f"Merged facts before cleanup:", details=facts)
 
     return facts
+
+
+def _get_client_facts(deployment_details: DeploymentDetails) -> dict:
+
+    log.debug(f"Getting facts for client: %s", deployment_details.client)
+
+    # Get the dictionary of client facts dictionary for this deployment
+    client = deployment_details.client
+    client_facts = get_client_facts(client)
+    if not client_facts:
+        log.info(f"No client facts found for {client}. Contact DevOps to register this client.")
+        return {"Client": client, "ClientStatus": "UNREGISTERED"}
+
+    log.debug(f"Client facts:", details=client_facts)
+
+    return client_facts
+
+
+def _get_portfolio_facts(deployment_details: DeploymentDetails) -> dict:
+    # Get the portfolio facts dictionary for this deployment
+    log.debug(f"Getting portfolio facts for portfolio: %s", deployment_details.portfolio)
+
+    portfolio = deployment_details.portfolio
+    client = deployment_details.client
+    portfolio_facts = get_portfolio_facts(client, portfolio)
+    if not portfolio_facts:
+        log.info(f"No portfolio facts found for {client}:{portfolio}. Contact DevOps to register this portfolio.")
+        portfolio_facts = {"Portfolio": portfolio, "Client": client, "PortfolioStatus": "UNREGISTERED"}
+
+    log.debug(f"Portfolio facts:", details=portfolio_facts)
+
+    return portfolio_facts
+
+
+def _get_app_facts(deployment_details: DeploymentDetails) -> dict:
+    # Get the app facts dictionary for this deployment
+    log.debug(
+        f"Getting app facts for client:portfolio:app: %s:%s:%s",
+        deployment_details.client,
+        deployment_details.portfolio,
+        deployment_details.app,
+    )
+
+    identity = deployment_details.get_identity()
+
+    app_facts_list = get_app_facts(deployment_details)
+    if not app_facts_list:
+        app_facts_list = []
+        log.info(f"No app facts found for {identity}. Contact DevOps to register this app.")
+
+    if len(app_facts_list) > 1:
+        log.info(f"Multiple app facts found for {identity}. Abort!!!")
+        raise ValueError(f"Multiple app facts found for {identity}. Please refine your deployment details.")
+
+    return app_facts_list[0]
+
+
+def _get_zone_facts(deployment_details: DeploymentDetails, app_facts: dict) -> dict:
+
+    client = deployment_details.client
+    log.debug(f"Getting zone facts for client: %s", client)
+
+    identity = deployment_details.get_identity()
+
+    zone = app_facts.get(ZONE_KEY, None)
+    if not zone:
+        log.info(f"No zone information defined in the application registration for {identity}.")
+        return {"Zone": "<not defined>", "ZoneStatus": "UNREGISTERED"}
+
+    # Get the zone facts dictionary for this deployment and environment
+    zone_facts = get_zone_facts(client, zone)
+
+    log.debug(f"Zone facts:", details=zone_facts)
+
+    if not zone_facts:
+        log.info(f"No zone facts found for {client}:{zone}. Contact DevOps to register this zone.")
+        return {"Zone": zone, "ZoneStatus": "UNREGISTERED"}
+
+    return zone_facts
+
+
+def _get_region_facts(deployment_details: DeploymentDetails, app_facts: dict, zone_facts: dict) -> dict:
+
+    client = deployment_details.client
+    zone = app_facts.get(ZONE_KEY, None)
+    app = app_facts.get("Name", None)
+
+    log.debug(f"Getting region facts for client:zone, app: %s:%s, %s", client, zone, app)
+
+    identity = deployment_details.get_identity()
+
+    # If the app facts do not contain a region, use the default region alias
+    region_alias = app_facts.get(REGION, None)
+    if not region_alias:
+        log.info(f"No region alias found for {identity}. Using default.")
+        region_alias = V_DEFAULT_REGION_ALIAS
+
+    # Get the region facts
+    region_facts = dict(zone_facts.get(FACTS_REGION, {})).get(region_alias, None)
+    if not region_facts:
+        log.info(f"No region facts found for {client}:{zone}:{region_alias}. Contact DevOps to register this region.")
+        return {"RegionStatus": "UNREGISTERED"}
+
+    log.debug(f"Region facts for {region_alias}:", details=region_facts)
+
+    return region_facts
+
+
+def _get_account_facts(deployment_details: DeploymentDetails, zone_facts: dict) -> dict:
+
+    client = deployment_details.client
+    zone = zone_facts.get("Zone", None)
+
+    log.debug(f"Getting account facts for client:zone %s:%s", client, zone)
+
+    account_facts = dict(zone_facts.get(FACTS_ACCOUNT, {}))
+    if not account_facts:
+        log.info(f"No account facts found for {client}:{zone}. Contact DevOps to register this account.")
+        return {"AccountStatus": "UNREGISTERED"}
+
+    log.debug(f"Account facts:", details=account_facts)
+
+    return account_facts

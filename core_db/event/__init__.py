@@ -185,7 +185,7 @@ Note:
     ensure complete traceability and debugging capability.
 """
 
-from .models import EventModel, EventModelFactory
+from .models import EventItem, EventModel, EventModelFactory
 from .actions import EventActions
 
-__all__ = ["EventModel", "EventActions", "EventModelFactory"]
+__all__ = ["EventItem", "EventModel", "EventActions", "EventModelFactory"]
