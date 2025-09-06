@@ -41,8 +41,9 @@ Examples:
 
 import datetime
 import traceback
+import os
 
-from typing import Any, Literal, Self, Optional, Union
+from typing import Any, Literal, Self, Optional, Union, Dict
 from datetime import timezone, datetime
 
 from pydantic import BaseModel, Field, ConfigDict, model_validator
@@ -179,6 +180,48 @@ class Response(BaseModel):
         exclude=True,  # Exclude from JSON serialization to maintain API compatibility
     )
 
+    headers: list[dict] | None = Field(
+        None,
+        description="Additional HTTP headers for the response",
+        exclude=True,  # Exclude from JSON serialization to maintain API compatibility
+    )
+
+    def set_header(self, name: str, value: str) -> None:
+        """Set a custom HTTP header in the response.
+
+        Args:
+            name (str): The name of the header to set
+            value (str): The value of the header
+
+        Examples:
+            >>> response = Response(data={"key": "value"})
+            >>> response.set_header("X-Custom-Header", "CustomValue")
+            >>> print(response.headers)
+            [{"X-Custom-Header": "CustomValue"}]
+        """
+        if self.headers is None:
+            self.headers = []
+        self.headers.append({name: value})
+
+    def delete_header(self, name: str) -> None:
+        """Delete a custom HTTP header from the response.
+
+        Args:
+            name (str): The name of the header to delete
+
+        Examples:
+            >>> response = Response(data={"key": "value"})
+            >>> response.set_header("X-Custom-Header", "CustomValue")
+            >>> print(response.headers)
+            [{"X-Custom-Header": "CustomValue"}]
+            >>> response.delete_header("X-Custom-Header")
+            >>> print(response.headers)
+            []
+        """
+        if self.headers is None:
+            return
+        self.headers = [h for h in self.headers if name not in h]
+
     def delete_cookie(
         self,
         key: str,
@@ -247,7 +290,7 @@ class Response(BaseModel):
             >>> response = SuccessResponse(data={"token": "abc123"})
 
             >>> # Basic session cookie
-            >>> response.set_cookie("session_id", "abc123", max_age=3600, httponly=True)
+            >>> response.set_cookie("session_id", "abc123", max_age=1800, httponly=True)
             >>> print(response.cookies[0])
             # "session_id=abc123; Max-Age=3600; Path=/; HttpOnly; SameSite=Lax"
 
@@ -552,7 +595,8 @@ class SuccessResponse(Response):
         """
         # Ensure status is "ok" and code is HTTP_OK
         self.status = "ok"
-        self.code = HTTP_OK
+        if not self.code or self.code < 200 or self.code >= 300:
+            self.code = HTTP_OK
 
         return self
 
@@ -1013,3 +1057,53 @@ class RedirectResponse(Response):
     def validate(cls, values: dict[str, Any]) -> dict[str, Any]:
         values["code"] = 302
         return values
+
+
+# --- Cookie utilities -------------------------------------------------------
+def cookie_opts() -> Dict[str, Any]:
+    """Return default cookie options derived from environment.
+
+    Centralizes cookie policy so all endpoints set/delete cookies consistently.
+
+    Environment variables:
+      - ENVIRONMENT: when "production" defaults SameSite=None, otherwise Lax
+      - SCK_COOKIE_SAMESITE: none|lax|strict (overrides default)
+      - SCK_COOKIE_SECURE: true|false (defaults true when SameSite=None)
+      - SCK_COOKIE_HTTPONLY: true|false (default true)
+      - SCK_COOKIE_DOMAIN: cookie Domain attribute (omit/None to bind to host)
+      - SCK_COOKIE_PATH: cookie Path attribute (default "/")
+
+    Returns a dict suitable for passing to set_cookie/delete_cookie, e.g.:
+        response.set_cookie("session", token, max_age=1800, **cookie_opts())
+        response.delete_cookie("session", **cookie_opts())
+    """
+    env = os.getenv("ENVIRONMENT", "development").lower()
+
+    # Determine SameSite with sensible defaults per environment
+    default_samesite = "none" if env == "production" else "lax"
+    samesite = os.getenv("SCK_COOKIE_SAMESITE", default_samesite).strip().lower()
+    if samesite not in ("none", "lax", "strict"):
+        samesite = default_samesite
+
+    # Secure default: required when SameSite=None; otherwise configurable
+    secure_env = os.getenv("SCK_COOKIE_SECURE", "").strip().lower()
+    if secure_env:
+        secure = secure_env in ("1", "true", "yes", "on")
+    else:
+        secure = samesite == "none"
+
+    # Enforce modern browser rule: SameSite=None requires Secure
+    if samesite == "none" and not secure:
+        secure = True
+
+    httponly = os.getenv("SCK_COOKIE_HTTPONLY", "true").strip().lower() in ("1", "true", "yes", "on")
+    path = os.getenv("SCK_COOKIE_PATH", "/")
+    domain = os.getenv("SCK_COOKIE_DOMAIN") or None  # Keep None to omit Domain attribute
+
+    return {
+        "path": path,
+        "domain": domain,
+        "secure": secure,
+        "httponly": httponly,
+        "samesite": samesite,
+    }
