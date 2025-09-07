@@ -129,6 +129,8 @@ class ProfileModel(DatabaseTable):
 
     # Basic profile information
     email = UnicodeAttribute(attr_name="Email", null=True)
+    email_verified = BooleanAttribute(attr_name="EmailVerified", null=True, default=False)
+    email_verified_at = UTCDateTimeAttribute(attr_name="EmailVerifiedAt", null=True)
     display_name = UnicodeAttribute(attr_name="DisplayName", null=True)
     first_name = UnicodeAttribute(attr_name="FirstName", null=True)
     last_name = UnicodeAttribute(attr_name="LastName", null=True)
@@ -336,6 +338,16 @@ class UserProfile(DatabaseRecord):
         None,
         description="User's email address for contact and notifications",
         alias="Email",
+    )
+    email_verified: Optional[bool] = Field(
+        None,
+        description="Whether the user's email address has been verified",
+        alias="EmailVerified",
+    )
+    email_verified_at: Optional[datetime] = Field(
+        None,
+        description="Timestamp when the user's email was verified",
+        alias="EmailVerifiedAt",
     )
     # How you want your name to appear on the browser
     display_name: Optional[str] = Field(

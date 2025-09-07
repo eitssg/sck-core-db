@@ -14,8 +14,6 @@ multi-tenant operation with client-specific configurations and resource isolatio
 The client registry uses a single global table since it stores the client definitions themselves.
 """
 
-import re
-from turtle import home
 from typing import Optional, Type
 from pydantic import Field
 
