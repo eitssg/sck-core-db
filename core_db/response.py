@@ -149,7 +149,7 @@ class Response(BaseModel):
         "ok",
         description="The status of the response: 'ok' for success, 'error' for failure",
     )
-    code: int | None = Field(
+    code: int = Field(
         HTTP_OK,
         description="The HTTP status code",
     )
@@ -875,6 +875,8 @@ class ErrorResponse(Response):
 
     model_config = ConfigDict(populate_by_name=True, arbitrary_types_allowed=True)
 
+    error: str | None = Field(None, description="Stable, human-readable error code")
+
     errors: list[ErrorDetail] | None = Field(
         None,
         description="List of errors that occurred during processing with traceback information",
@@ -919,18 +921,85 @@ class ErrorResponse(Response):
         elif not self.code:
             self.code = HTTP_INTERNAL_SERVER_ERROR
 
-        # Extract message from the temporary field or exception
-        message = self.message
-        if not message and self.exception:
-            message = str(self.exception)
-        if not message:
-            message = "An error occurred"
+        self.error = self._get_error_name(self.code)
 
         # Build error chain from exception if not already provided
         if not self.errors and self.exception:
             self.errors = _build_error_chain(self.exception)
 
         return self
+
+    def _get_error_name(self, status_code: int) -> str:
+        """Map HTTP status codes to stable, SPA-friendly error codes.
+
+        AWS API Gateway doesn't require any particular error name. We provide a
+        comprehensive, human-readable, snake_case mapping for all standard 4xx and
+        5xx statuses so the SPA can react consistently. Unknown 4xx map to
+        "client_error" and unknown 5xx map to "server_error".
+
+        Args:
+            status_code (int): HTTP status code
+
+        Returns:
+            str: Error code (e.g., "bad_request", "unauthorized", "not_found").
+        """
+        # Centralized mapping table for API Gateway error responses used across the codebase.
+        # This table is intentionally exhaustive for common web errors so the SPA can
+
+        # switch on a stable, human-readable code regardless of the numeric HTTP status.
+        ERROR_CODE_TO_NAME: Dict[int, str] = {
+            # 4xx Client Errors
+            400: "bad_request",
+            401: "unauthorized",
+            402: "payment_required",
+            403: "forbidden",
+            404: "not_found",
+            405: "method_not_allowed",
+            406: "not_acceptable",
+            407: "proxy_authentication_required",
+            408: "request_timeout",
+            409: "conflict",
+            410: "gone",
+            411: "length_required",
+            412: "precondition_failed",
+            413: "payload_too_large",
+            414: "uri_too_long",
+            415: "unsupported_media_type",
+            416: "range_not_satisfiable",
+            417: "expectation_failed",
+            418: "im_a_teapot",
+            421: "misdirected_request",
+            422: "unprocessable_entity",
+            423: "locked",
+            424: "failed_dependency",
+            425: "too_early",
+            426: "upgrade_required",
+            428: "precondition_required",
+            429: "too_many_requests",
+            431: "request_header_fields_too_large",
+            451: "unavailable_for_legal_reasons",
+            # 5xx Server Errors
+            500: "internal_server_error",
+            501: "not_implemented",
+            502: "bad_gateway",
+            503: "service_unavailable",
+            504: "gateway_timeout",
+            505: "http_version_not_supported",
+            506: "variant_also_negotiates",
+            507: "insufficient_storage",
+            508: "loop_detected",
+            510: "not_extended",
+            511: "network_authentication_required",
+        }
+
+        if status_code in ERROR_CODE_TO_NAME:
+            return ERROR_CODE_TO_NAME[status_code]
+        if 400 <= status_code <= 499:
+            return "client_error"
+        if 500 <= status_code <= 599:
+            return "server_error"
+        # Non-error classes shouldn't hit this function, but provide a safe default
+        return "unknown_error"
 
     def __repr__(self) -> str:
         """Return string representation of the ErrorResponse.
