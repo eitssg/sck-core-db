@@ -921,7 +921,8 @@ class ErrorResponse(Response):
         elif not self.code:
             self.code = HTTP_INTERNAL_SERVER_ERROR
 
-        self.error = self._get_error_name(self.code)
+        if not self.error:
+            self.error = self._get_error_name(self.code)
 
         # Build error chain from exception if not already provided
         if not self.errors and self.exception:
