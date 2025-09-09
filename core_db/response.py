@@ -1,42 +1,9 @@
-"""Response module for the core_db package. Response objects are returned by the actions module.
+"""Standard response models for database and API operations.
 
-This module provides standardized response objects for all database actions and API operations.
-The response classes ensure consistent structure across the entire system and provide proper
-error handling with detailed exception information.
-
-Key Components:
-    - **Response**: Base response model for all API responses
-    - **SuccessResponse**: Convenience class for successful operations
-    - **NoContentResponse**: For operations that complete without returning data
-    - **ErrorResponse**: Comprehensive error handling with exception chains
-    - **ErrorDetail**: Detailed error information with stack traces
-
-Features:
-    - **Consistent Structure**: Standardized response format across all operations
-    - **Error Chains**: Complete exception tracing for debugging
-    - **HTTP Status Codes**: Proper status code mapping for REST APIs
-    - **Flexible Data**: Support for various data types (dict, list, string)
-    - **Audit Information**: Timestamps and metadata for tracking
-    - **Cookie Support**: FastAPI-compatible cookie handling for OAuth/session management
-
-Examples:
-    >>> # Success response
-    >>> response = SuccessResponse(data={"client": "acme", "name": "ACME Corp"})
-    >>> print(response.status)  # "ok"
-    >>> print(response.code)    # 200
-
-    >>> # Error response from exception
-    >>> try:
-    ...     raise ValueError("Invalid input")
-    ... except ValueError as e:
-    ...     response = ErrorResponse(exception=e)
-    >>> print(response.status)  # "error"
-    >>> print(response.code)    # 500
-
-    >>> # Response with cookies for OAuth flows
-    >>> response = SuccessResponse(data={"access_token": "abc123"})
-    >>> response.set_cookie("session_id", "xyz789", max_age=3600, httponly=True, secure=True)
-    >>> print(len(response.cookies))  # 1
+Provides consistent, typed structures for successful and error outcomes, with
+optional HTTP cookie/header support for OAuth/session use cases. Includes
+helpers to capture exception chains with stack traces, stable error name
+mapping, and sensible serialization defaults.
 """
 
 import datetime
@@ -92,43 +59,6 @@ class Response(BaseModel):
 
     Properties:
         timestamp (str): ISO formatted timestamp of when the response was created
-
-    Examples:
-        >>> # Creating a successful response
-        >>> response = Response(
-        ...     status="ok",
-        ...     code=200,
-        ...     data={"client": "acme", "name": "ACME Corp"}
-        ... )
-        >>> print(response.timestamp)  # "2025-01-01T12:00:00.000000+00:00"
-
-        >>> # Creating an error response
-        >>> response = Response(
-        ...     status="error",
-        ...     code=404,
-        ...     data={"message": "Client not found"}
-        ... )
-
-        >>> # Using convenience message field
-        >>> response = Response(
-        ...     status="error",
-        ...     code=400,
-        ...     message="Invalid client name"
-        ... )
-        >>> print(response.data)  # {"message": "Invalid client name"}
-
-        >>> # Response with cookies for OAuth
-        >>> response = Response(status="ok", code=302, data="/redirect")
-        >>> response.set_cookie("oauth_state", "abc123", max_age=600, httponly=True)
-        >>> response.set_cookie("session_id", "xyz789", httponly=True, secure=True)
-        >>> print(len(response.cookies))  # 2
-
-        >>> # PascalCase aliases for DynamoDB compatibility
-        >>> response = Response(
-        ...     Status="ok",
-        ...     Code=200,
-        ...     Data={"client": "acme"}
-        ... )
 
     Note:
         **For Invoker Handler**: This object is converted to a dictionary and returned directly.
@@ -377,18 +307,6 @@ class Response(BaseModel):
         Returns:
             str: ISO formatted timestamp in UTC timezone with microsecond precision
 
-        Examples:
-            >>> response = Response()
-            >>> timestamp = response.timestamp
-            >>> print(timestamp)  # "2025-01-01T12:00:00.000000+00:00"
-
-            >>> # Timestamp is always current when accessed
-            >>> import time
-            >>> ts1 = response.timestamp
-            >>> time.sleep(1)
-            >>> ts2 = response.timestamp
-            >>> print(ts1 != ts2)  # True - different timestamps
-
         Note:
             This property generates a new timestamp on each access rather than
             storing a creation timestamp. For audit trails requiring a fixed
@@ -413,26 +331,6 @@ class Response(BaseModel):
 
         Raises:
             ValueError: If data field is not a dictionary, list, or string
-
-        Examples:
-            >>> # Valid data types
-            >>> Response(data={"key": "value"})    # dict - OK
-            >>> Response(data=["item1", "item2"])  # list - OK
-            >>> Response(data="message")           # str - OK
-
-            >>> # Invalid data type
-            >>> try:
-            ...     Response(data=42)  # int - not allowed
-            ... except ValueError as e:
-            ...     print("Validation failed: data must be dict, list, or string")
-
-            >>> # BaseModel conversion
-            >>> from pydantic import BaseModel
-            >>> class TestModel(BaseModel):
-            ...     name: str
-            >>> model_instance = TestModel(name="test")
-            >>> response = Response(data=model_instance)
-            >>> print(type(response.data))  # <class 'dict'> - converted automatically
 
         Note:
             **BaseModel Handling**: If data is a Pydantic BaseModel, it's automatically
@@ -468,24 +366,6 @@ class Response(BaseModel):
         Returns:
             dict: Dictionary representation of the response with None values excluded
 
-        Examples:
-            >>> response = Response(status="ok", code=200, data={"test": "value"})
-
-            >>> # Default serialization (excludes None values and excluded fields)
-            >>> result = response.model_dump()
-            >>> print(result)  # {"status": "ok", "code": 200, "data": {"test": "value"}}
-
-            >>> # Include None values
-            >>> result = response.model_dump(exclude_none=False)
-            >>> print(result)  # {"status": "ok", "code": 200, "data": {...}, "links": None, ...}
-
-            >>> # Use PascalCase aliases
-            >>> result = response.model_dump(by_alias=True)
-            >>> print(result)  # {"Status": "ok", "Code": 200, "Data": {"test": "value"}}
-
-            >>> # Exclude specific fields
-            >>> result = response.model_dump(exclude={"metadata"})
-
         Note:
             **Default Behavior**: Unlike standard Pydantic models, this method defaults
             to exclude_none=True for cleaner API responses.
@@ -497,6 +377,11 @@ class Response(BaseModel):
         kwargs.setdefault("exclude_none", True)
         return super().model_dump(**kwargs)
 
+    def model_dump_json(self, **kwargs) -> str:
+        """Convert the model to a JSON string, excluding None values by default."""
+        kwargs.setdefault("exclude_none", True)
+        return super().model_dump_json(**kwargs)
+
     def __repr__(self) -> str:
         """Return string representation of the Response.
 
@@ -506,20 +391,6 @@ class Response(BaseModel):
         Returns:
             str: String representation showing status, code, and data
 
-        Examples:
-            >>> response = Response(status="ok", code=200, data={"test": "value"})
-            >>> repr(response)
-            "Response(status=ok, code=200, data={'test': 'value'})"
-
-            >>> error_response = Response(status="error", code=404, data="Not found")
-            >>> repr(error_response)
-            "Response(status=error, code=404, data=Not found)"
-
-            >>> # Response with cookies (cookies not shown in repr)
-            >>> response = Response(status="ok", code=200, data="Success")
-            >>> response.set_cookie("session", "abc123")
-            >>> repr(response)
-            "Response(status=ok, code=200, data=Success)"
         """
         return f"Response(status={self.status}, code={self.code}, data={self.data})"
 
@@ -539,38 +410,6 @@ class SuccessResponse(Response):
         message (str, optional): Convenience message that will be set as data if data is None,
             or added to data dict if data is a dictionary. Defaults to None.
 
-    Examples:
-        >>> # Creating a simple success response
-        >>> response = SuccessResponse(message="Operation completed successfully")
-        >>> print(response.status)  # "ok"
-        >>> print(response.code)    # 200
-        >>> print(response.data)    # "Operation completed successfully"
-
-        >>> # Creating a success response with client data
-        >>> client_data = {"client": "acme", "name": "ACME Corporation"}
-        >>> response = SuccessResponse(data=client_data)
-        >>> print(response.data)    # {"client": "acme", "name": "ACME Corporation"}
-
-        >>> # Creating a success response with links and metadata
-        >>> response = SuccessResponse(
-        ...     data={"clients": ["acme", "example"]},
-        ...     links=[{"rel": "self", "href": "/api/clients"}],
-        ...     metadata={"total_count": 2}
-        ... )
-
-        >>> # Using PascalCase aliases for DynamoDB compatibility
-        >>> response = SuccessResponse(
-        ...     Data={"clients": ["acme", "example"]},
-        ...     Links=[{"rel": "self", "href": "/api/clients"}],
-        ...     Metadata={"total_count": 2}
-        ... )
-
-        >>> # Message gets added to dict data
-        >>> response = SuccessResponse(
-        ...     data={"client": "acme"},
-        ...     message="Client retrieved successfully"
-        ... )
-        >>> print(response.data)  # {"client": "acme", "message": "Client retrieved successfully"}
     """
 
     @model_validator(mode="after")
@@ -583,15 +422,6 @@ class SuccessResponse(Response):
         Returns:
             SuccessResponse: The validated SuccessResponse instance
 
-        Examples:
-            >>> # Status and code are automatically set
-            >>> response = SuccessResponse(data={"test": "value"})
-            >>> print(response.status)  # "ok"
-            >>> print(response.code)    # 200
-
-            >>> # Message handling
-            >>> response = SuccessResponse(message="Success!")
-            >>> print(response.data)    # "Success!"
         """
         # Ensure status is "ok" and code is HTTP_OK
         self.status = "ok"
@@ -606,14 +436,6 @@ class SuccessResponse(Response):
         Returns:
             str: String representation showing the response data
 
-        Examples:
-            >>> response = SuccessResponse(data={"client": "acme"})
-            >>> repr(response)
-            "SuccessResponse(data={'client': 'acme'})"
-
-            >>> response = SuccessResponse(message="Success!")
-            >>> repr(response)
-            "SuccessResponse(data=Success!)"
         """
         return f"SuccessResponse(data={self.data})"
 
@@ -645,31 +467,6 @@ class NoContentResponse(Response):
         message (str, optional): Convenience message for the no-content response.
             Defaults to None.
 
-    Examples:
-        >>> # Creating a no-content response for missing resource
-        >>> response = NoContentResponse(data="Client 'xyz' does not exist")
-        >>> print(response.status)  # "ok"
-        >>> print(response.code)    # 204
-        >>> print(response.data)    # "Client 'xyz' does not exist"
-
-        >>> # Creating a no-content response for successful deletion
-        >>> response = NoContentResponse(data="Resource deleted successfully")
-
-        >>> # Using message convenience field
-        >>> response = NoContentResponse(message="No data available")
-        >>> print(response.data)    # "No data available"
-
-        >>> # Using PascalCase aliases
-        >>> response = NoContentResponse(
-        ...     Data="Client 'xyz' does not exist",
-        ...     Links=[{"rel": "parent", "href": "/api/clients"}]
-        ... )
-
-        >>> # With metadata for context
-        >>> response = NoContentResponse(
-        ...     data="No items found",
-        ...     metadata={"query": "status=active", "total_searched": 1000}
-        ... )
     """
 
     @model_validator(mode="after")
@@ -682,11 +479,6 @@ class NoContentResponse(Response):
         Returns:
             NoContentResponse: The validated NoContentResponse instance
 
-        Examples:
-            >>> # Status and code are automatically set
-            >>> response = NoContentResponse(data="No content")
-            >>> print(response.status)  # "ok"
-            >>> print(response.code)    # 204
         """
         # Ensure data is None or a string message
         self.status = "ok"
@@ -700,14 +492,6 @@ class NoContentResponse(Response):
         Returns:
             str: String representation showing the response data
 
-        Examples:
-            >>> response = NoContentResponse(data="No content available")
-            >>> repr(response)
-            "NoContentResponse(data=No content available)"
-
-            >>> response = NoContentResponse()
-            >>> repr(response)
-            "NoContentResponse(data=None)"
         """
         return f"NoContentResponse(data={self.data})"
 
@@ -729,35 +513,6 @@ class ErrorDetail(BaseModel):
         message (str): Error message
         track (str | None): Stack trace for debugging
 
-    Examples:
-        >>> # Creating an error detail for an exception
-        >>> try:
-        ...     raise ValueError("Invalid input")
-        ... except ValueError as e:
-        ...     error = ErrorDetail(
-        ...         type=type(e).__name__,
-        ...         message=str(e),
-        ...         track=traceback.format_exc()
-        ...     )
-        >>> print(error.type)     # "ValueError"
-        >>> print(error.message)  # "Invalid input"
-
-        >>> # Creating error detail without stack trace
-        >>> error = ErrorDetail(
-        ...     type="ValidationError",
-        ...     message="Required field missing"
-        ... )
-
-        >>> # Using PascalCase aliases
-        >>> error = ErrorDetail(
-        ...     Type="ConnectionError",
-        ...     Message="Database connection failed",
-        ...     Track="Full stack trace here..."
-        ... )
-
-        >>> # Converting to dict for API response
-        >>> error_dict = error.model_dump()
-        >>> print(error_dict)  # {"type": "ValueError", "message": "Invalid input"}
     """
 
     model_config = ConfigDict(populate_by_name=True)
@@ -786,20 +541,6 @@ class ErrorDetail(BaseModel):
         Returns:
             dict: Dictionary representation of the error detail
 
-        Examples:
-            >>> error = ErrorDetail(type="ValueError", message="Invalid input")
-
-            >>> # Default serialization (excludes None track)
-            >>> result = error.model_dump()
-            >>> print(result)  # {"type": "ValueError", "message": "Invalid input"}
-
-            >>> # Include None values
-            >>> result = error.model_dump(exclude_none=False)
-            >>> print(result)  # {"type": "ValueError", "message": "Invalid input", "track": None}
-
-            >>> # Use PascalCase aliases
-            >>> result = error.model_dump(by_alias=True)
-            >>> print(result)  # {"Type": "ValueError", "Message": "Invalid input"}
         """
         # Set default exclude_none=True if not specified
         kwargs.setdefault("exclude_none", True)
@@ -827,50 +568,6 @@ class ErrorResponse(Response):
         exception (Exception | None): The original exception (excluded from serialization)
         errors (list[ErrorDetail] | None): List of error details with traceback information
 
-    Examples:
-        >>> # Creating an error response from an exception
-        >>> try:
-        ...     raise ValueError("Invalid client name")
-        ... except ValueError as e:
-        ...     response = ErrorResponse(exception=e)
-        >>> print(response.status)  # "error"
-        >>> print(response.code)    # 500
-        >>> print(response.data)    # {"message": "Invalid client name"}
-
-        >>> # Creating an error response with just a message
-        >>> response = ErrorResponse(message="Custom error message", code=400)
-        >>> print(response.data)    # {"message": "Custom error message"}
-
-        >>> # Creating an error response with metadata
-        >>> try:
-        ...     raise KeyError("Missing required field")
-        ... except KeyError as e:
-        ...     response = ErrorResponse(
-        ...         exception=e,
-        ...         code=400,
-        ...         metadata={"field": "client_name", "required": True}
-        ...     )
-
-        >>> # Error response with chained exceptions
-        >>> try:
-        ...     try:
-        ...         raise ValueError("Original error")
-        ...     except ValueError as e:
-        ...         raise RuntimeError("Secondary error") from e
-        ... except RuntimeError as e:
-        ...     response = ErrorResponse(exception=e)
-        >>> len(response.errors)  # 2 (both exceptions in chain)
-
-        >>> # Using custom exception with code attribute
-        >>> class CustomException(Exception):
-        ...     def __init__(self, message, code=400):
-        ...         super().__init__(message)
-        ...         self.code = code
-        >>> try:
-        ...     raise CustomException("Custom error", 422)
-        ... except CustomException as e:
-        ...     response = ErrorResponse(exception=e)
-        >>> print(response.code)  # 422
     """
 
     model_config = ConfigDict(populate_by_name=True, arbitrary_types_allowed=True)
@@ -899,19 +596,6 @@ class ErrorResponse(Response):
         Returns:
             ErrorResponse: The configured ErrorResponse instance
 
-        Examples:
-            >>> # Exception processing
-            >>> try:
-            ...     raise ValueError("Test error")
-            ... except ValueError as e:
-            ...     response = ErrorResponse(exception=e)
-            >>> print(response.status)  # "error"
-            >>> print(response.code)    # 500
-            >>> len(response.errors)    # 1
-
-            >>> # Message extraction
-            >>> response = ErrorResponse(message="Custom message")
-            >>> print(response.data)    # {"message": "Custom message"}
         """
         self.status = "error"
 
@@ -1008,17 +692,6 @@ class ErrorResponse(Response):
         Returns:
             str: String representation showing the error code and message
 
-        Examples:
-            >>> response = ErrorResponse(message="Test error", code=400)
-            >>> repr(response)
-            "ErrorResponse(code=400, message=Test error)"
-
-            >>> try:
-            ...     raise ValueError("Invalid input")
-            ... except ValueError as e:
-            ...     response = ErrorResponse(exception=e)
-            >>> repr(response)
-            "ErrorResponse(code=500, message=Invalid input)"
         """
         message = self.data.get("message") if isinstance(self.data, dict) else None
         return f"ErrorResponse(code={self.code}, message={message})"

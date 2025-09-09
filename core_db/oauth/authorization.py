@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pynamodb.attributes import UnicodeAttribute, UTCDateTimeAttribute, BooleanAttribute
+from pynamodb.attributes import MapAttribute, UnicodeAttribute, UTCDateTimeAttribute, BooleanAttribute
 from pydantic import Field
 
 from ..models import TableFactory
@@ -12,14 +12,16 @@ class AuthorizationsModel(OAuthTableModel):
     class Meta(OAuthTableModel.Meta):
         pass
 
+    client = UnicodeAttribute(null=False, attr_name="Client")
     client_id = UnicodeAttribute(null=False, attr_name="ClientId")
+    subject = UnicodeAttribute(null=False, attr_name="Subject")
+    scopes = UnicodeAttribute(null=False, attr_name="Scopes")
     redirect_url = UnicodeAttribute(null=False, attr_name="RedirectUrl")
-    scope = UnicodeAttribute(null=False, attr_name="Scope")
     expires_at = UTCDateTimeAttribute(null=True, attr_name="ExpiresAt")
     used = BooleanAttribute(null=False, attr_name="Used")
+    used_at = UTCDateTimeAttribute(null=True, attr_name="UsedAt")
     code_challenge = UnicodeAttribute(null=True, attr_name="CodeChallenge")
     code_challenge_method = UnicodeAttribute(null=True, attr_name="CodeChallengeMethod")
-    jwt_signature = UnicodeAttribute(null=True, attr_name="JwtSignature")
 
     # created_at is defined in DatabaseTable parent class
     # updated_at is defined in DatabaseTable parent class
@@ -45,21 +47,30 @@ class AuthorizationsModelFactory(TableFactory):
 
 
 class Authorizations(OAuthRecord):
-
+    client: str = Field(
+        ...,
+        description="Client Application name",
+        alias="Client",
+    )
     client_id: str = Field(
         ...,
         description="Client Application ID",
         alias="ClientId",
     )
+    subject: str = Field(
+        ...,
+        description="User ID",
+        alias="Subject",
+    )
+    scopes: str = Field(
+        ...,
+        description="List of scopes granted separated by spaces",
+        alias="Scopes",
+    )
     redirect_url: str = Field(
         ...,
         description="Redirect URL",
         alias="RedirectUrl",
-    )
-    scope: str = Field(
-        ...,
-        description="Scope of the oauth event",
-        alias="Scope",
     )
     expires_at: datetime | None = Field(
         None,
@@ -71,6 +82,11 @@ class Authorizations(OAuthRecord):
         description="Determines if this code already been used",
         alias="Used",
     )
+    used_at: datetime | None = Field(
+        None,
+        description="Date the Authorization code was used",
+        alias="UsedAt",
+    )
     code_challenge: str | None = Field(
         None,
         description="Code challenge for PKCE",
@@ -80,11 +96,6 @@ class Authorizations(OAuthRecord):
         None,
         description="Method used for code challenge (e.g., 'S256')",
         alias="CodeChallengeMethod",
-    )
-    jwt_signature: str | None = Field(
-        None,
-        description="JWT signature for the authorization code",
-        alias="JwtSignature",
     )
 
     # created_at is defined in DatabaseRecord parent class

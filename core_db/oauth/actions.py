@@ -5,10 +5,10 @@ from pynamodb.exceptions import (
     ScanError,
     UpdateError,
 )
+from functools import reduce
 from pydantic import ValidationError
 
 from core_framework.time_utils import make_default_time
-from test.test_reprlib import r
 
 from ..response import Response, SuccessResponse, NoContentResponse
 from ..exceptions import (
@@ -153,6 +153,7 @@ class OAuthActions(TableActions):
         """Internal update helper."""
         client = kwargs.get("client", kwargs.get("Client"))
         code = kwargs.get("code", kwargs.get("Code"))
+        client_id = kwargs.get("client_id", kwargs.get("ClientId", kwargs.get("clientId")))
 
         if not client:
             raise BadRequestException("Missing client parameter")
@@ -175,7 +176,11 @@ class OAuthActions(TableActions):
 
         excluded_fields = {"code", "created_at", "updated_at"}
 
+        conditions = []
         try:
+            # Use a single timestamp for this mutation to keep comparisons consistent
+            now = make_default_time()
+
             actions = []
             for key, value in values.items():
                 if key in excluded_fields or key not in attributes:
@@ -187,11 +192,20 @@ class OAuthActions(TableActions):
                         actions.append(attr.remove())
                     # else: patch semantics — ignore None (no change)
                 else:
+                    if key == "used_at":
+                        continue
                     actions.append(attr.set(value))
+                    if key == "used" and value is True:
+                        if not client_id:
+                            raise BadRequestException("client_id is required when marking used=True")
+                        actions.append(attributes["used_at"].set(now))
+                        # If marking used=True, ensure it was previously False (or not set)
+                        conditions.append((model_class.used == False) | model_class.used.does_not_exist())
+                        conditions.append(model_class.client_id == client_id)
+                        conditions.append(model_class.expires_at > now)
 
             # Always update updated_at
-            if "updated_at" in attributes:
-                actions.append(model_class.updated_at.set(make_default_time()))
+            actions.append(model_class.updated_at.set(now))
 
             if not actions:
                 # Nothing to update; return current record
@@ -199,8 +213,11 @@ class OAuthActions(TableActions):
                 data = record_type.from_model(current).model_dump(by_alias=False, mode="json")
                 return SuccessResponse(data=data)
 
+            conditions.append(model_class.code.exists())
+            condition = reduce(lambda a, b: a & b, conditions)
+
             item = model_class(code)
-            item.update(actions=actions, condition=type(item).code.exists())
+            item.update(actions=actions, condition=condition)
             item.refresh()
 
             data = record_type.from_model(item).model_dump(by_alias=False, mode="json")
@@ -208,7 +225,8 @@ class OAuthActions(TableActions):
 
         except UpdateError as e:
             if "ConditionalCheckFailed" in str(e):
-                raise ConflictException("Authorization code does not exist") from e
+                # Any conditional failure (missing item, already used, expired, or client mismatch)
+                raise NotFoundException("Authorization code not found or not eligible for update") from e
             raise UnknownException(f"Failed to update authorization: {e}") from e
         except Exception as e:
             raise UnknownException(f"Failed to update authorization: {e}") from e

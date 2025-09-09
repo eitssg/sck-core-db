@@ -1,3 +1,4 @@
+from ast import List
 from datetime import datetime, timezone
 from typing import Type, Optional, Dict, Any
 
@@ -157,6 +158,12 @@ class ProfileModel(DatabaseTable):
     # Profile-specific attributes
     permissions = MapAttribute(attr_name="Permissions", null=True, default=dict)
     preferences = MapAttribute(attr_name="Preferences", null=True, default=dict)
+
+    # MFA tokens
+    mfa_enabled = BooleanAttribute(attr_name="MfaEnabled", null=True, default=False)
+    mfa_methods = List(of=UnicodeAttribute, attr_name="MfaMethods", null=True, default=list)
+    totp_secret = UnicodeAttribute(attr_name="TotpSecret", null=True)
+    recovery_codes = List(of=UnicodeAttribute, attr_name="RecoveryCodes", null=True, default=list)
 
     # Usage tracking (per profile)
     session_count = NumberAttribute(attr_name="SessionCount", null=True, default=0)
@@ -444,6 +451,29 @@ class UserProfile(DatabaseRecord):
         description="Additional user preferences for this profile",
         alias="Preferences",
     )
+
+    # MFA tokens
+    mfa_enabled: Optional[bool] = Field(
+        None,
+        description="Whether multi-factor authentication (MFA) is enabled for this profile",
+        alias="MfaEnabled",
+    )
+    mfa_methods: Optional[list[str]] = Field(
+        None,
+        description="List of MFA methods enabled for this profile",
+        alias="MfaMethods",
+    )
+    totp_secret: Optional[str] = Field(
+        None,
+        description="TOTP secret for time-based one-time passwords (if TOTP is enabled)",
+        alias="TotpSecret",
+    )
+    recovery_codes: Optional[list[str]] = Field(
+        None,
+        description="List of recovery codes for MFA account recovery",
+        alias="RecoveryCodes",
+    )
+
     # Usage tracking (per profile)
     session_count: Optional[int] = Field(
         None,
@@ -451,6 +481,7 @@ class UserProfile(DatabaseRecord):
         ge=0,
         alias="SessionCount",
     )
+
     is_active: Optional[bool] = Field(
         None,
         description="Whether this specific profile is active and enabled",
