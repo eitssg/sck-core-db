@@ -117,13 +117,29 @@ class ProfileActions(TableActions):
         except ValueError as e:
             raise BadRequestException(f"Invalid pagination parameters: {str(e)}") from e
 
+        # get a limited number of rows and specify attributes to return
         scan_kwargs = {
             "limit": paginator.limit,
+            "attributes_to_get": [
+                "user_id",
+                "profile_name",
+                "email",
+                "is_active",
+                "created_at",
+                "updated_at",
+                "last_login",
+                "session_count",
+            ],
         }
         if paginator.cursor is not None:
             scan_kwargs["last_evaluated_key"] = paginator.cursor
 
+        user_id = kwargs.get("user_id", kwargs.get("UserId", None))
+        if user_id:
+            scan_kwargs["filter_condition"] = model_class.user_id == user_id
+
         result = model_class.scan(**scan_kwargs)
+
         profiles = []
         for item in result:
             profile = UserProfile.from_model(item).model_dump(mode="json")
@@ -172,9 +188,7 @@ class ProfileActions(TableActions):
         """
         client = kwargs.get("client", kwargs.get("Client")) or util.get_client()
         if not client:
-            raise BadRequestException(
-                "Client parameter is required to retrieve profiles"
-            )
+            raise BadRequestException("Client parameter is required to retrieve profiles")
 
         # Get the model class for this client
         user_id = kwargs.get("user_id")
@@ -185,21 +199,13 @@ class ProfileActions(TableActions):
         only_active = str(kwargs.get("include_inactive", "true")).lower() != "true"
 
         if user_id and profile_name:
-            return cls._get_single_profile(
-                client, user_id=user_id, profile_name=profile_name
-            )
+            return cls._get_single_profile(client, user_id=user_id, profile_name=profile_name)
         elif user_id:
-            return cls._get_active_profiles_by_user(
-                client, user_id=user_id, only_active=only_active
-            )
+            return cls._get_active_profiles_by_user(client, user_id=user_id, only_active=only_active)
         elif email:
-            return cls._get_profiles_by_email(
-                client, email=email, only_active=only_active
-            )
+            return cls._get_profiles_by_email(client, email=email, only_active=only_active)
         else:
-            raise BadRequestException(
-                "Either user_id, email, or user_id+profile_name must be provided"
-            )
+            raise BadRequestException("Either user_id, email, or user_id+profile_name must be provided")
 
     @classmethod
     def create(cls, **kwargs) -> Response:
@@ -215,17 +221,12 @@ class ProfileActions(TableActions):
 
         try:
             item = data.to_model(client)
-            item.save(
-                type(item).user_id.does_not_exist()
-                & type(item).profile_name.does_not_exist()
-            )
+            item.save(type(item).user_id.does_not_exist() & type(item).profile_name.does_not_exist())
             return SuccessResponse(data=data.model_dump(mode="json"))
         except Exception as e:
             # Check if it's a conditional check failure (profile already exists)
             if "ConditionalCheckFailedException" in str(e):
-                raise ConflictException(
-                    f"Profile already exists: user_id={data.user_id}, profile_name={data.profile_name}"
-                )
+                raise ConflictException(f"Profile already exists: user_id={data.user_id}, profile_name={data.profile_name}")
             else:
                 log.error(f"Failed to create profile: {str(e)}")
                 raise UnknownException(f"Failed to create profile: {str(e)}")
@@ -250,27 +251,19 @@ class ProfileActions(TableActions):
         email = kwargs.get("email")
 
         if user_id and profile_name:
-            return cls._delete_user_profile(
-                client=client, user_id=user_id, profile_name=profile_name
-            )
+            return cls._delete_user_profile(client=client, user_id=user_id, profile_name=profile_name)
         elif user_id:
             # If only user_id is provided, delete all profiles for that user
             return cls._delete_user_profiles(client=client, user_id=user_id)
         elif email:
             return cls._delete_user_profiles_by_email(client=client, email=email)
         else:
-            raise BadRequestException(
-                "Either user_id, email, or user_id+profile_name must be provided for deletion"
-            )
+            raise BadRequestException("Either user_id, email, or user_id+profile_name must be provided for deletion")
 
     @classmethod
-    def _delete_user_profile(
-        cls, client: str, user_id: str, profile_name: str
-    ) -> Response:
+    def _delete_user_profile(cls, client: str, user_id: str, profile_name: str) -> Response:
         if not user_id or not profile_name:
-            raise BadRequestException(
-                "user_id and profile_name are required to delete profile"
-            )
+            raise BadRequestException("user_id and profile_name are required to delete profile")
 
         model_class = UserProfile.model_class(client)
 
@@ -284,13 +277,9 @@ class ProfileActions(TableActions):
                 "profile_name": profile_name,
                 "email": item.email,
             }
-            return SuccessResponse(
-                message="User Profile deleted successfully", data=deleted_profile
-            )
+            return SuccessResponse(message="User Profile deleted successfully", data=deleted_profile)
         except model_class.DoesNotExist:
-            raise NotFoundException(
-                f"Profile not found: user_id={user_id}, profile_name={profile_name}"
-            )
+            raise NotFoundException(f"Profile not found: user_id={user_id}, profile_name={profile_name}")
         except Exception as e:
             raise UnknownException(f"Failed to delete profile: {str(e)}")
 
@@ -334,13 +323,9 @@ class ProfileActions(TableActions):
                     }
                 )
 
-            return SuccessResponse(
-                message="All profiles deleted successfully", data=deleted_profiles
-            )
+            return SuccessResponse(message="All profiles deleted successfully", data=deleted_profiles)
         except Exception as e:
-            raise UnknownException(
-                f"Failed to delete profiles for user {user_id}: {str(e)}"
-            )
+            raise UnknownException(f"Failed to delete profiles for user {user_id}: {str(e)}")
 
     @classmethod
     def _delete_user_profiles_by_email(cls, client: str, email: str) -> Response:
@@ -382,13 +367,9 @@ class ProfileActions(TableActions):
                     }
                 )
 
-            return SuccessResponse(
-                message="All profiles deleted successfully", data=deleted_profiles
-            )
+            return SuccessResponse(message="All profiles deleted successfully", data=deleted_profiles)
         except Exception as e:
-            raise UnknownException(
-                f"Failed to delete profiles for email {email}: {str(e)}"
-            )
+            raise UnknownException(f"Failed to delete profiles for email {email}: {str(e)}")
 
     @classmethod
     def _update(cls, remove_none: bool = True, **kwargs) -> Response:
@@ -416,9 +397,7 @@ class ProfileActions(TableActions):
         # Validate required fields
         user_id = kwargs.get("user_id")
         profile_name = kwargs.get("profile_name")
-        increment_session = (
-            str(kwargs.get("increment_session", "false")).lower() == "true"
-        )
+        increment_session = str(kwargs.get("increment_session", "false")).lower() == "true"
 
         if not user_id:
             raise BadRequestException("user_id is required to update profile")
@@ -445,9 +424,7 @@ class ProfileActions(TableActions):
                 input_data.last_login = make_default_time()
 
             # Get all field values from self
-            values = input_data.model_dump(
-                by_alias=False, exclude_none=False, exclude=excluded_fields
-            )
+            values = input_data.model_dump(by_alias=False, exclude_none=False, exclude=excluded_fields)
 
             attributes = model_class.get_attributes()
 
@@ -477,8 +454,7 @@ class ProfileActions(TableActions):
             item = model_class(user_id=user_id, profile_name=profile_name)
             item.update(
                 actions=actions,
-                condition=model_class.user_id.exists()
-                & model_class.profile_name.exists(),
+                condition=model_class.user_id.exists() & model_class.profile_name.exists(),
             )
             item.refresh()
 
@@ -489,9 +465,7 @@ class ProfileActions(TableActions):
         except UpdateError as e:
             # Handle specific update errors, e.g., conditional check failures (checking to see if the profile exists)
             if "ConditionalCheckFailedException" in str(e):
-                raise NotFoundException(
-                    f"Profile not found: user_id={user_id}, profile_name={profile_name}"
-                )
+                raise NotFoundException(f"Profile not found: user_id={user_id}, profile_name={profile_name}")
             else:
                 log.error(f"Failed to update profile: {str(e)}")
                 raise UnknownException(f"Failed to update profile: {str(e)}")
@@ -500,9 +474,7 @@ class ProfileActions(TableActions):
             raise UnknownException(f"Failed to update profile: {str(e)}")
 
     @classmethod
-    def _get_single_profile(
-        cls, client: str, user_id: str, profile_name: str
-    ) -> UserProfile:
+    def _get_single_profile(cls, client: str, user_id: str, profile_name: str) -> UserProfile:
         """Retrieve a single user profile by user_id and profile_name.
 
         Args:
@@ -517,9 +489,7 @@ class ProfileActions(TableActions):
             BadRequestException: If required parameters are missing.
         """
         if not user_id or not profile_name:
-            raise BadRequestException(
-                "user_id and profile_name are required to load profile"
-            )
+            raise BadRequestException("user_id and profile_name are required to load profile")
 
         try:
             # Get the client-specific model class
@@ -532,16 +502,12 @@ class ProfileActions(TableActions):
             return SuccessResponse(data=data)
 
         except model_class.DoesNotExist:
-            raise NotFoundException(
-                f"Profile not found: user_id={user_id}, profile_name={profile_name}"
-            )
+            raise NotFoundException(f"Profile not found: user_id={user_id}, profile_name={profile_name}")
         except Exception as e:
             raise UnknownException(f"Failed to load profile: {str(e)}")
 
     @classmethod
-    def _get_profiles_by_email(
-        cls, client: str, email: str, only_active: bool = True
-    ) -> Response:
+    def _get_profiles_by_email(cls, client: str, email: str, only_active: bool = True) -> Response:
         """Retrieve all user profiles associated with a specific email address.
 
         Args:
@@ -558,15 +524,11 @@ class ProfileActions(TableActions):
 
         # Query using GSI for email index
         if only_active:
-            results = model_class.email_index.query(
-                hash_key=email, filter_condition=model_class.is_active == True
-            )
+            results = model_class.email_index.query(hash_key=email, filter_condition=model_class.is_active == True)
         else:
             results = model_class.email_index.query(hash_key=email)
 
-        data = [
-            UserProfile.from_model(item).model_dump(mode="json") for item in results
-        ]
+        data = [UserProfile.from_model(item).model_dump(mode="json") for item in results]
 
         if len(data) == 0:
             raise NotFoundException(f"No profiles found for email: {email}")
@@ -574,9 +536,7 @@ class ProfileActions(TableActions):
         return SuccessResponse(data=data, metadata={"total_count": len(data)})
 
     @classmethod
-    def _get_active_profiles_by_user(
-        cls, client: str, user_id: str, only_active: bool = True
-    ) -> Response:
+    def _get_active_profiles_by_user(cls, client: str, user_id: str, only_active: bool = True) -> Response:
         """Get all active profiles for a specific user ID.
 
         Args:
@@ -589,16 +549,12 @@ class ProfileActions(TableActions):
 
         if only_active:
             # Query for active profiles only
-            results = model_class.query(
-                hash_key=user_id, filter_condition=model_class.is_active == True
-            )
+            results = model_class.query(hash_key=user_id, filter_condition=model_class.is_active == True)
         else:
             # Query for all profiles regardless of active status
             results = model_class.query(hash_key=user_id)
 
-        result = [
-            UserProfile.from_model(item).model_dump(mode="json") for item in results
-        ]
+        result = [UserProfile.from_model(item).model_dump(mode="json") for item in results]
 
         if len(result) == 0:
             raise NotFoundException(f"No profiles found for user_id: {user_id}")
