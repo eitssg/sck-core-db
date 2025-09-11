@@ -121,14 +121,14 @@ class ProfileActions(TableActions):
         scan_kwargs = {
             "limit": paginator.limit,
             "attributes_to_get": [
-                "user_id",
-                "profile_name",
-                "email",
-                "is_active",
-                "created_at",
-                "updated_at",
-                "last_login",
-                "session_count",
+                "UserId",
+                "ProfileName",
+                "Email",
+                "IsActive",
+                "CreatedAt",
+                "UpdatedAt",
+                "LastLogin",
+                "SessionCount",
             ],
         }
         if paginator.cursor is not None:

@@ -409,16 +409,6 @@ class UserProfile(DatabaseRecord):
         description="Timestamp of user's last login using this specific profile",
         alias="LastLogin",
     )
-    created_at: Optional[datetime] = Field(
-        description="Profile creation timestamp in UTC",
-        alias="CreatedAt",
-        default_factory=lambda: datetime.now(timezone.utc),
-    )
-    updated_at: Optional[datetime] = Field(
-        description="Last modification timestamp for this profile",
-        alias="UpdatedAt",
-        default_factory=lambda: datetime.now(timezone.utc),
-    )
     # AWS-specific information
     aws_account_id: Optional[str] = Field(
         None,

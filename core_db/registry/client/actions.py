@@ -60,19 +60,14 @@ class ClientActions(RegistryAction):
         Returns:
             Response: SuccessResponse containing list of client records and pagination metadata.
         """
-        client = kwargs.get("client") or kwargs.get("Client")
-
-        if not client:
-            raise BadRequestException(
-                "Client identifier is required to load ClientFact"
-            )
+        client = kwargs.get("client") or kwargs.get("Client") or util.get_client()
 
         model_class = ClientFact.model_class(client)
 
         try:
             # load the search parameters into a Paginator instance
             paginator = Paginator(**kwargs)
-        except (ValueError, ValidationError) as e:
+        except Exception as e:
             raise BadRequestException(f"Invalid pagination parameters: {str(e)}") from e
 
         try:
@@ -83,12 +78,13 @@ class ClientActions(RegistryAction):
             if paginator.cursor:
                 scan_kwargs["last_evaluated_key"] = paginator.cursor
 
+            if "client_id" in kwargs:
+                scan_kwargs["filter_condition"] = model_class.client_id == kwargs["client_id"]
+
             results = model_class.scan(**scan_kwargs)
 
             # Convert PynamoDB items to ClientFact instances and then into dicts for the response
-            data = [
-                ClientFact.from_model(item).model_dump(mode="json") for item in results
-            ]
+            data = [ClientFact.from_model(item).model_dump(mode="json") for item in results]
 
             paginator.total_count = getattr(results, "total_count", len(data))
             paginator.cursor = getattr(results, "last_evaluated_key", None)
@@ -97,9 +93,7 @@ class ClientActions(RegistryAction):
         except ScanError as e:
             raise UnknownException(f"Failed to list clients: {str(e)}") from e
         except Exception as e:
-            raise UnknownException(
-                f"Unexpected error while listing clients: {str(e)}"
-            ) from e
+            raise UnknownException(f"Unexpected error while listing clients: {str(e)}") from e
 
     @classmethod
     def get(cls, **kwargs) -> Response:
@@ -115,9 +109,7 @@ class ClientActions(RegistryAction):
         client_id = kwargs.get("client_id") or kwargs.get("ClientId")
 
         if not client and not client_id:
-            raise BadRequestException(
-                "Client identifier is required to load ClientFact"
-            )
+            raise BadRequestException("Client identifier is required to load ClientFact")
 
         if client_id:
             return cls._lookup_by_client_id(client_id)
@@ -148,9 +140,7 @@ class ClientActions(RegistryAction):
 
         try:
             # Retrieve the client item from the database
-            item = model_class.scan(
-                filter_condition=(model_class.client_id == client_id)
-            ).next()
+            item = model_class.scan(filter_condition=(model_class.client_id == client_id)).next()
 
             # Validate and convert PynamoDB item to ClientFact instance
             data = ClientFact.from_model(item).model_dump(mode="json")
@@ -174,9 +164,7 @@ class ClientActions(RegistryAction):
 
         client = kwargs.get("client") or kwargs.get("Client")
         if not client:
-            raise BadRequestException(
-                "Client identifier is required to create ClientFact"
-            )
+            raise BadRequestException("Client identifier is required to create ClientFact")
 
         model_class = ClientFact.model_class(client)
 
@@ -244,9 +232,7 @@ class ClientActions(RegistryAction):
         except DeleteError as e:
             raise UnknownException(f"Failed to delete client '{client}'") from e
         except Exception as e:
-            raise UnknownException(
-                f"Failed to delete client '{client}': {str(e)}"
-            ) from e
+            raise UnknownException(f"Failed to delete client '{client}': {str(e)}") from e
 
     @classmethod
     def _update(cls, remove_none: bool = True, **kwargs) -> Response:
@@ -283,9 +269,7 @@ class ClientActions(RegistryAction):
         excluded_fields = {"client", "created_at", "updated_at"}
 
         try:
-            values = data.model_dump(
-                by_alias=False, exclude_none=False, exclude=excluded_fields
-            )
+            values = data.model_dump(by_alias=False, exclude_none=False, exclude=excluded_fields)
 
             attributes = model_class.get_attributes()
 
@@ -318,10 +302,6 @@ class ClientActions(RegistryAction):
         except UpdateError as e:
             if "ConditionalCheckFailedException" in str(e):
                 raise NotFoundException(f"Client '{client}' not found") from e
-            raise UnknownException(
-                f"Failed to update client '{client}': {str(e)}"
-            ) from e
+            raise UnknownException(f"Failed to update client '{client}': {str(e)}") from e
         except Exception as e:
-            raise UnknownException(
-                f"Failed to update client '{client}': {str(e)}"
-            ) from e
+            raise UnknownException(f"Failed to update client '{client}': {str(e)}") from e
