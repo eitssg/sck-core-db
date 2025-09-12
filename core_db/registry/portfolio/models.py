@@ -265,6 +265,8 @@ class PortfolioFactsModel(DatabaseTable):
     # Composite primary key
     portfolio = UnicodeAttribute(hash_key=True, attr_name=PORTFOLIO_KEY)
 
+    name = UnicodeAttribute(null=True, attr_name="Name")
+
     # Portfolio configuration
     contacts = ListAttribute(of=ContactFacts, null=True, attr_name="Contacts")
     approvers = ListAttribute(of=ApproverFacts, null=True, attr_name="Approvers")
@@ -644,6 +646,11 @@ class PortfolioFact(DatabaseRecord):
         ...,
         alias="Portfolio",
         description="Portfolio identifier (unique portfolio name within client namespace)",
+    )
+    name: Optional[str] = Field(
+        None,
+        alias="Name",
+        description="Optional descriptive name for the portfolio",
     )
 
     # Portfolio Configuration Fields
