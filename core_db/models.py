@@ -204,9 +204,7 @@ class DictAttribute(Attribute[Dict[str, _T]]):
                 raise ValueError("'of' must be a subclass of Attribute")
             self.element_type = of
 
-    def serialize(
-        self, values: Dict[str, Any], *, null_check: bool = True
-    ) -> Dict[str, Any]:
+    def serialize(self, values: Dict[str, Any], *, null_check: bool = True) -> Dict[str, Any]:
         """Encode the given dictionary of objects into a dictionary of AttributeValue types.
 
         Args:
@@ -238,23 +236,13 @@ class DictAttribute(Attribute[Dict[str, _T]]):
         rval = {}
         for key, value in values.items():
             if not isinstance(key, str):
-                raise TypeError(
-                    f"Dictionary keys must be strings, got {type(key)} for key {key}"
-                )
+                raise TypeError(f"Dictionary keys must be strings, got {type(key)} for key {key}")
 
             attr = self._get_serialize_class(value)
 
             # Same validation logic as ListAttribute
-            if (
-                self.element_type
-                and value is not None
-                and not isinstance(attr, self.element_type)
-            ):
-                raise ValueError(
-                    "Dictionary values must be of type: {}".format(
-                        self.element_type.__name__
-                    )
-                )
+            if self.element_type and value is not None and not isinstance(attr, self.element_type):
+                raise ValueError("Dictionary values must be of type: {}".format(self.element_type.__name__))
 
             attr_type = attr.attr_type
             try:
@@ -316,12 +304,8 @@ class DictAttribute(Attribute[Dict[str, _T]]):
                 value = None
                 if NULL not in attribute_value:
                     # set attr_name in case `get_value` raises an exception
-                    element_attr.attr_name = (
-                        f"{self.attr_name}[{key}]" if self.attr_name else f"[{key}]"
-                    )
-                    value = element_attr.deserialize(
-                        element_attr.get_value(attribute_value)
-                    )
+                    element_attr.attr_name = f"{self.attr_name}[{key}]" if self.attr_name else f"[{key}]"
+                    value = element_attr.deserialize(element_attr.get_value(attribute_value))
                 deserialized_dict[key] = value
             return deserialized_dict
 
@@ -518,9 +502,7 @@ class EnhancedInit:
                     if isinstance(item, dict) and hasattr(attr_obj, "element_type"):
                         # Get the element type of the DictAttribute
                         element_class = attr_obj.element_type
-                        if inspect.isclass(element_class) and issubclass(
-                            element_class, MapAttribute
-                        ):
+                        if inspect.isclass(element_class) and issubclass(element_class, MapAttribute):
                             if hasattr(element_class, "__init__"):
                                 # Create new instance with enhanced __init__
                                 processed_item = element_class(**item)
@@ -544,9 +526,7 @@ class EnhancedInit:
                     if isinstance(item, dict) and hasattr(attr_obj, "element_type"):
                         # Get the element type of the ListAttribute
                         element_class = attr_obj.element_type
-                        if inspect.isclass(element_class) and issubclass(
-                            element_class, MapAttribute
-                        ):
+                        if inspect.isclass(element_class) and issubclass(element_class, MapAttribute):
                             if hasattr(element_class, "__init__"):
                                 processed_item = element_class(**item)
                                 processed_list.append(processed_item)
@@ -760,9 +740,7 @@ class TableFactory:
             ClientMeta = type("Meta", (), meta_attrs)
 
             # Create new model class with client-specific Meta
-            client_model = type(
-                f"{base_model.__name__}_{client}", (base_model,), {"Meta": ClientMeta}
-            )
+            client_model = type(f"{base_model.__name__}_{client}", (base_model,), {"Meta": ClientMeta})
 
             # Cache the new class
             cls._model_cache[cache_key] = client_model
@@ -922,9 +900,7 @@ class DatabaseRecord(BaseModel, ABC):
         >>> # {"ItemId": "123", "Name": "Test Item", "CreatedAt": "2025-01-01T12:00:00Z"}
     """
 
-    model_config = ConfigDict(
-        from_attributes=True, validate_assignment=True, populate_by_name=True
-    )
+    model_config = ConfigDict(from_attributes=True, validate_assignment=True, populate_by_name=True)
 
     # Audit fields - mirror DatabaseTable
     created_at: Optional[datetime] = Field(
@@ -996,9 +972,7 @@ class DatabaseRecord(BaseModel, ABC):
         """
         class_name = self.__class__.__name__
         # Try to find a primary identifier field
-        identifier = getattr(
-            self, "prn", getattr(self, "id", getattr(self, "name", "unknown"))
-        )
+        identifier = getattr(self, "prn", getattr(self, "id", getattr(self, "name", "unknown")))
         return f"<{class_name}(id={identifier})>"
 
 
@@ -1007,9 +981,7 @@ class Paginator(BaseModel):
 
     model_config = ConfigDict(from_attributes=True, validate_assignment=True)
 
-    cursor: dict | None = Field(
-        default=None, description="Last evaluated key from AWS for pagination"
-    )
+    cursor: dict | None = Field(default=None, description="Last evaluated key from AWS for pagination")
     limit: int = Field(
         default=10,
         ge=1,
@@ -1017,25 +989,26 @@ class Paginator(BaseModel):
         description="Maximum number of items to return per page",
     )
 
-    earliest_time: datetime | None = Field(
-        default=None, description="Earliest time to filter items"
-    )
-    latest_time: datetime | None = Field(
-        default=None, description="Latest time to filter items"
-    )
-    sort_forward: bool | None = Field(
-        default=True, description="Sort order: True for ascending, False for descending"
-    )
-    active_filter: str | None = Field(
-        default=None, description="Filter by active status"
-    )
-    email_filter: str | None = Field(
-        default=None, description="Filter by email address"
-    )
+    earliest_time: datetime | None = Field(default=None, description="Earliest time to filter items")
+    latest_time: datetime | None = Field(default=None, description="Latest time to filter items")
+    sort_forward: bool | None = Field(default=True, description="Sort order: True for ascending, False for descending")
+    active_filter: str | None = Field(default=None, description="Filter by active status")
+    email_filter: str | None = Field(default=None, description="Filter by email address")
+    page_size: int | None = Field(default=None, ge=1, le=100, description="Number of items per page")
 
-    total_count: int = Field(
-        default=0, description="Total count of items in the result set"
-    )
+    total_count: int = Field(default=0, description="Total count of items in the result set")
+
+    def get_scan_args(self) -> dict:
+        """
+        Docstring for get_query_args
+        """
+        args = {"limit": self.limit}
+        if self.cursor is not None:
+            args["last_evaluated_key"] = self.cursor
+        if self.page_size is not None:
+            args["page_size"] = self.page_size
+
+        return args
 
     @property
     def sort(self) -> str:
@@ -1054,9 +1027,7 @@ class Paginator(BaseModel):
     def validate_model_before(cls, values: dict[str, Any]) -> dict[str, Any]:
         """Validate and convert pagination parameters."""
         if not "sort_forward" in values and "sort" in values:
-            values["sort_forward"] = (
-                str(values.get("sort", "ascending")).lower() == "ascending"
-            )
+            values["sort_forward"] = str(values.get("sort", "ascending")).lower() == "ascending"
         return values
 
     @field_validator("earliest_time", mode="before")
@@ -1094,9 +1065,7 @@ class Paginator(BaseModel):
         if self.cursor is None:
             return None
         json_str = json.dumps(self.cursor)
-        return base64.b64encode(json_str.encode(encoding="utf-8")).decode(
-            encoding="utf-8"
-        )
+        return base64.b64encode(json_str.encode(encoding="utf-8")).decode(encoding="utf-8")
 
     @classmethod
     def validate_date(cls, date: Any) -> datetime | None:

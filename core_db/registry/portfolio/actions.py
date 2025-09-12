@@ -130,9 +130,7 @@ class PortfolioActions(RegistryAction):
 
         client = kwargs.get("client", kwargs.get("Client")) or util.get_client()
         if not client:
-            raise BadRequestException(
-                'Client name is required in content: { "client": "<name>", ... }'
-            )
+            raise BadRequestException('Client name is required in content: { "client": "<name>", ... }')
 
         try:
             paginator = Paginator(**kwargs)
@@ -144,34 +142,25 @@ class PortfolioActions(RegistryAction):
         try:
             log.debug("Querying portfolios for client: %s", client)
 
-            result = model_class.query(
-                client, consistent_read=True, last_evaluated_key=paginator.cursor
-            )
+            scan_args = paginator.get_scan_args()
+
+            result = model_class.scan(consistent_read=True, **scan_args)
 
             # Convert PynamoDB items to simple dictionaries
-            data = [
-                PortfolioFact.from_model(item).model_dump(mode="json")
-                for item in result
-            ]
+            data = [PortfolioFact.from_model(item).model_dump(mode="json") for item in result]
 
             paginator.cursor = getattr(result, "last_evaluated_key", None)
             paginator.total_count = getattr(result, "total_count", len(data))
 
-            log.info(
-                "Successfully retrieved %d portfolios for client: %s", len(data), client
-            )
+            log.info("Successfully retrieved %d portfolios for client: %s", len(data), client)
 
             return SuccessResponse(data=data, metadata=paginator.get_metadata())
         except QueryError as e:
             log.error("Failed to list portfolios for client %s: %s", client, str(e))
-            raise UnknownException(
-                f"Failed to list portfolios for client {client}: {str(e)}"
-            ) from e
+            raise UnknownException(f"Failed to list portfolios for client {client}: {str(e)}") from e
         except Exception as e:
             log.error("Failed to list portfolios for client %s: %s", client, str(e))
-            raise UnknownException(
-                f"Failed to list portfolios for client {client}: {str(e)}"
-            ) from e
+            raise UnknownException(f"Failed to list portfolios for client {client}: {str(e)}") from e
 
     @classmethod
     def get(cls, **kwargs) -> Response:
@@ -223,9 +212,7 @@ class PortfolioActions(RegistryAction):
 
         except DoesNotExist:
             log.warning("Portfolio not found: %s:%s", client, portfolio)
-            return NoContentResponse(
-                data={"message": f"Portfolio {client}:{portfolio} does not exist"}
-            )
+            return NoContentResponse(data={"message": f"Portfolio {client}:{portfolio} does not exist"})
         except Exception as e:
             log.error("Failed to get portfolio %s:%s: %s", client, portfolio, str(e))
             raise UnknownException(f"Failed to get portfolio: {str(e)}")
@@ -274,14 +261,10 @@ class PortfolioActions(RegistryAction):
 
         except DoesNotExist:
             log.warning("Portfolio not found for deletion: %s:%s", client, portfolio)
-            return NoContentResponse(
-                data={"message": f"Portfolio {client}:{portfolio} does not exist"}
-            )
+            return NoContentResponse(data={"message": f"Portfolio {client}:{portfolio} does not exist"})
         except DeleteError as e:
             log.error("Failed to delete portfolio %s:%s: %s", client, portfolio, str(e))
-            raise UnknownException(
-                f"Failed to delete portfolio {client}:{portfolio}: {str(e)}"
-            ) from e
+            raise UnknownException(f"Failed to delete portfolio {client}:{portfolio}: {str(e)}") from e
         except Exception as e:
             log.error(
                 "Unexpected error deleting portfolio %s:%s: %s",
@@ -289,9 +272,7 @@ class PortfolioActions(RegistryAction):
                 portfolio,
                 str(e),
             )
-            raise UnknownException(
-                f"Failed to delete portfolio {client}:{portfolio}: {str(e)}"
-            ) from e
+            raise UnknownException(f"Failed to delete portfolio {client}:{portfolio}: {str(e)}") from e
 
     @classmethod
     def create(cls, **kwargs) -> Response:
@@ -349,18 +330,12 @@ class PortfolioActions(RegistryAction):
         except PutError as e:
             if "ConditionalCheckFailedException" in str(e):
                 log.warning("Portfolio %s:%s already exists", client, portfolio)
-                raise ConflictException(
-                    f"Portfolio {client}:{portfolio} already exists"
-                )
+                raise ConflictException(f"Portfolio {client}:{portfolio} already exists")
             log.error("Failed to create portfolio %s:%s: %s", client, portfolio, str(e))
-            raise UnknownException(
-                f"Failed to create portfolio {client}:{portfolio}: {str(e)}"
-            ) from e
+            raise UnknownException(f"Failed to create portfolio {client}:{portfolio}: {str(e)}") from e
         except Exception as e:
             log.error("Failed to create portfolio %s:%s: %s", client, portfolio, str(e))
-            raise UnknownException(
-                f"Failed to create portfolio {client}:{portfolio}: {str(e)}"
-            ) from e
+            raise UnknownException(f"Failed to create portfolio {client}:{portfolio}: {str(e)}") from e
 
     @classmethod
     def update(cls, **kwargs) -> Response:
@@ -493,9 +468,7 @@ class PortfolioActions(RegistryAction):
 
         excluded_fields = {"client", "portfolio", "created_at", "updated_at"}
 
-        values = data.model_dump(
-            by_alias=False, exclude_none=False, exclude=excluded_fields
-        )
+        values = data.model_dump(by_alias=False, exclude_none=False, exclude=excluded_fields)
 
         try:
             # Build update actions for changed fields
@@ -529,12 +502,8 @@ class PortfolioActions(RegistryAction):
         except UpdateError as e:
             if "ConditionalCheckFailedException" in str(e):
                 log.warning("Portfolio %s:%s does not exist", client, portfolio)
-                raise NotFoundException(
-                    f"Portfolio {client}:{portfolio} does not exist or condition check failed"
-                )
-            raise UnknownException(
-                f"Failed to update portfolio {client}:{portfolio}: Permission denied or condition check failed"
-            )
+                raise NotFoundException(f"Portfolio {client}:{portfolio} does not exist or condition check failed")
+            raise UnknownException(f"Failed to update portfolio {client}:{portfolio}: Permission denied or condition check failed")
         except Exception as e:
             log.error("Failed to update portfolio %s:%s: %s", client, portfolio, str(e))
             raise UnknownException(f"Failed to update portfolio: {str(e)}")

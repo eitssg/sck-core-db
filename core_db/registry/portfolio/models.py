@@ -160,6 +160,22 @@ class ProjectFacts(EnhancedMapAttribute):
     attributes = MapAttribute(of=UnicodeAttribute, null=True, attr_name="Attributes")
 
 
+class LinkFacts(EnhancedMapAttribute):
+    """External link metadata associated with a portfolio.
+
+    Attributes:
+        title (str): Display title for the link
+        url (str): Destination URL
+        kind (str, optional): Type classification (e.g., runbook, dashboard, docs)
+        attributes (dict, optional): Free-form attributes
+    """
+
+    title = UnicodeAttribute(attr_name="Title")
+    url = UnicodeAttribute(attr_name="Url")
+    kind = UnicodeAttribute(null=True, attr_name="Kind")
+    attributes = MapAttribute(of=UnicodeAttribute, null=True, attr_name="Attributes")
+
+
 class PortfolioFactsModel(DatabaseTable):
     """Portfolio facts model for client-specific portfolio registry tables.
 
@@ -275,10 +291,27 @@ class PortfolioFactsModel(DatabaseTable):
     bizapp = ProjectFacts(null=True, attr_name="Bizapp")
     owner = OwnerFacts(null=True, attr_name="Owner")
 
+    # Extended identity/presentation
+    icon_url = UnicodeAttribute(null=True, attr_name="IconUrl")
+    category = UnicodeAttribute(null=True, attr_name="Category")
+    labels = ListAttribute(of=UnicodeAttribute, null=True, attr_name="Labels")
+    portfolio_version = UnicodeAttribute(null=True, attr_name="PortfolioVersion")
+    lifecycle_status = UnicodeAttribute(null=True, attr_name="LifecycleStatus")
+
+    # Extended ownership
+    business_owner = OwnerFacts(null=True, attr_name="BusinessOwner")
+    technical_owner = OwnerFacts(null=True, attr_name="TechnicalOwner")
+
     # Metadata and attributes
     tags = MapAttribute(of=UnicodeAttribute, null=True, attr_name="Tags")
     metadata = MapAttribute(of=UnicodeAttribute, null=True, attr_name="Metadata")
     attributes = MapAttribute(of=UnicodeAttribute, null=True, attr_name="Attributes")
+    compliance = MapAttribute(of=UnicodeAttribute, null=True, attr_name="Compliance")
+    identifiers = MapAttribute(of=UnicodeAttribute, null=True, attr_name="Identifiers")
+
+    # Ops and integration
+    links = ListAttribute(of=LinkFacts, null=True, attr_name="Links")
+    dependencies = ListAttribute(of=UnicodeAttribute, null=True, attr_name="Dependencies")
     user_instantiated = UnicodeAttribute(null=True, attr_name="UserInstantiated")
 
     def __repr__(self) -> str:
@@ -587,6 +620,24 @@ class ProjectFactsItem(BaseModel):
     )
 
 
+class LinkFactsItem(BaseModel):
+    """Pydantic model for LinkFacts MapAttribute.
+
+    Attributes:
+        title (str): Display title for the link
+        url (str): Destination URL
+        kind (str, optional): Type classification (e.g., runbook, dashboard, docs)
+        attributes (dict, optional): Free-form attributes
+    """
+
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+
+    title: str = Field(..., alias="Title", description="Display title for the link")
+    url: str = Field(..., alias="Url", description="Destination URL")
+    kind: Optional[str] = Field(None, alias="Kind", description="Type classification (runbook, dashboard, docs)")
+    attributes: Optional[Dict[str, str]] = Field(None, alias="Attributes", description="Free-form attributes for the link")
+
+
 # =============================================================================
 # Main Pydantic Model
 # =============================================================================
@@ -685,6 +736,17 @@ class PortfolioFact(DatabaseRecord):
         description="Owner details for the portfolio",
     )
 
+    # Extended identity/presentation
+    icon_url: Optional[str] = Field(None, alias="IconUrl", description="URL to portfolio icon (SVG/PNG)")
+    category: Optional[str] = Field(None, alias="Category", description="Portfolio category (Platform, Internal, etc.)")
+    labels: Optional[List[str]] = Field(None, alias="Labels", description="Free-form labels for faceting")
+    portfolio_version: Optional[str] = Field(None, alias="PortfolioVersion", description="Version tag for the portfolio")
+    lifecycle_status: Optional[str] = Field(None, alias="LifecycleStatus", description="Lifecycle status (Active, Sunset, etc.)")
+
+    # Extended ownership
+    business_owner: Optional[OwnerFactsItem] = Field(None, alias="BusinessOwner", description="Business owner details")
+    technical_owner: Optional[OwnerFactsItem] = Field(None, alias="TechnicalOwner", description="Technical owner details")
+
     # Metadata Fields
     tags: Optional[Dict[str, str]] = Field(
         None,
@@ -701,6 +763,10 @@ class PortfolioFact(DatabaseRecord):
         alias="Attributes",
         description="Custom attributes for the portfolio",
     )
+    compliance: Optional[Dict[str, str]] = Field(None, alias="Compliance", description="Compliance flags/levels for the portfolio")
+    identifiers: Optional[Dict[str, str]] = Field(None, alias="Identifiers", description="External identifiers (Jira, CMDB, etc.)")
+    links: Optional[List[LinkFactsItem]] = Field(None, alias="Links", description="External links: runbooks, dashboards, docs")
+    dependencies: Optional[List[str]] = Field(None, alias="Dependencies", description="Other portfolios this one depends on")
     user_instantiated: Optional[str] = Field(
         None,
         alias="UserInstantiated",
