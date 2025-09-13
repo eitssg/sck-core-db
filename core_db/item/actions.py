@@ -110,9 +110,7 @@ class ItemTableActions(TableActions):
             if "ConditionalCheckFailedException" in str(e):
                 raise ConflictException(f"Item already exists with PRN: {data.prn}")
             else:
-                raise UnknownException(
-                    "Database operation failed while creating item"
-                ) from e
+                raise UnknownException("Database operation failed while creating item") from e
         except Exception as e:
             log.error("Database operation failed", error=str(e), details=kwargs)
             raise UnknownException("Database operation failed") from e
@@ -165,9 +163,7 @@ class ItemTableActions(TableActions):
             if "ConditionalCheckFailedException" in str(e):
                 raise NotFoundException(f"Item not found for deletion: {prn}")
             else:
-                raise UnknownException(
-                    "Database operation failed while deleting item"
-                ) from e
+                raise UnknownException("Database operation failed while deleting item") from e
         except DoesNotExist as e:
             raise NotFoundException(f"Item not found for deletion: {prn}") from e
         except Exception as e:
@@ -205,23 +201,17 @@ class ItemTableActions(TableActions):
 
         model_class: ItemModelType = record_type.model_class(client)
         try:
-            item = model_class.get(
-                prn,
-                consistent_read=True,
-                condition=model_class.prn.exists(),
-            )
-            data: ItemModelRecordType = record_type.from_model(item)
+            item = model_class.get(prn, condition=model_class.prn.exists())
+            data = record_type.from_model(item).model_dump(mode="json")
 
-            return SuccessResponse(data=data.model_dump(mode="json"))
+            return SuccessResponse(data=data)
         except ValueError as e:
             raise BadRequestException(f"Invalid item data: {e}")
         except GetError as e:
             if "ConditionalCheckFailedException" in str(e):
                 raise NotFoundException(f"Item not found for PRN: {prn}")
             else:
-                raise UnknownException(
-                    "Database operation failed while retrieving item"
-                ) from e
+                raise UnknownException("Database operation failed while retrieving item") from e
         except DoesNotExist as e:
             raise NotFoundException(f"Item not found for PRN: {prn}") from e
         except Exception as e:
@@ -251,9 +241,7 @@ class ItemTableActions(TableActions):
         if parent_prn and earliest_time and latest_time:
             return cls._list_by_parent_prn_in_date_range(record_type, **kwargs)
 
-        raise BadRequestException(
-            "Either prn or parent_prn must be provided for listing items"
-        )
+        raise BadRequestException("Either prn or parent_prn must be provided for listing items")
 
     @classmethod
     def _list_by_prn(cls, record_type: ItemModelRecord, **kwargs) -> Response:
@@ -268,13 +256,9 @@ class ItemTableActions(TableActions):
 
         parent_prn = record_type.get_parent_prn(prn)
 
-        model_class: ItemModelType = record_type.model_class(client)
+        model_class = record_type.model_class(client)
         try:
-            item = model_class.get(
-                hash_key=parent_prn,
-                range_key=prn,
-                consistent_read=True,
-            )
+            item = model_class.get(hash_key=parent_prn, range_key=prn)
             data = [record_type.from_model(item).model_dump(mode="json")]
 
             return SuccessResponse(data=data)
@@ -284,9 +268,7 @@ class ItemTableActions(TableActions):
             if "ConditionalCheckFailedException" in str(e):
                 raise NotFoundException(f"Item not found for PRN: {prn}")
             else:
-                raise UnknownException(
-                    "Database operation failed while retrieving item"
-                ) from e
+                raise UnknownException("Database operation failed while retrieving item") from e
         except DoesNotExist as e:
             raise NotFoundException(f"Item not found for PRN: {prn}") from e
         except Exception as e:
@@ -298,9 +280,7 @@ class ItemTableActions(TableActions):
         """List items by their parent PRN."""
         parent_prn = kwargs.get("parent_prn")
         if not parent_prn:
-            raise BadRequestException(
-                "Parent PRN is required for listing items by parent PRN"
-            )
+            raise BadRequestException("Parent PRN is required for listing items by parent PRN")
 
         client = kwargs.get("client") or util.get_client()
         if not client:
@@ -318,13 +298,9 @@ class ItemTableActions(TableActions):
             if paginator.sort_forward is not None:
                 query_args["scan_index_forward"] = paginator.sort_forward
 
-            result = model_class.scan(
-                model_class.parent_prn == parent_prn, **query_args
-            )
+            result = model_class.scan(model_class.parent_prn == parent_prn, **query_args)
 
-            data_list = [
-                record_type.from_model(item).model_dump(mode="json") for item in result
-            ]
+            data_list = [record_type.from_model(item).model_dump(mode="json") for item in result]
 
             paginator.cursor = getattr(result, "last_evaluated_key", None)
             paginator.total_count = getattr(result, "total", len(data_list))
@@ -333,9 +309,7 @@ class ItemTableActions(TableActions):
         except ValueError as e:
             raise BadRequestException(f"Invalid item data: {e}")
         except ScanError as e:
-            raise UnknownException(
-                "Database operation failed while scanning items"
-            ) from e
+            raise UnknownException("Database operation failed while scanning items") from e
         except Exception as e:
             log.error("Database operation failed", error=str(e), details=kwargs)
             raise UnknownException("Database operation failed") from e
@@ -349,9 +323,7 @@ class ItemTableActions(TableActions):
         return cls._update(record_type, remove_none=False, **kwargs)
 
     @classmethod
-    def _update(
-        cls, record_type: ItemModelRecordType, remove_none: bool = False, **kwargs
-    ) -> Response:
+    def _update(cls, record_type: ItemModelRecordType, remove_none: bool = False, **kwargs) -> Response:
 
         client = kwargs.get("client", util.get_client())
         if not client:
@@ -398,9 +370,7 @@ class ItemTableActions(TableActions):
             )
             item.refresh()
 
-            data: ItemModelRecordType = record_type.from_model(item).model_dump(
-                mode="json"
-            )
+            data: ItemModelRecordType = record_type.from_model(item).model_dump(mode="json")
 
             return SuccessResponse(
                 data=data,
@@ -413,21 +383,15 @@ class ItemTableActions(TableActions):
             if "ConditionalCheckFailedException" in str(e):
                 raise NotFoundException(f"Item not found for update: {input_data.prn}")
             else:
-                raise UnknownException(
-                    "Database operation failed while updating item"
-                ) from e
+                raise UnknownException("Database operation failed while updating item") from e
         except DoesNotExist as e:
-            raise NotFoundException(
-                f"Item not found for update: {input_data.prn}"
-            ) from e
+            raise NotFoundException(f"Item not found for update: {input_data.prn}") from e
         except Exception as e:
             log.error("Database operation failed", error=str(e), details=kwargs)
             raise UnknownException("Database operation failed") from e
 
     @classmethod
-    def _list_by_parent_prn_in_date_range(
-        cls, record_type: ItemModelRecordType, **kwargs
-    ):
+    def _list_by_parent_prn_in_date_range(cls, record_type: ItemModelRecordType, **kwargs):
         """uses the index to list items by parent_prn and date range"""
 
         client = kwargs.get("client") or util.get_client()
@@ -439,9 +403,7 @@ class ItemTableActions(TableActions):
         latest_time = kwargs.get("latest_time")
 
         if not parent_prn or not earliest_time or not latest_time:
-            raise BadRequestException(
-                "parent_prn, earliest_time, and latest_time are required"
-            )
+            raise BadRequestException("parent_prn, earliest_time, and latest_time are required")
 
         try:
             model_class = record_type.model_class(client)
@@ -451,18 +413,12 @@ class ItemTableActions(TableActions):
             query_args = {
                 "limit": paginator.limit,
                 "index": model_class.parent_created_at_index,
-                "range_key_condition": model_class.created_at.between(
-                    earliest_time, latest_time
-                ),
+                "range_key_condition": model_class.created_at.between(earliest_time, latest_time),
             }
 
-            result = model_class.parent_created_at_index(
-                hash_key=parent_prn, **query_args
-            )
+            result = model_class.parent_created_at_index(hash_key=parent_prn, **query_args)
 
-            data_list = [
-                record_type.from_model(item).model_dump(mode="json") for item in result
-            ]
+            data_list = [record_type.from_model(item).model_dump(mode="json") for item in result]
 
             paginator.cursor = getattr(result, "last_evaluated_key", None)
             paginator.total_count = getattr(result, "total", len(data_list))
@@ -475,13 +431,9 @@ class ItemTableActions(TableActions):
         except ValueError as e:
             raise BadRequestException(f"Invalid item data: {e}")
         except QueryError as e:
-            raise UnknownException(
-                "Database operation failed while querying items"
-            ) from e
+            raise UnknownException("Database operation failed while querying items") from e
         except DoesNotExist as e:
-            raise NotFoundException(
-                f"No items found for parent_prn: {parent_prn} in date range"
-            ) from e
+            raise NotFoundException(f"No items found for parent_prn: {parent_prn} in date range") from e
         except Exception as e:
             log.error("Database operation failed", error=str(e), details=kwargs)
             raise UnknownException("Database operation failed") from e

@@ -128,9 +128,7 @@ class AppActions(RegistryAction):
             raise BadRequestException(f"Invalid pagination parameters: {str(e)}") from e
 
         if portfolio and app_name:
-            return cls._get_apps_by_portfolio_app_name(
-                client, portfolio, app_name, paginator
-            )
+            return cls._get_apps_by_portfolio_app_name(client, portfolio, app_name, paginator)
         elif portfolio:
             return cls._get_apps_by_portfolio(client, portfolio, paginator)
         else:
@@ -171,9 +169,7 @@ class AppActions(RegistryAction):
         return cls._get_apps_by_portfolio_regex(client, portfolio, app_regex)
 
     @classmethod
-    def _get_apps_by_portfolio_regex(
-        cls, client: str, portfolio: str, app_regex: str
-    ) -> Response:
+    def _get_apps_by_portfolio_regex(cls, client: str, portfolio: str, app_regex: str) -> Response:
         """Retrieve specific application by portfolio and regex pattern.
 
         Args:
@@ -201,9 +197,7 @@ class AppActions(RegistryAction):
             return SuccessResponse(data=data)
         except DoesNotExist as e:
             log.warning("Specific app not found: %s:%s", portfolio, app_regex)
-            return NoContentResponse(
-                message=f"App {portfolio}:{app_regex} does not exist"
-            )
+            return NoContentResponse(message=f"App {portfolio}:{app_regex} does not exist")
         except Exception as e:
             log.error(
                 "Failed to retrieve specific app %s:%s - %s",
@@ -211,14 +205,10 @@ class AppActions(RegistryAction):
                 app_regex,
                 str(e),
             )
-            raise UnknownException(
-                f"Failed to retrieve app {portfolio}:{app_regex}"
-            ) from e
+            raise UnknownException(f"Failed to retrieve app {portfolio}:{app_regex}") from e
 
     @classmethod
-    def _get_apps_by_portfolio(
-        cls, client: str, portfolio: str, paginator: Paginator
-    ) -> Response:
+    def _get_apps_by_portfolio(cls, client: str, portfolio: str, paginator: Paginator) -> Response:
         """Retrieve all applications for a specific portfolio with pagination.
 
         Args:
@@ -234,13 +224,7 @@ class AppActions(RegistryAction):
         model_class = AppFact.model_class(client)
 
         try:
-            query_kwargs = {"consistent_read": True}
-
-            if paginator.limit:
-                query_kwargs["limit"] = paginator.limit
-
-            if paginator.cursor is not None:
-                query_kwargs["last_evaluated_key"] = paginator.cursor
+            query_kwargs = paginator.get_query_args()
 
             result = model_class.query(portfolio, **query_kwargs)
 
@@ -250,30 +234,22 @@ class AppActions(RegistryAction):
             paginator.total_count = getattr(result, "total_count", len(data))
 
             # Sort by app_regex for consistent ordering
-            log.info(
-                "Successfully queried %d apps for portfolio: %s", len(data), portfolio
-            )
+            log.info("Successfully queried %d apps for portfolio: %s", len(data), portfolio)
 
             return SuccessResponse(data=data, metadata=paginator.get_metadata())
         except QueryError as e:
             log.error("Failed to query apps for portfolio %s - %s", portfolio, str(e))
-            raise UnknownException(
-                f"Failed to query apps for portfolio {portfolio}"
-            ) from e
+            raise UnknownException(f"Failed to query apps for portfolio {portfolio}") from e
         except Exception as e:
             log.error(
                 "Unexpected error while querying apps for portfolio %s - %s",
                 portfolio,
                 str(e),
             )
-            raise UnknownException(
-                f"Unexpected error while querying apps for {portfolio}"
-            ) from e
+            raise UnknownException(f"Unexpected error while querying apps for {portfolio}") from e
 
     @classmethod
-    def _get_apps_by_portfolio_app_name(
-        cls, client: str, portfolio: str, app_name: str, paginator: Paginator
-    ) -> Response:
+    def _get_apps_by_portfolio_app_name(cls, client: str, portfolio: str, app_name: str, paginator: Paginator) -> Response:
         """Retrieve applications by portfolio filtered by app name regex matching.
 
         Queries all applications in the portfolio and filters them by checking if the provided
@@ -287,23 +263,13 @@ class AppActions(RegistryAction):
         Returns:
             Response: SuccessResponse containing list of applications where regex patterns match the app_name
         """
-        log.debug(
-            "Filtering apps by name: %s matching patterns in portfolio: %s",
-            app_name,
-            portfolio,
-        )
+        log.debug("Filtering apps by name: %s matching patterns in portfolio: %s", app_name, portfolio)
 
         model_class = AppFact.model_class(client)
 
         try:
 
-            query_kwargs = {"consistent_read": True}
-
-            if paginator.limit:
-                query_kwargs["limit"] = paginator.limit
-
-            if paginator.cursor is not None:
-                query_kwargs["last_evaluated_key"] = paginator.cursor
+            query_kwargs = paginator.get_query_args()
 
             result = model_class.query(portfolio, **query_kwargs)
 
@@ -314,11 +280,7 @@ class AppActions(RegistryAction):
                     # Check if the app_name matches the regex pattern stored in app_regex field
                     if re.match(app_fact.app_regex, app_name):
                         data.append(app_fact.model_dump(mode="json"))
-                        log.debug(
-                            "App name '%s' matches pattern '%s'",
-                            app_name,
-                            app_fact.app_regex,
-                        )
+                        log.debug("App name '%s' matches pattern '%s'", app_name, app_fact.app_regex)
                 except re.error:
                     # Skip invalid regex patterns
                     log.warning("Invalid regex pattern in app: %s", app_fact.app_regex)
@@ -327,28 +289,17 @@ class AppActions(RegistryAction):
             paginator.cursor = getattr(result, "last_evaluated_key", None)
             paginator.total_count = getattr(result, "total_count", len(data))
 
-            log.info(
-                "Successfully filtered %d apps matching name: %s", len(data), app_name
-            )
+            log.info("Successfully filtered %d apps matching name: %s", len(data), app_name)
 
             # Returns a list of applications that match the app_name regex
             return SuccessResponse(data=data, metadata=paginator.get_metadata())
 
         except QueryError as e:
             log.error("Failed to query apps for portfolio %s - %s", portfolio, str(e))
-            raise UnknownException(
-                f"Failed to query apps for portfolio {portfolio}"
-            ) from e
+            raise UnknownException(f"Failed to query apps for portfolio {portfolio}") from e
         except Exception as e:
-            log.error(
-                "Unexpected error while filtering apps by name %s in portfolio %s - %s",
-                app_name,
-                portfolio,
-                str(e),
-            )
-            raise UnknownException(
-                f"Unexpected error while filtering apps for {portfolio}:{app_name}"
-            ) from e
+            log.error("Unexpected error while filtering apps by name %s in portfolio %s - %s", app_name, portfolio, str(e))
+            raise UnknownException(f"Unexpected error while filtering apps for {portfolio}:{app_name}") from e
 
     @classmethod
     def _get_all_apps_paginated(cls, client: str, paginator: Paginator) -> Response:
@@ -396,9 +347,7 @@ class AppActions(RegistryAction):
                 client,
                 str(e),
             )
-            raise UnknownException(
-                f"Unexpected error while scanning apps for {client}"
-            ) from e
+            raise UnknownException(f"Unexpected error while scanning apps for {client}") from e
 
     @classmethod
     def delete(cls, **kwargs) -> Response:
@@ -441,10 +390,7 @@ class AppActions(RegistryAction):
 
             item = model_class.get(portfolio, app_regex)
 
-            item.delete(
-                condition=model_class.portfolio.exists()
-                & model_class.app_regex.exists()
-            )
+            item.delete(condition=model_class.portfolio.exists() & model_class.app_regex.exists())
 
             log.info("Successfully deleted app: %s:%s", portfolio, app_regex)
 
@@ -452,26 +398,16 @@ class AppActions(RegistryAction):
 
         except DoesNotExist as e:
             log.info("App not found for deletion: %s:%s", portfolio, app_regex)
-            return NoContentResponse(
-                message=f"App [{portfolio}:{app_regex}] does not exist"
-            )
+            return NoContentResponse(message=f"App [{portfolio}:{app_regex}] does not exist")
         except DeleteError as e:
             if "ConditionalCheckFailedException" in str(e):
                 log.info("App not found for deletion: %s:%s", portfolio, app_regex)
-                return NoContentResponse(
-                    message=f"App [{portfolio}:{app_regex}] was deleted by another process"
-                )
+                return NoContentResponse(message=f"App [{portfolio}:{app_regex}] was deleted by another process")
             log.error("Failed to delete app: %s:%s - %s", portfolio, app_regex, str(e))
-            raise UnknownException(
-                f"Failed to delete app {portfolio}:{app_regex}"
-            ) from e
+            raise UnknownException(f"Failed to delete app {portfolio}:{app_regex}") from e
         except Exception as e:
-            log.error(
-                "Unexpected error deleting app %s:%s - %s", portfolio, app_regex, str(e)
-            )
-            raise UnknownException(
-                f"Unexpected error deleting app {portfolio}:{app_regex}"
-            ) from e
+            log.error("Unexpected error deleting app %s:%s - %s", portfolio, app_regex, str(e))
+            raise UnknownException(f"Unexpected error deleting app {portfolio}:{app_regex}") from e
 
     @classmethod
     def create(cls, **kwargs) -> Response:
@@ -515,10 +451,7 @@ class AppActions(RegistryAction):
         try:
             item = data.to_model(client)
             # Use condition to prevent overwriting existing apps
-            item.save(
-                model_class.portfolio.does_not_exist()
-                & model_class.app_regex.does_not_exist()
-            )
+            item.save(model_class.portfolio.does_not_exist() & model_class.app_regex.does_not_exist())
 
             log.info("Successfully created app: %s:%s", data.portfolio, data.app_regex)
 
@@ -527,15 +460,9 @@ class AppActions(RegistryAction):
         except PutError as e:
             if "ConditionalCheckFailedException" in str(e):
                 log.warning("App already exists: %s:%s", data.portfolio, data.app_regex)
-                raise ConflictException(
-                    f"App already exists: {data.portfolio}:{data.app_regex}"
-                ) from e
-            log.error(
-                "Failed to create app %s:%s: %s", data.portfolio, data.app_regex, str(e)
-            )
-            raise UnknownException(
-                f"Failed to create app {data.portfolio}:{data.app_regex}"
-            ) from e
+                raise ConflictException(f"App already exists: {data.portfolio}:{data.app_regex}") from e
+            log.error("Failed to create app %s:%s: %s", data.portfolio, data.app_regex, str(e))
+            raise UnknownException(f"Failed to create app {data.portfolio}:{data.app_regex}") from e
         except TableError as e:
             log.error(
                 "Database table error while creating app %s:%s: %s",
@@ -653,9 +580,7 @@ class AppActions(RegistryAction):
         try:
             attributes = model_class.get_attributes()
 
-            values = data.model_dump(
-                by_alias=False, exclude_none=False, exclude=excluded_fields
-            )
+            values = data.model_dump(by_alias=False, exclude_none=False, exclude=excluded_fields)
 
             actions: list[Action] = []
             for key, value in values.items():
@@ -676,8 +601,7 @@ class AppActions(RegistryAction):
             item = model_class(portfolio=data.portfolio, app_regex=data.app_regex)
             item.update(
                 actions=actions,
-                condition=model_class.portfolio.exists()
-                & model_class.app_regex.exists(),
+                condition=model_class.portfolio.exists() & model_class.app_regex.exists(),
             )
             item.refresh()
 
@@ -690,18 +614,10 @@ class AppActions(RegistryAction):
 
         except UpdateError as e:
             if "ConditionalCheckFailedException" in str(e):
-                log.warning(
-                    "App not found for update: %s:%s", data.portfolio, data.app_regex
-                )
-                raise NotFoundException(
-                    f"App {data.portfolio}:{data.app_regex} does not exist"
-                ) from e
-            log.error(
-                "Failed to update app %s:%s: %s", data.portfolio, data.app_regex, str(e)
-            )
-            raise UnknownException(
-                f"Failed to update app {data.portfolio}:{data.app_regex}"
-            ) from e
+                log.warning("App not found for update: %s:%s", data.portfolio, data.app_regex)
+                raise NotFoundException(f"App {data.portfolio}:{data.app_regex} does not exist") from e
+            log.error("Failed to update app %s:%s: %s", data.portfolio, data.app_regex, str(e))
+            raise UnknownException(f"Failed to update app {data.portfolio}:{data.app_regex}") from e
         except Exception as e:
             log.error(
                 "Unexpected error updating app %s:%s: %s",

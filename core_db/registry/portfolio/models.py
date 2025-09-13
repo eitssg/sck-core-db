@@ -312,7 +312,6 @@ class PortfolioFactsModel(DatabaseTable):
     # Ops and integration
     links = ListAttribute(of=LinkFacts, null=True, attr_name="Links")
     dependencies = ListAttribute(of=UnicodeAttribute, null=True, attr_name="Dependencies")
-    user_instantiated = UnicodeAttribute(null=True, attr_name="UserInstantiated")
 
     def __repr__(self) -> str:
         """Return string representation of PortfolioFactsModel.
@@ -767,11 +766,6 @@ class PortfolioFact(DatabaseRecord):
     identifiers: Optional[Dict[str, str]] = Field(None, alias="Identifiers", description="External identifiers (Jira, CMDB, etc.)")
     links: Optional[List[LinkFactsItem]] = Field(None, alias="Links", description="External links: runbooks, dashboards, docs")
     dependencies: Optional[List[str]] = Field(None, alias="Dependencies", description="Other portfolios this one depends on")
-    user_instantiated: Optional[str] = Field(
-        None,
-        alias="UserInstantiated",
-        description="Internal field indicating user instantiation",
-    )
 
     @classmethod
     def model_class(cls, client: str) -> PortfolioFactsType:

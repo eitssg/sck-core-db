@@ -57,6 +57,7 @@ Note:
     Client and zone parameters are required for most operations and are extracted from kwargs.
 """
 
+from botocore.docs import paginator
 import core_framework as util
 import core_logging as log
 
@@ -168,7 +169,7 @@ class ZoneActions(RegistryAction):
             raise BadRequestException(f"Invalid pagination parameters: {str(e)}") from e
 
         if aws_account_id:
-            return cls._list_by_aws_account(client, aws_account_id)
+            return cls._list_by_aws_account(client, aws_account_id, paginator)
         else:
             return cls._list_all(client, paginator)
 
@@ -180,15 +181,9 @@ class ZoneActions(RegistryAction):
         try:
             log.debug("Querying zones for client: %s", client)
 
-            query_args = {"consistent_read": True}
+            scan_args = paginator.get_scan_args()
 
-            if paginator.limit:
-                query_args["limit"] = paginator.limit
-
-            if paginator.cursor is not None:
-                query_args["last_evaluated_key"] = paginator.cursor
-
-            results = model_class.scan(**query_args)
+            results = model_class.scan(**scan_args)
 
             result = [ZoneFact.from_model(item).model_dump(mode="json") for item in results]
 
@@ -207,14 +202,14 @@ class ZoneActions(RegistryAction):
             raise UnknownException(f"Failed to query zones - {str(e)}") from e
 
     @classmethod
-    def _list_by_aws_account(cls, client, aws_account_id) -> Response:
+    def _list_by_aws_account(cls, client, aws_account_id, paginator: Paginator) -> Response:
 
         model_class = ZoneFact.model_class(client)
 
         try:
             log.debug("Querying zones for client: %s", client)
 
-            query_args = {"consistent_read": True}
+            query_args = paginator.get_scan_args()
 
             # retrieve ALL zones, then we will see if it has the given AWS account ID
             results = model_class.scan(**query_args)

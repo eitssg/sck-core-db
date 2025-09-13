@@ -998,6 +998,16 @@ class Paginator(BaseModel):
 
     total_count: int = Field(default=0, description="Total count of items in the result set")
 
+    def get_query_args(self) -> dict:
+        args = {"limit": self.limit}
+        if self.cursor is not None:
+            args["exclusive_start_key"] = self.cursor
+        if self.sort_forward is not None:
+            args["scan_index_forward"] = self.sort_forward
+        if self.page_size is not None:
+            args["page_size"] = self.page_size
+        return args
+
     def get_scan_args(self) -> dict:
         """
         Docstring for get_query_args

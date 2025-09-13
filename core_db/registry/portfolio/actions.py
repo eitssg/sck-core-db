@@ -144,7 +144,7 @@ class PortfolioActions(RegistryAction):
 
             scan_args = paginator.get_scan_args()
 
-            result = model_class.scan(consistent_read=True, **scan_args)
+            result = model_class.scan(**scan_args)
 
             # Convert PynamoDB items to simple dictionaries
             data = [PortfolioFact.from_model(item).model_dump(mode="json") for item in result]
