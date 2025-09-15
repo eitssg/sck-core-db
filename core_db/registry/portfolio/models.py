@@ -1,6 +1,6 @@
 """Definition of the Portfolio Facts in the core-automation-portfolios table"""
 
-from typing import Dict, Optional, List, Type
+from typing import Any, Dict, Optional, List, Type
 from pydantic import Field, ConfigDict, BaseModel
 from pynamodb.attributes import (
     UnicodeAttribute,
@@ -762,8 +762,8 @@ class PortfolioFact(DatabaseRecord):
         alias="Attributes",
         description="Custom attributes for the portfolio",
     )
-    compliance: Optional[Dict[str, str]] = Field(None, alias="Compliance", description="Compliance flags/levels for the portfolio")
-    identifiers: Optional[Dict[str, str]] = Field(None, alias="Identifiers", description="External identifiers (Jira, CMDB, etc.)")
+    compliance: Optional[Dict[str, Any]] = Field(None, alias="Compliance", description="Compliance flags/levels for the portfolio")
+    identifiers: Optional[Dict[str, Any]] = Field(None, alias="Identifiers", description="External identifiers (Jira, CMDB, etc.)")
     links: Optional[List[LinkFactsItem]] = Field(None, alias="Links", description="External links: runbooks, dashboards, docs")
     dependencies: Optional[List[str]] = Field(None, alias="Dependencies", description="Other portfolios this one depends on")
 

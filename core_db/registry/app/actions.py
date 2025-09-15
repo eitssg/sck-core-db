@@ -37,6 +37,9 @@ Note:
 
 import re
 from pydantic_core import ValidationError
+import hashlib
+import slugify
+
 from pynamodb.expressions.update import Action
 from pynamodb.exceptions import (
     DeleteError,
@@ -67,6 +70,70 @@ from ...exceptions import (
 from ...models import Paginator
 from ..actions import RegistryAction
 from .models import AppFact
+
+
+def _generate_app_id(name: str) -> str:
+    # Generate a URL-safe app ID from the name
+    return slugify.slugify(name, lowercase=True, separator="-", max_length=50)
+
+
+# gives model_class
+
+
+def _is_app_id_taken(client: str, portfolio: str, candidate: str) -> bool:
+    try:
+        Model = AppFact.model_class(client)
+        Model.get(portfolio, candidate)  # hash=portfolio, range=app
+        return True
+    except DoesNotExist:
+        return False
+    except Exception:
+        # Be conservative on unexpected errors
+        return True
+
+
+def generate_app_slug(
+    name: str,
+    *,
+    client: str,
+    portfolio: str,
+    preferred: str | None = None,
+    max_length: int = 63,
+) -> str:
+    source = (preferred or name or "").strip()
+    base = slugify.slugify(source, lowercase=True, separator="-", max_length=max_length)
+    if not base:
+        base = "app"
+
+    # avoid reserved route-y words
+    if base in {"new", "create", "edit", "delete", "admin"}:
+        base = f"{base}-app"
+
+    def with_suffix(b: str, s: str) -> str:
+        sfx = f"-{s}"
+        if len(b) + len(sfx) > max_length:
+            b = b[: max_length - len(sfx)]
+        return b + sfx
+
+    # no collision
+    if not _is_app_id_taken(client, portfolio, base):
+        return base
+
+    # deterministic short hash first
+    digest = hashlib.blake2b(f"{portfolio}:{source}".encode("utf-8"), digest_size=3).hexdigest()
+    cand = with_suffix(base, digest)
+    if not _is_app_id_taken(client, portfolio, cand):
+        return cand
+
+    # fallback numeric counter
+    for i in range(2, 50):
+        cand = with_suffix(base, str(i))
+        if not _is_app_id_taken(client, portfolio, cand):
+            return cand
+
+    # last resort: longer hash
+    digest = hashlib.blake2b(f"{portfolio}:{source}".encode("utf-8"), digest_size=5).hexdigest()
+    return with_suffix(base, digest)
 
 
 class AppActions(RegistryAction):
@@ -117,7 +184,7 @@ class AppActions(RegistryAction):
 
         client = kwargs.get("client", kwargs.get("Client")) or util.get_client()
         portfolio = kwargs.get("portfolio", kwargs.get("Portfolio"))
-        app_name = kwargs.get("app_name", kwargs.get("AppName"))
+        app_name = kwargs.get("app", kwargs.get("App"))
 
         if not client:
             raise BadRequestException("Missing required parameter: client")
@@ -437,11 +504,33 @@ class AppActions(RegistryAction):
         log.info("Creating app")
 
         client = kwargs.get("client", kwargs.get("Client", None)) or util.get_client()
+        portfolio = kwargs.get("portfolio", kwargs.get("Portfolio", None))
+
         if not client:
             raise BadRequestException("Missing required parameter: client")
+        if not portfolio:
+            raise BadRequestException("Missing required parameter: portfolio")
+
+        # Name is required now
+        name_value = kwargs.get("name") or kwargs.get("Name")
+        if not name_value:
+            raise BadRequestException("Missing required field: name")
+
+        # derive name sources for slug when App not provided
+        preferred = kwargs.get("app") or kwargs.get("App")
+        name_source = name_value
+
+        if not preferred:
+            kwargs["app"] = generate_app_slug(
+                name=name_source or "app",
+                client=client,
+                portfolio=portfolio,
+            )
 
         try:
+
             data = AppFact(**kwargs)
+
         except (ValueError, ValidationError) as e:
             log.error("Invalid app data: %s", str(e))
             raise BadRequestException(f"Invalid app data: {str(e)}")
@@ -450,32 +539,56 @@ class AppActions(RegistryAction):
 
         try:
             item = data.to_model(client)
-            # Use condition to prevent overwriting existing apps
-            item.save(model_class.portfolio.does_not_exist() & model_class.app_regex.does_not_exist())
 
-            log.info("Successfully created app: %s:%s", data.portfolio, data.app_regex)
+            # Uniqueness on the range key `app` (within the given portfolio)
+            item.save(model_class.app.does_not_exist())
+
+            log.info("Successfully created app: %s:%s", data.portfolio, data.app)
 
             return SuccessResponse(data=data.model_dump(mode="json"))
 
         except PutError as e:
             if "ConditionalCheckFailedException" in str(e):
-                log.warning("App already exists: %s:%s", data.portfolio, data.app_regex)
-                raise ConflictException(f"App already exists: {data.portfolio}:{data.app_regex}") from e
-            log.error("Failed to create app %s:%s: %s", data.portfolio, data.app_regex, str(e))
-            raise UnknownException(f"Failed to create app {data.portfolio}:{data.app_regex}") from e
-        except TableError as e:
-            log.error(
-                "Database table error while creating app %s:%s: %s",
-                data.portfolio,
-                data.app_regex,
-                str(e),
-            )
-            raise UnknownException(f"Database error creating app: {str(e)}") from e
+
+                # Rare race: regenerate and retry a couple of times, then fail.
+                log.warning("App creation conflict, retrying with new slug: %s:%s", data.portfolio, data.app)
+                for _ in range(3):
+                    kwargs["app"] = generate_app_slug(
+                        name=name_source or "app",
+                        client=client,
+                        portfolio=portfolio,
+                        preferred=data.app,  # keep base, add next suffix
+                    )
+
+                    data = AppFact(**kwargs)
+                    item = data.to_model(client)
+
+                    try:
+                        item.save(model_class.app.does_not_exist())
+                        return SuccessResponse(data=data.model_dump(mode="json"))
+                    except PutError as e2:
+                        if "ConditionalCheckFailedException" in str(e2):
+                            continue  # still colliding; try next suffix
+                        # Different failure mode: bubble up as Unknown
+                        log.error("Failed to create app on retry: %s:%s - %s", data.portfolio, data.app, str(e2))
+                        raise UnknownException(f"Failed to create app {data.portfolio}:{data.app}") from e2
+
+                raise ConflictException(f"App {data.portfolio}:{data.app} already exists") from e
+
+            # Non-conditional failure
+            log.error("Failed to create app %s:%s: %s", data.portfolio, getattr(data, "app", "<unknown>"), str(e))
+            raise UnknownException(f"Failed to create app {data.portfolio}:{getattr(data, 'app', '<unknown>')}") from e
+
+        # All exceptions come here, and we'll raise an UnknownException
+        except ConflictException:
+            raise
+        except UnknownException:
+            raise
         except Exception as e:
             log.error(
                 "Unexpected error creating app %s:%s: %s",
                 data.portfolio,
-                data.app_regex,
+                getattr(data, "app", data.app_regex),
                 str(e),
             )
             raise UnknownException(f"Unexpected error creating app: {str(e)}") from e

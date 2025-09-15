@@ -72,8 +72,6 @@ class ProfileModel(DatabaseTable):
             May differ by role. Default: "UTC"
         language (str, optional): User's preferred language code for this profile.
             May differ by organizational context. Default: "en-US"
-        theme (str, optional): User's preferred UI theme setting for this profile.
-            May differ by role. Default: "light"
         notifications_enabled (bool, optional): Whether user wants notifications for this profile.
             May differ by role. Default: True
         last_login (datetime, optional): Timestamp of user's last login using this specific profile.
@@ -141,7 +139,6 @@ class ProfileModel(DatabaseTable):
     # User preferences (can differ per profile)
     timezone = UnicodeAttribute(attr_name="Timezone", null=True, default="UTC")
     language = UnicodeAttribute(attr_name="Language", null=True, default="en-US")
-    theme = UnicodeAttribute(attr_name="Theme", null=True, default="light")
     notifications_enabled = BooleanAttribute(attr_name="NotificationsEnabled", null=True, default=True)
 
     # Timestamps (per profile)
@@ -392,11 +389,6 @@ class UserProfile(DatabaseRecord):
         None,
         description="User's preferred language code for this profile",
         alias="Language",
-    )
-    theme: Optional[str] = Field(
-        None,
-        description="User's preferred UI theme setting for this profile",
-        alias="Theme",
     )
     notifications_enabled: Optional[bool] = Field(
         None,

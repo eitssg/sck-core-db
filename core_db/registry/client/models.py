@@ -14,10 +14,10 @@ multi-tenant operation with client-specific configurations and resource isolatio
 The client registry uses a single global table since it stores the client definitions themselves.
 """
 
-from typing import Optional, Type
-from pydantic import Field
+from typing import Optional, Type, List
+from pydantic import BaseModel, Field, ConfigDict
 
-from pynamodb.attributes import UnicodeAttribute, ListAttribute
+from pynamodb.attributes import UnicodeAttribute, ListAttribute, MapAttribute
 
 from ...models import TableFactory, DatabaseRecord, DatabaseTable
 
@@ -118,6 +118,8 @@ class ClientFactsModel(DatabaseTable):
     artefact_bucket_name = UnicodeAttribute(null=True, attr_name="ArtefactBucketName")
     ui_bucket_name = UnicodeAttribute(null=True, attr_name="UiBucketName")
     ui_bucket = UnicodeAttribute(null=True, attr_name="UiBucket")  # Legacy field
+    tags = MapAttribute(null=True, attr_name="Tags")
+    tag_policy = ListAttribute(of=MapAttribute, null=True, attr_name="TagPolicy")
 
     # Resource naming and scoping
     scope = UnicodeAttribute(null=True, attr_name="Scope")
@@ -248,6 +250,37 @@ class ClientFactsFactory:
             bool: True if the table exists, False otherwise
         """
         return TableFactory.exists(ClientFactsModel, client)
+
+
+class TagPolicyFact(BaseModel):
+    """Pydantic model for Tag Policy Facts with validation and serialization.
+
+    Provides type validation, PascalCase serialization for APIs, and conversion methods
+    between PynamoDB and API formats.
+    """
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    tag_name: str = Field(
+        None,
+        alias="Tags",
+        description="Tags to apply to all automation-created resources",
+    )
+    required: bool = Field(
+        False,
+        alias="Required",
+        description="Whether tags are required on resources",
+    )
+    description: str = Field(
+        "",
+        alias="Description",
+        description="Description of the tag policy.  Why the tag is required and what it is used for.",
+    )
+
+    def model_dump(self, *args, **kwargs) -> dict:
+        kwargs.setdefault("exclude_none", True)
+        kwargs.setdefault("by_alias", True)
+        return super().model_dump(*args, **kwargs)
 
 
 class ClientFact(DatabaseRecord):
@@ -477,6 +510,16 @@ class ClientFact(DatabaseRecord):
         None,
         alias="Scope",
         description="Resource name prefix for all automation-created resources to ensure uniqueness",
+    )
+    tags: Optional[dict[str, str]] = Field(
+        None,
+        alias="Tags",
+        description="Tags to apply to all automation-created resources",
+    )
+    tag_policy: Optional[List[TagPolicyFact]] = Field(
+        None,
+        alias="TagPolicy",
+        description="Policy governing the application of tags to resources",
     )
 
     @classmethod

@@ -1,27 +1,27 @@
 """Classes defining the Apps record model for the core-automation-apps table"""
 
+from typing import List
 import re
 from typing import Dict, Optional, Type
 from pydantic import Field, model_validator
 
-from pynamodb.attributes import UnicodeAttribute, MapAttribute
+from pynamodb.attributes import UnicodeAttribute, MapAttribute, ListAttribute
 
-from ...constants import PORTFOLIO_KEY, APP_KEY
 from ...models import TableFactory, DatabaseRecord, DatabaseTable
 
 
 class AppFactsModel(DatabaseTable):
     """App facts model for the core-automation-apps table.
 
-    This model defines the structure for app facts that can be created
-    dynamically for different clients using the AppFactsFactory. It stores
-    configuration information about applications including deployment zones,
-    regions, and metadata.
+    Defines the persisted shape for application deployment specifications ("AppFacts").
+    These records are tenant-scoped and store configuration including deployment zones,
+    regions, and a PRN-matching regex.
 
     Attributes:
         portfolio (str): Portfolio identifier (hash key)
-        app_regex (str): App Regex identifier (range key) for matching application names
+        app (str): URL-safe slug (range key); unique within portfolio; generated from Name
         name (str): Human-readable name of the app (required)
+        app_regex (str): PRN matcher (regex attribute, not a key)
         environment (str, optional): Environment where the app is deployed (e.g., 'production', 'staging')
         account (str, optional): AWS account number where the app is deployed
         zone (str): Zone identifier where the app is deployed
@@ -33,27 +33,27 @@ class AppFactsModel(DatabaseTable):
         metadata (dict, optional): Additional metadata for the app configuration
 
     Note:
-        We call this "zone" now. A "zone" contains "apps" that are deployed together
-        in an Account. A zone can have multiple region definitions.
+        "zone" groups apps deployed together in an Account. A zone can define multiple regions.
 
     Examples:
-        >>> # Both formats work identically (thanks to DatabaseTable conversion)
         >>> app1 = AppFactsModel(
         ...     portfolio="acme",
-        ...     app_regex="core-api-.*",
+        ...     app="core-api",
         ...     name="Core API",
+        ...     app_regex=r"^prn:acme:core-api:main:latest$",
         ...     environment="production",
         ...     zone="prod-east",
-        ...     region="us-east-1"
+        ...     region="us-east-1",
         ... )
 
         >>> app2 = AppFactsModel(
         ...     Portfolio="acme",
-        ...     AppRegex="core-api-.*",
+        ...     App="core-api",
         ...     Name="Core API",
+        ...     AppRegex=r"^prn:acme:core-api:[^:]*:[^:]*$",
         ...     Environment="production",
         ...     Zone="prod-east",
-        ...     Region="us-east-1"
+        ...     Region="us-east-1",
         ... )
     """
 
@@ -67,11 +67,17 @@ class AppFactsModel(DatabaseTable):
         pass
 
     # Hash and Range Keys
-    portfolio = UnicodeAttribute(attr_name=PORTFOLIO_KEY, hash_key=True)
-    app_regex = UnicodeAttribute(attr_name=APP_KEY, range_key=True)
+    portfolio = UnicodeAttribute(attr_name="Portfolio", hash_key=True)
+    # Auto generate derived from client/portfolio/name. URL-safe slug; unique
+    # within portfolio; generated from Name; immutable after create
+    app = UnicodeAttribute(attr_name="App", range_key=True)
+    # Friendly name for this deployment
+    name = UnicodeAttribute(attr_name="Name")
+    # PRN Matcher
+    app_regex = UnicodeAttribute(attr_name="AppRegex")
 
     # App Details
-    name = UnicodeAttribute(attr_name="Name")
+
     environment = UnicodeAttribute(null=True, attr_name="Environment")
     account = UnicodeAttribute(null=True, attr_name="Account")
     zone = UnicodeAttribute(null=False, attr_name="Zone")
@@ -82,20 +88,12 @@ class AppFactsModel(DatabaseTable):
     # Complex Attributes
     image_aliases = MapAttribute(null=True, attr_name="ImageAliases")
     tags = MapAttribute(null=True, attr_name="Tags")
+    labels = ListAttribute(of=UnicodeAttribute, null=True, attr_name="Labels")
     metadata = MapAttribute(null=True, attr_name="Metadata")
 
     def __repr__(self) -> str:
-        """Return string representation of the AppFactsModel.
-
-        Returns:
-            str: String representation showing key fields
-
-        Examples:
-            >>> app = AppFactsModel(portfolio="acme", app_regex="core-api-.*")
-            >>> repr(app)
-            '<AppFactsModel(acme,app_regex=core-api-.*)>'
-        """
-        return f"<AppFactsModel({self.portfolio},app_regex={self.app_regex})>"
+        """Return a concise representation including keys and matcher."""
+        return f"<AppFactsModel(portfolio={self.portfolio}, app={self.app}, regex={self.app_regex})>"
 
 
 AppFactsType = Type[AppFactsModel]
@@ -193,13 +191,14 @@ class AppFact(DatabaseRecord):
 
     Provides type validation, PascalCase serialization for APIs, and conversion methods
     between PynamoDB and API formats. Apps define deployment configurations within
-    portfolios using regex patterns to match application names.
+    portfolios using regex patterns to match pipeline PRNs.
 
     Inherits audit fields (created_at, updated_at) from DatabaseRecord.
 
     Attributes:
         portfolio (str): Portfolio identifier (hash key for table partitioning)
-        app_regex (str): App regex identifier (range key) for matching application names
+        app (str): App identifier (slug; range key; unique within portfolio)
+        app_regex (str): PRN matcher (regex attribute, not a key)
         name (str): Human-readable name of the app (required)
         environment (str, optional): Environment where the app is deployed (e.g., 'production', 'staging')
         account (str, optional): AWS account number where the app is deployed
@@ -217,31 +216,32 @@ class AppFact(DatabaseRecord):
 
     Note:
         All string fields use PascalCase aliases for API compatibility and DynamoDB attribute naming.
-        The portfolio and app_regex fields together form the composite primary key for DynamoDB.
+        The composite primary key is (portfolio, app).
 
     Examples:
-        >>> # Create app fact with validation
         >>> app = AppFact(
         ...     Portfolio="acme",
-        ...     AppRegex="core-api-.*",
+        ...     App="core-api",
+        ...     AppRegex=r"^prn:acme:core-api:main:latest$",
         ...     Name="Core API",
         ...     Zone="prod-east",
-        ...     Region="us-east-1"
+        ...     Region="us-east-1",
         ... )
 
-        >>> # Convert from DynamoDB model
-        >>> db_app = AppFactsModel(portfolio="acme", app_regex="core-api-.*")
+        >>> db_app = AppFactsModel(portfolio="acme", app="core-api", app_regex=r"^prn:acme:core-api:main:latest$")
         >>> pydantic_app = AppFact.from_model(db_app)
-
-        >>> # Convert to DynamoDB format
-        >>> db_model = app.to_model("acme")
     """
 
     # Core App Keys with PascalCase aliases
     portfolio: str = Field(
         ...,
         alias="Portfolio",
-        description="Portfolio identifier (hash key)",
+        description="Portfolio identifier (slug) (hash key)",
+    )
+    app: str = Field(
+        ...,
+        alias="App",
+        description="App identifier (slug) (derived from AppRegex for compatibility)",
     )
     app_regex: str = Field(
         ...,
@@ -249,10 +249,10 @@ class AppFact(DatabaseRecord):
         description="App Regex identifier (range key) for matching application names",
     )
     # App Configuration Fields
-    name: Optional[str] = Field(
-        None,
+    name: str = Field(
+        ...,
         alias="Name",
-        description="Human-readable name of the app",
+        description="Human-readable name of the app (required)",
     )
     environment: Optional[str] = Field(
         None,
@@ -295,6 +295,11 @@ class AppFact(DatabaseRecord):
         alias="Tags",
         description="Tags to apply to AWS resources created for this app",
     )
+    labels: Optional[List[str]] = Field(
+        None,
+        alias="Labels",
+        description="Labels to apply to AWS resources created for this app",
+    )
     metadata: Optional[Dict[str, str]] = Field(
         None,
         alias="Metadata",
@@ -304,26 +309,7 @@ class AppFact(DatabaseRecord):
     @model_validator(mode="before")
     @classmethod
     def validate_model_before(cls, values: Dict[str, str]) -> Dict[str, str]:
-        """Validate model fields before instantiation.
-
-                Args:
-                    values (Dict[str, str]): Dictionary of field values to validate
-
-                Returns:
-                    Dict[str, str]: Validated field values
-
-                Raises:
-                    ValueError: If required fields are missing or invalid
-
-                Examples:
-                    >>> AppFact.validate_model_before({"Portfolio": "acme", "AppRegex": "core-api-.*"})
-        -            {'Portfolio': 'acme', 'AppRegex': 'core-api-.*'}
-        +            {'Portfolio': 'acme', 'AppRegex': 'core-api-.*', 'Name': 'core-api-.*'}
-        """
-        name = values.get("Name", values.get("name"))
-        if not name:
-            name = values.get("app_regex", values.get("AppRegex", ""))
-            values["Name"] = name
+        """Pre-validation hook. Currently pass-through; Name must be provided explicitly."""
         return values
 
     @classmethod
@@ -453,19 +439,5 @@ class AppFact(DatabaseRecord):
         return self.enforce_validation.lower() in ("true", "1", "yes", "on", "enabled")
 
     def __repr__(self) -> str:
-        """Return a string representation of the AppFact instance.
-
-        Returns:
-            str: String representation for debugging
-
-        Examples:
-            >>> app = AppFact(
-            ...     Portfolio="acme",
-            ...     AppRegex="core-api-.*",
-            ...     Zone="prod",
-            ...     Region="us-east-1"
-            ... )
-            >>> repr(app)
-            '<AppFact(portfolio=acme,app_regex=core-api-.*)>'
-        """
-        return f"<AppFact(portfolio={self.portfolio},app_regex={self.app_regex})>"
+        """Return a concise representation including keys and matcher."""
+        return f"<AppFact(portfolio={self.portfolio}, app={self.app}, regex={self.app_regex})>"

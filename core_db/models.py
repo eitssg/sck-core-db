@@ -985,7 +985,7 @@ class Paginator(BaseModel):
     limit: int = Field(
         default=10,
         ge=1,
-        le=100,
+        le=1000,
         description="Maximum number of items to return per page",
     )
 
