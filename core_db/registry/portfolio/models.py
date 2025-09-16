@@ -313,6 +313,8 @@ class PortfolioFactsModel(DatabaseTable):
     links = ListAttribute(of=LinkFacts, null=True, attr_name="Links")
     dependencies = ListAttribute(of=UnicodeAttribute, null=True, attr_name="Dependencies")
 
+    app_count = NumberAttribute(default=0, attr_name="AppCount")
+
     def __repr__(self) -> str:
         """Return string representation of PortfolioFactsModel.
 
@@ -693,47 +695,23 @@ class PortfolioFact(DatabaseRecord):
     """
 
     portfolio: str = Field(
-        ...,
-        alias="Portfolio",
-        description="Portfolio identifier (unique portfolio name within client namespace)",
+        ..., alias="Portfolio", description="Portfolio identifier (unique portfolio name within client namespace)"
     )
-    name: Optional[str] = Field(
-        None,
-        alias="Name",
-        description="Optional descriptive name for the portfolio",
-    )
+    name: Optional[str] = Field(None, alias="Name", description="Optional descriptive name for the portfolio")
 
     # Portfolio Configuration Fields
     contacts: Optional[List[ContactFactsItem]] = Field(
-        None,
-        alias="Contacts",
-        description="List of contact details for the portfolio",
+        None, alias="Contacts", description="List of contact details for the portfolio"
     )
     approvers: Optional[List[ApproverFactsItem]] = Field(
-        None,
-        alias="Approvers",
-        description="List of approver details for approval workflows",
+        None, alias="Approvers", description="List of approver details for approval workflows"
     )
-    project: Optional[ProjectFactsItem] = Field(
-        None,
-        alias="Project",
-        description="Primary project details for the portfolio",
-    )
-    domain: Optional[str] = Field(
-        None,
-        alias="Domain",
-        description="Domain name or identifier for the portfolio",
-    )
+    project: Optional[ProjectFactsItem] = Field(None, alias="Project", description="Primary project details for the portfolio")
+    domain: Optional[str] = Field(None, alias="Domain", description="Domain name or identifier for the portfolio")
     bizapp: Optional[ProjectFactsItem] = Field(
-        None,
-        alias="Bizapp",
-        description="Business application details, alternative to project",
+        None, alias="Bizapp", description="Business application details, alternative to project"
     )
-    owner: Optional[OwnerFactsItem] = Field(
-        None,
-        alias="Owner",
-        description="Owner details for the portfolio",
-    )
+    owner: Optional[OwnerFactsItem] = Field(None, alias="Owner", description="Owner details for the portfolio")
 
     # Extended identity/presentation
     icon_url: Optional[str] = Field(None, alias="IconUrl", description="URL to portfolio icon (SVG/PNG)")
@@ -766,6 +744,7 @@ class PortfolioFact(DatabaseRecord):
     identifiers: Optional[Dict[str, Any]] = Field(None, alias="Identifiers", description="External identifiers (Jira, CMDB, etc.)")
     links: Optional[List[LinkFactsItem]] = Field(None, alias="Links", description="External links: runbooks, dashboards, docs")
     dependencies: Optional[List[str]] = Field(None, alias="Dependencies", description="Other portfolios this one depends on")
+    app_count: int = Field(0, alias="AppCount", description="Number of applications in this portfolio")
 
     @classmethod
     def model_class(cls, client: str) -> PortfolioFactsType:

@@ -25,6 +25,8 @@ from pynamodb.exceptions import (
 from pynamodb.expressions.update import Action
 
 import core_framework as util
+import core_logging as log
+
 from core_framework.time_utils import make_default_time
 
 from ...response import Response, SuccessResponse
@@ -147,8 +149,10 @@ class ClientActions(RegistryAction):
 
             return SuccessResponse(data=data)
         except GetError as e:
+            log.error(f"GetError while retrieving client by client_id '{client_id}': {str(e)}")
             raise UnknownException(f"Failed to retrieve client '{client_id}'") from e
         except Exception as e:
+            log.error(f"Error while retrieving client by client_id '{client_id}': {str(e)}")
             raise UnknownException(f"Failed to retrieve client '{client_id}'") from e
 
     @classmethod
