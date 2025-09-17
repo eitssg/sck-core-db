@@ -163,8 +163,8 @@ class ProfileModel(DatabaseTable):
     recovery_codes = List(of=UnicodeAttribute, attr_name="RecoveryCodes", null=True, default=list)
 
     # Usage tracking (per profile)
-    session_count = NumberAttribute(attr_name="SessionCount", null=True, default=0)
-    is_active = BooleanAttribute(attr_name="IsActive", null=True, default=True)
+    session_count = NumberAttribute(attr_name="SessionCount", default=0)
+    is_active = BooleanAttribute(attr_name="IsActive", default=True)
 
     # Indexes
     email_index = ProfileByEmailIndex()
@@ -457,15 +457,15 @@ class UserProfile(DatabaseRecord):
     )
 
     # Usage tracking (per profile)
-    session_count: Optional[int] = Field(
-        None,
+    session_count: int = Field(
+        0,
         description="Total authentication sessions for this specific profile",
         ge=0,
         alias="SessionCount",
     )
 
-    is_active: Optional[bool] = Field(
-        None,
+    is_active: bool = Field(
+        True,
         description="Whether this specific profile is active and enabled",
         alias="IsActive",
     )

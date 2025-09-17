@@ -81,7 +81,7 @@ def get_region() -> str:
     return util.get_dynamodb_region() or "us-east-1"
 
 
-def get_table_name(model: type, client: str = None, default: Optional[str] = None) -> str:
+def get_table_name(model: type, client: str | None = None, default: Optional[str] | None = None) -> str:
     """Generate DynamoDB table name for the specified model type and client.
 
     Table names are constructed using standard conventions and may be customized
@@ -158,18 +158,27 @@ def get_table_name(model: type, client: str = None, default: Optional[str] = Non
         Error: Table name not found for UnknownModel
     """
     if not client:
-        client = util.get_client() or "client"
+        client = "core"
+
     prefix = util.get_automation_scope() or ""
 
     # The key of this table is the model class name
     tables = {
+        #
+        # Global tables
+        #
         # OAuth Authorizations Table
         "AuthorizationsModel": f"{prefix}core-{V_CORE_AUTOMATION}-oauth",
         "RateLimitsModel": f"{prefix}core-{V_CORE_AUTOMATION}-oauth",
         "OAuthTableModel": f"{prefix}core-{V_CORE_AUTOMATION}-oauth",
         "ForgotPasswordModel": f"{prefix}core-{V_CORE_AUTOMATION}-oauth",
+        # Passkeys / WebAuthn Table
+        "PassKeysModel": f"{prefix}core-{V_CORE_AUTOMATION}-passkeys",
         # Client Facts is the base tenant registration table (no "client" prefix)
         "ClientFactsModel": f"{prefix}core-{V_CORE_AUTOMATION}-clients",
+        #
+        # Tenant aware tables
+        #
         # Profiles for user-defined configurations
         "ProfileModel": f"{prefix}{client}-{V_CORE_AUTOMATION}-profiles",
         # AWS Account(s) and zone names

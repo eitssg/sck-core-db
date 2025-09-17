@@ -22,7 +22,6 @@ Note:
     initialize the ProfileModel through the factory pattern.
 """
 
-import datetime
 from pynamodb.exceptions import UpdateError
 from pynamodb.expressions.update import Action
 

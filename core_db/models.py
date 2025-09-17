@@ -686,7 +686,7 @@ class TableFactory:
     _cache_lock = threading.Lock()
 
     @classmethod
-    def get_model(cls, base_model: Type[T], client: str) -> Type[T]:
+    def get_model(cls, base_model: Type[T], client: str | None = None) -> Type[T]:
         """Get a client-specific model class with proper table naming.
 
         Creates a new class dynamically to avoid Meta class conflicts.
@@ -713,7 +713,7 @@ class TableFactory:
             >>> acme_item = acme_portfolio(client="acme", portfolio="web-services")
             >>> enterprise_item = enterprise_portfolio(client="enterprise", portfolio="platform")
         """
-        cache_key = f"{base_model.__name__}_{client}"
+        cache_key = f"{base_model.__name__}_{client}" if client else base_model.__name__
 
         # Check cache first (outside lock for performance)
         if cache_key in cls._model_cache:
@@ -740,7 +740,7 @@ class TableFactory:
             ClientMeta = type("Meta", (), meta_attrs)
 
             # Create new model class with client-specific Meta
-            client_model = type(f"{base_model.__name__}_{client}", (base_model,), {"Meta": ClientMeta})
+            client_model = type(cache_key, (base_model,), {"Meta": ClientMeta})
 
             # Cache the new class
             cls._model_cache[cache_key] = client_model
