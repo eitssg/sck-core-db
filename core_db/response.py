@@ -347,7 +347,7 @@ class Response(BaseModel):
                     data = data.model_dump(mode="json")
                 elif not isinstance(data, (dict, list, str)):
                     raise ValueError("data must be a dictionary, list, or string")
-            values["data"] = data
+                values["data"] = data
         return values
 
     def model_dump(self, **kwargs) -> dict:
@@ -800,6 +800,9 @@ class RedirectResponse(Response):
     def validate(cls, values: dict[str, Any]) -> dict[str, Any]:
         values["code"] = 302
         return values
+
+    def __repr__(self) -> str:
+        return f"RedirectResponse(code={self.code}, url={self.url})"
 
 
 # --- Cookie utilities -------------------------------------------------------
