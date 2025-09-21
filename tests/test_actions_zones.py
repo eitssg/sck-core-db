@@ -1,3 +1,4 @@
+from calendar import c
 import pytest
 from unittest.mock import patch
 from pydantic import ValidationError
@@ -21,7 +22,6 @@ client = util.get_client()
 zone_facts = [
     # Production Zone
     {
-        "client": client,
         "zone": "prod-east",
         "account_facts": {
             "organizational_unit": "Production",
@@ -144,7 +144,6 @@ zone_facts = [
     },
     # UAT Zone
     {
-        "client": client,
         "zone": "uat-central",
         "account_facts": {
             "organizational_unit": "UAT",
@@ -229,7 +228,6 @@ zone_facts = [
     },
     # Development Zone
     {
-        "client": client,
         "zone": "dev-west",
         "account_facts": {
             "organizational_unit": "Development",
@@ -314,108 +312,71 @@ zone_facts = [
 
 def test_zone_fact_create(bootstrap_dynamo):
     """Test creating all zone facts with full validation."""
+
     for i, zone_fact in enumerate(zone_facts):
-        response = ZoneActions.create(**zone_fact)
+        response: ZoneFact = ZoneActions.create(client=client, **zone_fact)
 
-        assert isinstance(response, SuccessResponse), f"Create failed for zone {i+1}"
-        assert response.data is not None, f"Response data is None for zone {i+1}"
-        assert isinstance(
-            response.data, dict
-        ), f"Response data is not dict for zone {i+1}"
-
-        # Verify PascalCase keys in response
-        assert "Zone" in response.data, f"Zone key missing for zone {i+1}"
-        assert (
-            response.data["Zone"] == zone_fact["zone"]
-        ), f"Zone mismatch for zone {i+1}"
-
-        assert "AccountFacts" in response.data, f"AccountFacts missing for zone {i+1}"
-        assert "RegionFacts" in response.data, f"RegionFacts missing for zone {i+1}"
+        assert isinstance(response, ZoneFact), f"Create failed for zone {i+1}"
+        assert response is not None, f"Response data is None for zone {i+1}"
 
         # Verify nested structure with PascalCase
-        account_facts = response.data["AccountFacts"]
-        assert "AwsAccountId" in account_facts, f"AwsAccountId missing for zone {i+1}"
-        assert (
-            account_facts["AwsAccountId"]
-            == zone_fact["account_facts"]["aws_account_id"]
-        )
+        account_facts = response.account_facts
+        assert account_facts.aws_account_id == zone_fact["account_facts"]["aws_account_id"]
 
         # Verify region facts structure
-        region_facts = response.data["RegionFacts"]
-        assert isinstance(region_facts, dict), f"RegionFacts not dict for zone {i+1}"
+        region_facts = response.region_facts
 
         # Check first region in each zone
-        first_region = list(zone_fact["region_facts"].keys())[0]
-        assert (
-            first_region in region_facts
-        ), f"Region {first_region} missing for zone {i+1}"
-        assert (
-            "AwsRegion" in region_facts[first_region]
-        ), f"AwsRegion missing for zone {i+1}"
+        first_region = list(dict(zone_fact["region_facts"]).keys())[0]
+        assert first_region in region_facts, f"Region {first_region} missing for zone {i+1}"
 
 
 def test_zone_get():
     """Test retrieving specific zone facts."""
     zone_name = "prod-east"
 
-    response = ZoneActions.get(client=client, zone=zone_name)
+    response: ZoneFact = ZoneActions.get(client=client, zone=zone_name)
 
-    assert isinstance(response, SuccessResponse)
-    assert response.data is not None
-    assert isinstance(response.data, dict)
-
-    # Verify PascalCase keys
-    assert "Zone" in response.data
-    assert response.data["Zone"] == zone_name
-    assert "AccountFacts" in response.data
-    assert "RegionFacts" in response.data
+    assert isinstance(response, ZoneFact)
+    assert response is not None
 
     # Verify account facts structure
-    account_facts = response.data["AccountFacts"]
-    assert "AwsAccountId" in account_facts
-    assert account_facts["AwsAccountId"] == "123456789012"
-    assert "Environment" in account_facts
-    assert account_facts["Environment"] == "production"
+    account_facts = response.account_facts
+
+    assert account_facts.aws_account_id == "123456789012"
+    assert account_facts.environment == "production"
 
     # Verify region facts structure
-    region_facts = response.data["RegionFacts"]
+    region_facts = response.region_facts
+
     assert "us-east-1" in region_facts
+
     us_east_region = region_facts["us-east-1"]
-    assert "AwsRegion" in us_east_region
-    assert us_east_region["AwsRegion"] == "us-east-1"
-    assert "AzCount" in us_east_region
-    assert us_east_region["AzCount"] == 3
+
+    assert us_east_region.aws_region == "us-east-1"
+    assert us_east_region.az_count == 3
+
+    arn = "arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012"
 
     # Verify KMS configuration
-    assert "Kms" in account_facts
-    kms_facts = account_facts["Kms"]
-    assert "AwsAccountId" in kms_facts
-    assert "KmsKeyArn" in kms_facts
-    assert "AllowSNS" in kms_facts
-    assert kms_facts["AllowSNS"] == True
+    assert account_facts.kms is not None
+    assert account_facts.kms.aws_account_id == "123456789012"
+    assert account_facts.kms.kms_key_arn == arn
+    assert account_facts.kms.allow_sns == True
 
 
 def test_zone_list_all():
     """Test listing all zones for client."""
-    response = ZoneActions.list(client=client, limit=10)
+    response, paginator = ZoneActions.list(client=client, limit=10)
 
-    assert isinstance(response, SuccessResponse)
-    assert response.data is not None
-    assert isinstance(response.data, list)
-    assert len(response.data) <= 10
-    assert hasattr(response, "metadata")
+    assert isinstance(response, list)
+    assert len(response) == 3
+    assert paginator.total_count == 3
 
-    # Should have 3 zones from our test data
-    assert len(response.data) >= 3
-
-    # Verify each zone has proper structure
     zone_names = set()
-    for zone in response.data:
-        assert isinstance(zone, dict)
-        assert "Zone" in zone
-        assert "AccountFacts" in zone
-        assert "RegionFacts" in zone
-        zone_names.add(zone["Zone"])
+    for zone in response:
+        assert isinstance(zone, ZoneFact)
+        zone_names.add(zone.zone)
 
     # Verify our test zones are present
     expected_zones = {"prod-east", "uat-central", "dev-west"}
@@ -426,49 +387,48 @@ def test_zone_list_by_aws_account():
     """Test listing zones by AWS account ID."""
     # Test production account
     prod_account_id = "123456789012"
-    response = ZoneActions.list(client=client, aws_account_id=prod_account_id)
+    response, paginator = ZoneActions.list(client=client, aws_account_id=prod_account_id)
 
-    assert isinstance(response, SuccessResponse)
-    assert response.data is not None
-    assert isinstance(response.data, list)
+    assert isinstance(response, list)
+    assert len(response) == 1
+    assert paginator.total_count == 1
 
-    # Should return only production zone
-    assert len(response.data) == 1
-    prod_zone = response.data[0]
-    assert prod_zone["Zone"] == "prod-east"
-    assert prod_zone["AccountFacts"]["AwsAccountId"] == prod_account_id
+    prod_zone = response[0]
+
+    assert prod_zone.zone == "prod-east"
+    assert prod_zone.account_facts.aws_account_id == prod_account_id
 
     # Test UAT account
     uat_account_id = "234567890123"
-    response = ZoneActions.list(client=client, aws_account_id=uat_account_id)
+    response, paginator = ZoneActions.list(client=client, aws_account_id=uat_account_id)
 
-    assert len(response.data) == 1
-    uat_zone = response.data[0]
-    assert uat_zone["Zone"] == "uat-central"
-    assert uat_zone["AccountFacts"]["AwsAccountId"] == uat_account_id
+    assert len(response) == 1
+    assert paginator.total_count == 1
+
+    uat_zone = response[0]
+    assert uat_zone.zone == "uat-central"
+    assert uat_zone.account_facts.aws_account_id == uat_account_id
 
     # Test non-existent account
-    response = ZoneActions.list(client=client, aws_account_id="999999999999")
-    assert len(response.data) == 0
+    response, paginator = ZoneActions.list(client=client, aws_account_id="999999999999")
+    assert len(response) == 0
+    assert paginator.total_count == 0
 
 
 def test_zone_list_with_pagination():
     """Test pagination functionality."""
     # Get first page with limit 2
-    page1 = ZoneActions.list(client=client, limit=2)
-    assert len(page1.data) <= 2
+    page1, paginator1 = ZoneActions.list(client=client, limit=2)
+    assert len(page1) <= 2
+    assert paginator1.cursor is not None
 
-    # Check if there's more data
-    if page1.metadata.get("cursor"):
-        page2 = ZoneActions.list(
-            client=client, limit=2, cursor=page1.metadata["cursor"]
-        )
-        assert isinstance(page2, SuccessResponse)
+    page2, paginator2 = ZoneActions.list(client=client, limit=2, cursor=paginator1.cursor)
+    assert isinstance(page2, list)
 
-        # Verify different data using Zone keys
-        page1_zones = {zone["Zone"] for zone in page1.data}
-        page2_zones = {zone["Zone"] for zone in page2.data}
-        assert page1_zones.isdisjoint(page2_zones), "Pages should not overlap"
+    # Verify different data using Zone keys
+    page1_zones = {zone.zone for zone in page1}
+    page2_zones = {zone.zone for zone in page2}
+    assert page1_zones.isdisjoint(page2_zones), "Pages should not overlap"
 
 
 # =============================================================================
@@ -479,32 +439,25 @@ def test_zone_list_with_pagination():
 def test_zone_complex_structure_validation():
     """Test that complex nested structures are properly handled."""
     zone_name = "prod-east"
-    response = ZoneActions.get(client=client, zone=zone_name)
+    response: ZoneFact = ZoneActions.get(client=client, zone=zone_name)
 
-    data = response.data
-
-    # Test KMS structure
-    kms = data["AccountFacts"]["Kms"]
-    assert "AwsAccountId" in kms
-    assert "KmsKeyArn" in kms
-    assert "KmsKey" in kms
-    assert "DelegateAwsAccountIds" in kms
-    assert isinstance(kms["DelegateAwsAccountIds"], list)
-    assert len(kms["DelegateAwsAccountIds"]) == 2
+    kms = response.account_facts.kms
+    assert kms is not None
+    assert kms.aws_account_id == "123456789012"
+    assert kms.kms_key_arn == "arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012"
+    assert kms.allow_sns == True
+    assert len(kms.delegate_aws_account_ids) == 2
 
     # Test region facts structure
-    us_east_region = data["RegionFacts"]["us-east-1"]
+    us_east_region = response.region_facts["us-east-1"]
 
-    # Test image aliases
-    assert "ImageAliases" in us_east_region
-    image_aliases = us_east_region["ImageAliases"]
+    image_aliases = us_east_region.image_aliases
     assert "ubuntu" in image_aliases
     assert "amazon-linux" in image_aliases
     assert "nginx" in image_aliases
 
     # Test security aliases
-    assert "SecurityAliases" in us_east_region
-    security_aliases = us_east_region["SecurityAliases"]
+    security_aliases = us_east_region.security_aliases
     assert "corporate-cidrs" in security_aliases
     assert "admin-cidrs" in security_aliases
 
@@ -513,51 +466,42 @@ def test_zone_complex_structure_validation():
     assert len(corporate_cidrs) == 2
 
     first_cidr = corporate_cidrs[0]
-    assert "Type" in first_cidr
-    assert "Value" in first_cidr
-    assert "Description" in first_cidr
-    assert first_cidr["Type"] == "CIDR"
-    assert first_cidr["Value"] == "10.0.0.0/8"
+    assert first_cidr.type == "CIDR"
+    assert first_cidr.value == "10.0.0.0/8"
 
     # Test security group aliases
-    assert "SecurityGroupAliases" in us_east_region
-    sg_aliases = us_east_region["SecurityGroupAliases"]
+    sg_aliases = us_east_region.security_group_aliases
     assert "web-sg" in sg_aliases
     assert "app-sg" in sg_aliases
     assert "db-sg" in sg_aliases
 
     # Test proxy configuration
-    assert "Proxy" in us_east_region
-    proxy_list = us_east_region["Proxy"]
+    proxy_list = us_east_region.proxy
     assert isinstance(proxy_list, list)
     assert len(proxy_list) == 1
 
     proxy = proxy_list[0]
-    assert "Host" in proxy
-    assert "Port" in proxy
-    assert "Url" in proxy
-    assert "NoProxy" in proxy
-    assert proxy["Host"] == "proxy.acme.com"
-    assert proxy["Port"] == "8080"
+    assert proxy.host == "proxy.acme.com"
+    assert proxy.port == "8080"
 
     # Test simple proxy fields
-    assert "ProxyHost" in us_east_region
-    assert "ProxyPort" in us_east_region
-    assert "ProxyUrl" in us_east_region
-    assert "NoProxy" in us_east_region
-    assert us_east_region["ProxyHost"] == "proxy.acme.com"
-    assert us_east_region["ProxyPort"] == 8080
+    assert us_east_region.proxy_host == "proxy.acme.com"
+    assert us_east_region.proxy_port == 8080
+    assert us_east_region.proxy_url == "http://proxy.acme.com:8080"
+
+    assert us_east_region.no_proxy == "*.acme.com,10.0.0.0/8,169.254.169.254"
+    assert us_east_region.proxy_host == "proxy.acme.com"
+    assert us_east_region.proxy_port == 8080
 
     # Test name servers
-    assert "NameServers" in us_east_region
-    name_servers = us_east_region["NameServers"]
-    assert isinstance(name_servers, list)
-    assert "8.8.8.8" in name_servers
-    assert "1.1.1.1" in name_servers
+    assert us_east_region.name_servers is not None
+    assert isinstance(us_east_region.name_servers, list)
+    assert "8.8.8.8" in us_east_region.name_servers
+    assert "1.1.1.1" in us_east_region.name_servers
 
     # Test tags
-    assert "Tags" in us_east_region
-    region_tags = us_east_region["Tags"]
+    assert us_east_region.tags is not None
+    region_tags = us_east_region.tags
     assert "Region" in region_tags
     assert "NetworkTier" in region_tags
     assert region_tags["Region"] == "us-east-1"
@@ -567,40 +511,30 @@ def test_zone_complex_structure_validation():
 def test_zone_account_facts_validation():
     """Test detailed account facts validation."""
     zone_name = "uat-central"
-    response = ZoneActions.get(client=client, zone=zone_name)
+    response: ZoneFact = ZoneActions.get(client=client, zone=zone_name)
 
-    account_facts = response.data["AccountFacts"]
+    account_facts = response.account_facts
 
-    # Test all account fields
-    assert "OrganizationalUnit" in account_facts
-    assert account_facts["OrganizationalUnit"] == "UAT"
-    assert "AwsAccountId" in account_facts
-    assert account_facts["AwsAccountId"] == "234567890123"
-    assert "AccountName" in account_facts
-    assert account_facts["AccountName"] == "ACME UAT Account"
-    assert "Environment" in account_facts
-    assert account_facts["Environment"] == "uat"
-    assert "ResourceNamespace" in account_facts
-    assert account_facts["ResourceNamespace"] == "acme-uat"
-    assert "NetworkName" in account_facts
-    assert account_facts["NetworkName"] == "uat-network"
+    assert account_facts.organizational_unit == "UAT"
+    assert account_facts.aws_account_id == "234567890123"
+    assert account_facts.account_name == "ACME UAT Account"
+    assert account_facts.environment == "uat"
+    assert account_facts.resource_namespace == "acme-uat"
+    assert account_facts.network_name == "uat-network"
 
     # Test VPC and subnet aliases
-    assert "VpcAliases" in account_facts
-    vpc_aliases = account_facts["VpcAliases"]
+    vpc_aliases = account_facts.vpc_aliases
     assert isinstance(vpc_aliases, list)
     assert "vpc-uat-main" in vpc_aliases
     assert "vpc-uat-test" in vpc_aliases
 
-    assert "SubnetAliases" in account_facts
-    subnet_aliases = account_facts["SubnetAliases"]
+    assert account_facts.subnet_aliases is not None
+    subnet_aliases = account_facts.subnet_aliases
     assert isinstance(subnet_aliases, list)
     assert "subnet-uat-public" in subnet_aliases
     assert "subnet-uat-private" in subnet_aliases
 
-    # Test account-level tags
-    assert "Tags" in account_facts
-    account_tags = account_facts["Tags"]
+    account_tags = account_facts.tags
     assert "Environment" in account_tags
     assert "AutoShutdown" in account_tags
     assert account_tags["Environment"] == "uat"
@@ -610,9 +544,9 @@ def test_zone_account_facts_validation():
 def test_zone_multiple_regions():
     """Test zone with multiple regions."""
     zone_name = "prod-east"
-    response = ZoneActions.get(client=client, zone=zone_name)
+    response: ZoneFact = ZoneActions.get(client=client, zone=zone_name)
 
-    region_facts = response.data["RegionFacts"]
+    region_facts = response.region_facts
 
     # Should have both us-east-1 and us-west-2
     assert "us-east-1" in region_facts
@@ -620,19 +554,19 @@ def test_zone_multiple_regions():
 
     # Test us-east-1 specifics
     us_east = region_facts["us-east-1"]
-    assert us_east["AzCount"] == 3
-    assert us_east["MinSuccessfulInstancesPercent"] == 100
-    assert "nginx" in us_east["ImageAliases"]
+    assert us_east.az_count == 3
+    assert us_east.min_successful_instances_percent == 100
+    assert "nginx" in us_east.image_aliases
 
     # Test us-west-2 specifics
     us_west = region_facts["us-west-2"]
-    assert us_west["AzCount"] == 4
-    assert us_west["MinSuccessfulInstancesPercent"] == 75
-    assert "nginx" not in us_west["ImageAliases"]  # Different AMIs per region
+    assert us_west.az_count == 4
+    assert us_west.min_successful_instances_percent == 75
+    assert "nginx" not in us_west.image_aliases  # Different AMIs per region
 
     # Both should have basic proxy config
-    assert us_east["ProxyHost"] == "proxy.acme.com"
-    assert us_west["ProxyHost"] == "proxy-west.acme.com"
+    assert us_east.proxy_host == "proxy.acme.com"
+    assert us_west.proxy_host == "proxy-west.acme.com"
 
 
 # =============================================================================
@@ -645,11 +579,10 @@ def test_zone_update_full():
     zone_name = "dev-west"
 
     # Get current data first
-    current = ZoneActions.get(client=client, zone=zone_name)
-    original_account_id = current.data["AccountFacts"]["AwsAccountId"]
+    current: ZoneFact = ZoneActions.get(client=client, zone=zone_name)
+    original_account_id = current.account_facts.aws_account_id
 
     update_data = {
-        "client": client,
         "zone": zone_name,
         "account_facts": {
             "aws_account_id": original_account_id,  # Keep the same account
@@ -685,31 +618,29 @@ def test_zone_update_full():
         },
     }
 
-    response = ZoneActions.update(**update_data)
-    assert isinstance(response, SuccessResponse)
+    response: ZoneFact = ZoneActions.update(client=client, **update_data)
 
     # Verify updates with PascalCase keys
-    data = response.data
-    assert data["Zone"] == zone_name
+    assert response.zone == zone_name
 
     # Verify account facts updates
-    account_facts = data["AccountFacts"]
-    assert account_facts["AccountName"] == "Updated Development Account"
-    assert account_facts["Environment"] == "staging"
-    assert account_facts["ResourceNamespace"] == "acme-dev-updated"
-    assert account_facts["Tags"]["Purpose"] == "updated-testing"
+    account_facts = response.account_facts
+    assert account_facts.account_name == "Updated Development Account"
+    assert account_facts.environment == "staging"
+    assert account_facts.resource_namespace == "acme-dev-updated"
+    assert account_facts.tags["Purpose"] == "updated-testing"
 
     # Verify region facts updates
-    region_facts = data["RegionFacts"]["us-west-2"]
-    assert region_facts["AzCount"] == 3
-    assert region_facts["MinSuccessfulInstancesPercent"] == 50
-    assert region_facts["ProxyHost"] == "proxy-updated.acme.com"
-    assert region_facts["ProxyPort"] == 9090
-    assert "new-image" in region_facts["ImageAliases"]
+    region_facts = response.region_facts["us-west-2"]
+    assert region_facts.az_count == 3
+    assert region_facts.min_successful_instances_percent == 50
+    assert region_facts.proxy_host == "proxy-updated.acme.com"
+    assert region_facts.proxy_port == 9090
+    assert "new-image" in region_facts.image_aliases
 
     # Verify global tags
-    assert data["Tags"]["UpdatedField"] == "updated-value"
-    assert data["Tags"]["Team"] == "updated-engineering"
+    assert response.tags["UpdatedField"] == "updated-value"
+    assert response.tags["Team"] == "updated-engineering"
 
 
 def test_zone_patch_partial():
@@ -717,13 +648,12 @@ def test_zone_patch_partial():
     zone_name = "uat-central"
 
     # Get current data to verify what doesn't change
-    current = ZoneActions.get(client=client, zone=zone_name)
-    original_account_name = current.data["AccountFacts"]["AccountName"]
-    original_org_unit = current.data["AccountFacts"]["OrganizationalUnit"]
+    current: ZoneFact = ZoneActions.get(client=client, zone=zone_name)
+    original_account_name = current.account_facts.account_name
+    original_org_unit = current.account_facts.organizational_unit
 
     # Patch only specific fields
     patch_data = {
-        "client": client,
         "zone": zone_name,
         "account_facts": {
             "aws_account_id": "234567890123",  # Keep same (required)
@@ -734,24 +664,20 @@ def test_zone_patch_partial():
         "tags": {"Environment": "pre-production", "PatchedField": "patch-added"},
     }
 
-    response = ZoneActions.patch(**patch_data)
-    assert isinstance(response, SuccessResponse)
+    response: ZoneFact = ZoneActions.patch(client=client, **patch_data)
 
-    # Verify PascalCase keys in response
-    data = response.data
-    account_facts = data["AccountFacts"]
-
+    account_facts = response.account_facts
     # Changed fields
-    assert account_facts["Environment"] == "pre-production"
-    assert account_facts["ResourceNamespace"] == "acme-uat-patched"
+    assert account_facts.environment == "pre-production"
+    assert account_facts.resource_namespace == "acme-uat-patched"
 
     # Unchanged fields should remain
-    assert account_facts["AccountName"] == original_account_name
-    assert account_facts["OrganizationalUnit"] == original_org_unit
+    assert account_facts.account_name == original_account_name
+    assert account_facts.organizational_unit == original_org_unit
 
     # Tags should be updated/added
-    assert data["Tags"]["PatchedField"] == "patch-added"
-    assert data["Tags"]["Environment"] == "pre-production"
+    assert response.tags["PatchedField"] == "patch-added"
+    assert response.tags["Environment"] == "pre-production"
 
 
 def test_zone_patch_with_nested_updates():
@@ -760,7 +686,6 @@ def test_zone_patch_with_nested_updates():
 
     # Update only specific nested fields
     patch_data = {
-        "client": client,
         "zone": zone_name,
         "region_facts": {
             "us-east-1": {
@@ -777,23 +702,20 @@ def test_zone_patch_with_nested_updates():
         },
     }
 
-    response = ZoneActions.patch(**patch_data)
-    assert isinstance(response, SuccessResponse)
-
-    data = response.data
-    us_east = data["RegionFacts"]["us-east-1"]
+    response: ZoneFact = ZoneActions.patch(client=client, **patch_data)
+    us_east = response.region_facts["us-east-1"]
 
     # Verify changes
-    assert us_east["MinSuccessfulInstancesPercent"] == 90
-    assert us_east["ProxyPort"] == 8888
-    assert us_east["ImageAliases"]["ubuntu"] == "ami-patched-ubuntu"
-    assert "patched-image" in us_east["ImageAliases"]
-    assert us_east["Tags"]["PatchedTag"] == "patched-value"
+    assert us_east.min_successful_instances_percent == 90
+    assert us_east.proxy_port == 8888
+    assert us_east.image_aliases["ubuntu"] == "ami-patched-ubuntu"
+    assert "patched-image" in us_east.image_aliases
+    assert us_east.tags["PatchedTag"] == "patched-value"
 
     # Verify us-west-2 region still exists (not removed by patch)
-    assert "us-west-2" in data["RegionFacts"]
-    us_west = data["RegionFacts"]["us-west-2"]
-    assert us_west["ProxyHost"] == "proxy-west.acme.com"  # Should be unchanged
+    assert "us-west-2" in response.region_facts
+    us_west = response.region_facts["us-west-2"]
+    assert us_west.proxy_host == "proxy-west.acme.com"  # Should be unchanged
 
 
 # =============================================================================
@@ -804,7 +726,6 @@ def test_zone_patch_with_nested_updates():
 def test_create_duplicate_zone():
     """Test creating duplicate zone should fail."""
     duplicate_data = {
-        "client": client,
         "zone": "prod-east",  # Already exists
         "account_facts": {
             "aws_account_id": "999999999999",
@@ -813,14 +734,13 @@ def test_create_duplicate_zone():
     }
 
     with pytest.raises(ConflictException):
-        ZoneActions.create(**duplicate_data)
+        ZoneActions.create(client=client, **duplicate_data)
 
 
 def test_get_nonexistent_zone():
     """Test getting non-existent zone."""
-    response = ZoneActions.get(client=client, zone="nonexistent-zone")
-    assert isinstance(response, NoContentResponse)
-    assert "does not exist" in response.message
+    with pytest.raises(NotFoundException):
+        ZoneActions.get(client=client, zone="nonexistent-zone")
 
 
 def test_update_nonexistent_zone():
@@ -837,9 +757,7 @@ def test_update_nonexistent_zone():
 def test_patch_nonexistent_zone():
     """Test patching non-existent zone should fail."""
     with pytest.raises(NotFoundException):
-        ZoneActions.patch(
-            client=client, zone="nonexistent-zone", tags={"Test": "should-fail"}
-        )
+        ZoneActions.patch(client=client, zone="nonexistent-zone", tags={"Test": "should-fail"})
 
 
 def test_missing_required_parameters():
@@ -854,27 +772,26 @@ def test_missing_required_parameters():
 
     # Test get without zone
     with pytest.raises(BadRequestException):
-        ZoneActions.get(client=client)
+        ZoneActions.get(client=client, zone=None)
 
     # Test get without client
     with patch("core_framework.get_client", return_value=None):
         with pytest.raises(BadRequestException):
-            ZoneActions.get(zone="test-zone")
+            ZoneActions.get(client=None, zone="test-zone")
 
     # Test list without client
     with patch("core_framework.get_client", return_value=None):
         with pytest.raises(BadRequestException):
-            ZoneActions.list()
+            ZoneActions.list(client=None)
 
     # Test delete without zone
     with pytest.raises(BadRequestException):
-        ZoneActions.delete(client=client)
+        ZoneActions.delete(client=client, zone=None)
 
 
 def test_invalid_zone_data():
     """Test creating zone with invalid data."""
     invalid_data = {
-        "client": client,
         "zone": "invalid-test-zone",
         "account_facts": {
             # Missing required aws_account_id
@@ -884,7 +801,7 @@ def test_invalid_zone_data():
     }
 
     with pytest.raises(BadRequestException):
-        ZoneActions.create(**invalid_data)
+        ZoneActions.create(client=client, **invalid_data)
 
 
 def test_invalid_pagination_parameters():
@@ -905,7 +822,6 @@ def test_delete_zone():
     """Test deleting a zone."""
     # Create a zone specifically for deletion
     delete_test_data = {
-        "client": client,
         "zone": "delete-test-zone",
         "account_facts": {
             "aws_account_id": "999999999999",
@@ -916,38 +832,32 @@ def test_delete_zone():
     }
 
     # Create the zone
-    create_response = ZoneActions.create(**delete_test_data)
-    assert isinstance(create_response, SuccessResponse)
+    create_response: ZoneFact = ZoneActions.create(client=client, **delete_test_data)
+    assert isinstance(create_response, ZoneFact)
 
     # Verify it exists
-    get_response = ZoneActions.get(client=client, zone="delete-test-zone")
-    assert isinstance(get_response, SuccessResponse)
+    get_response: ZoneFact = ZoneActions.get(client=client, zone="delete-test-zone")
+    assert isinstance(get_response, ZoneFact)
 
     # Delete the zone
-    delete_response = ZoneActions.delete(client=client, zone="delete-test-zone")
-    assert isinstance(delete_response, SuccessResponse)
-    assert "deleted" in delete_response.message.lower()
+    delete_response: bool = ZoneActions.delete(client=client, zone="delete-test-zone")
+    assert delete_response is True
 
     # Verify it's gone
-    get_after_delete = ZoneActions.get(client=client, zone="delete-test-zone")
-    assert isinstance(get_after_delete, NoContentResponse)
+    with pytest.raises(NotFoundException):
+        ZoneActions.get(client=client, zone="delete-test-zone")
 
 
 def test_delete_nonexistent_zone():
     """Test deleting non-existent zone."""
-    response = ZoneActions.delete(client=client, zone="nonexistent-zone")
-    assert isinstance(response, NoContentResponse)
-    assert "not found" in response.message
+    with pytest.raises(NotFoundException):
+        ZoneActions.delete(client=client, zone="nonexistent-zone")
 
 
 def test_delete_without_required_parameters():
     """Test delete without required parameters."""
     with pytest.raises(BadRequestException):
-        ZoneActions.delete(client=client)  # Missing zone
-
-    with patch("core_framework.get_client", return_value=None):
-        with pytest.raises(BadRequestException):
-            ZoneActions.delete(zone="test")  # Missing client
+        ZoneActions.delete(client=client, zone=None)  # Missing zone
 
 
 # =============================================================================
@@ -960,79 +870,37 @@ def test_response_casing_consistency():
     zone_name = "prod-east"
 
     # Test get response
-    get_response = ZoneActions.get(client=client, zone=zone_name)
-
-    # Response attributes should be snake_case
-    assert hasattr(get_response, "data")
-    assert hasattr(get_response, "message") or not hasattr(
-        get_response, "message"
-    )  # May not have message
-
-    # Data content should be PascalCase
-    data = get_response.data
-    expected_pascal_keys = [
-        "Zone",
-        "AccountFacts",
-        "RegionFacts",
-        "Tags",
-        "CreatedAt",
-        "UpdatedAt",
-    ]
-
-    for key in expected_pascal_keys:
-        if key in ["CreatedAt", "UpdatedAt", "Tags"]:
-            continue  # These might be optional
-        assert (
-            key in data
-        ), f"Expected PascalCase key '{key}' not found in response data"
+    get_response: ZoneFact = ZoneActions.get(client=client, zone=zone_name)
+    assert isinstance(get_response, ZoneFact)
 
     # Test list response
-    list_response = ZoneActions.list(client=client, limit=1)
-    assert hasattr(list_response, "data")
-    assert hasattr(list_response, "metadata")  # snake_case
+    list_response, paginator = ZoneActions.list(client=client, limit=1)
+    assert len(list_response) == 1
+    assert paginator.total_count == 1
 
-    if list_response.data:
-        list_item = list_response.data[0]
-        assert "Zone" in list_item  # PascalCase
-        assert "AccountFacts" in list_item  # PascalCase
+    list_item = list_response[0]
+    assert isinstance(list_item, ZoneFact)
 
 
 def test_nested_data_casing():
     """Test that nested data structures maintain proper casing."""
     zone_name = "prod-east"
-    response = ZoneActions.get(client=client, zone=zone_name)
-
-    data = response.data
-
-    # Top-level should be PascalCase
-    assert "AccountFacts" in data
-    assert "RegionFacts" in data
+    data: ZoneFact = ZoneActions.get(client=client, zone=zone_name)
 
     # AccountFacts nested fields should be PascalCase
-    account_facts = data["AccountFacts"]
-    assert "AwsAccountId" in account_facts
-    assert "AccountName" in account_facts
-    assert "Kms" in account_facts
+    account_facts = data.account_facts
 
     # KMS nested fields should be PascalCase
-    kms = account_facts["Kms"]
-    assert "AwsAccountId" in kms
-    assert "DelegateAwsAccountIds" in kms
+    kms = account_facts.kms
 
     # RegionFacts nested fields should be PascalCase
-    region_facts = data["RegionFacts"]
+    region_facts = data.region_facts
     us_east = region_facts["us-east-1"]
-    assert "AwsRegion" in us_east
-    assert "ImageAliases" in us_east
-    assert "SecurityAliases" in us_east
-
     # SecurityAliases nested structure
-    security_aliases = us_east["SecurityAliases"]
+    security_aliases = us_east.security_aliases
     corporate_cidrs = security_aliases["corporate-cidrs"]
     first_cidr = corporate_cidrs[0]
-    assert "Type" in first_cidr
-    assert "Value" in first_cidr
-    assert "Description" in first_cidr
+    assert first_cidr.type == "CIDR"
 
 
 def test_audit_fields():
@@ -1040,25 +908,18 @@ def test_audit_fields():
     zone_name = "uat-central"
 
     # Get zone to check timestamps
-    response = ZoneActions.get(client=client, zone=zone_name)
-    data = response.data
+    data: ZoneFact = ZoneActions.get(client=client, zone=zone_name)
 
-    # Should have audit fields with PascalCase
-    assert "CreatedAt" in data
-    assert "UpdatedAt" in data
-    assert data["CreatedAt"] is not None
-    assert data["UpdatedAt"] is not None
+    assert data.created_at is not None
+    assert data.updated_at is not None
 
-    original_created_at = data["CreatedAt"]
-    original_updated_at = data["UpdatedAt"]
+    original_created_at = data.created_at
+    original_updated_at = data.updated_at
 
     # Patch the zone (should update UpdatedAt but not CreatedAt)
-    patch_response = ZoneActions.patch(
-        client=client, zone=zone_name, tags={"TestPatch": "timestamp-test"}
-    )
+    patch_response: ZoneFact = ZoneActions.patch(client=client, zone=zone_name, tags={"TestPatch": "timestamp-test"})
 
-    patched_data = patch_response.data
-    assert patched_data["CreatedAt"] == original_created_at  # Should not change
+    assert patch_response.created_at == original_created_at  # Should not change
     # UpdatedAt should be different (assuming time has passed)
     # Note: In fast tests, this might be the same if within same second
 
@@ -1074,7 +935,6 @@ def test_complete_zone_lifecycle():
 
     # 1. Create
     create_data = {
-        "client": client,
         "zone": zone_name,
         "account_facts": {
             "aws_account_id": "111111111111",
@@ -1091,24 +951,22 @@ def test_complete_zone_lifecycle():
         "tags": {"Test": "lifecycle", "Stage": "create"},
     }
 
-    create_response = ZoneActions.create(**create_data)
-    assert isinstance(create_response, SuccessResponse)
-    assert create_response.data["Zone"] == zone_name
+    create_response: ZoneFact = ZoneActions.create(client=client, **create_data)
+    assert isinstance(create_response, ZoneFact)
+    assert create_response.zone == zone_name
 
     # 2. Read
-    get_response = ZoneActions.get(client=client, zone=zone_name)
-    assert isinstance(get_response, SuccessResponse)
-    assert get_response.data["AccountFacts"]["Environment"] == "test"
+    get_response: ZoneFact = ZoneActions.get(client=client, zone=zone_name)
+    assert isinstance(get_response, ZoneFact)
+    assert get_response.account_facts.environment == "test"
 
     # 3. Update (partial)
-    patch_response = ZoneActions.patch(
-        client=client, zone=zone_name, tags={"Test": "lifecycle", "Stage": "updated"}
-    )
-    assert isinstance(patch_response, SuccessResponse)
-    assert patch_response.data["Tags"]["Stage"] == "updated"
+    patch_response: ZoneFact = ZoneActions.patch(client=client, zone=zone_name, tags={"Test": "lifecycle", "Stage": "updated"})
+    assert isinstance(patch_response, ZoneFact)
+    assert patch_response.tags["Stage"] == "updated"
 
     # 4. Update (full)
-    update_response = ZoneActions.update(
+    update_response: ZoneFact = ZoneActions.update(
         client=client,
         zone=zone_name,
         account_facts={
@@ -1125,17 +983,17 @@ def test_complete_zone_lifecycle():
         },
         tags={"Test": "lifecycle", "Stage": "fully-updated"},
     )
-    assert isinstance(update_response, SuccessResponse)
-    assert update_response.data["AccountFacts"]["Environment"] == "staging"
-    assert update_response.data["RegionFacts"]["us-lifecycle-1"]["AzCount"] == 3
+    assert isinstance(update_response, ZoneFact)
+    assert update_response.account_facts.environment == "staging"
+    assert update_response.region_facts["us-lifecycle-1"].az_count == 3
 
     # 5. Delete
-    delete_response = ZoneActions.delete(client=client, zone=zone_name)
-    assert isinstance(delete_response, SuccessResponse)
+    delete_response: bool = ZoneActions.delete(client=client, zone=zone_name)
+    assert delete_response is True
 
     # 6. Verify deletion
-    final_get = ZoneActions.get(client=client, zone=zone_name)
-    assert isinstance(final_get, NoContentResponse)
+    with pytest.raises(NotFoundException):
+        ZoneActions.get(client=client, zone=zone_name)
 
 
 def test_zone_model_conversion():
@@ -1143,10 +1001,7 @@ def test_zone_model_conversion():
     zone_name = "prod-east"
 
     # Get zone as Pydantic model
-    response = ZoneActions.get(client=client, zone=zone_name)
-
-    # Create ZoneFact from response data
-    zone_fact = ZoneFact(**response.data)
+    zone_fact: ZoneFact = ZoneActions.get(client=client, zone=zone_name)
 
     # Test model attributes
     assert zone_fact.zone == zone_name
@@ -1173,20 +1028,17 @@ def test_zone_model_conversion():
 def test_minimal_zone_creation():
     """Test creating zone with minimal required fields only."""
     minimal_data = {
-        "client": client,
         "zone": "minimal-test-zone",
         "account_facts": {"aws_account_id": "222222222222"},
         "region_facts": {"us-minimal-1": {"aws_region": "us-minimal-1"}},
     }
 
-    response = ZoneActions.create(**minimal_data)
-    assert isinstance(response, SuccessResponse)
+    response: ZoneFact = ZoneActions.create(client=client, **minimal_data)
+    assert isinstance(response, ZoneFact)
 
-    # Verify minimal structure
-    data = response.data
-    assert data["Zone"] == "minimal-test-zone"
-    assert data["AccountFacts"]["AwsAccountId"] == "222222222222"
-    assert data["RegionFacts"]["us-minimal-1"]["AwsRegion"] == "us-minimal-1"
+    assert response.zone == "minimal-test-zone"
+    assert response.account_facts.aws_account_id == "222222222222"
+    assert response.region_facts["us-minimal-1"].aws_region == "us-minimal-1"
 
     # Clean up
     ZoneActions.delete(client=client, zone="minimal-test-zone")

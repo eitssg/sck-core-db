@@ -12,24 +12,21 @@ Key Features:
     - **Flexible Parameter Handling**: Supports various client identifier formats
 """
 
-from typing import Any, Dict
+from typing import List, Tuple
 from pydantic import ValidationError
 from pynamodb.exceptions import (
     DoesNotExist,
     PutError,
     DeleteError,
     ScanError,
-    GetError,
     UpdateError,
 )
 from pynamodb.expressions.update import Action
 
-import core_framework as util
 import core_logging as log
 
 from core_framework.time_utils import make_default_time
 
-from ...response import Response, SuccessResponse
 from ...models import Paginator
 from ...exceptions import (
     ConflictException,
@@ -42,29 +39,19 @@ from .models import ClientFact
 
 
 class ClientActions(RegistryAction):
-    """Actions for managing client records in the registry.
-
-    Provides comprehensive CRUD operations for client management with proper error handling
-    and validation. Clients represent top-level organizational entities within the registry
-    system and are stored in a global table for system-wide access.
-
-    The class handles client lifecycle operations including creation, retrieval, updates,
-    and deletion with appropriate isolation and validation for multi-tenant environments.
-    """
 
     @classmethod
-    def list(cls, **kwargs) -> Response:
-        """List all client records with complete metadata.
+    def list(
+        cls, *, client_id: str | None = None, **kwargs
+    ) -> Tuple[list[ClientFact], Paginator]:
 
-        Args:
-            **kwargs: Optional parameters for filtering and pagination.
+        if client_id:
+            return cls._list_by_client_id(client_id, **kwargs)
+        else:
+            return cls._list_all_clients(**kwargs)
 
-        Returns:
-            Response: SuccessResponse containing list of client records and pagination metadata.
-        """
-        client = kwargs.get("client") or kwargs.get("Client") or util.get_client()
-
-        model_class = ClientFact.model_class(client)
+    @classmethod
+    def _list_all_clients(cls, **kwargs) -> Tuple[List[ClientFact], Paginator]:
 
         try:
             # load the search parameters into a Paginator instance
@@ -72,208 +59,165 @@ class ClientActions(RegistryAction):
         except Exception as e:
             raise BadRequestException(f"Invalid pagination parameters: {str(e)}") from e
 
+        model_class = ClientFact.model_class()
+
         try:
-            scan_kwargs: Dict[str, Any] = {
-                "limit": paginator.limit if paginator.limit else None,
-            }
 
-            if paginator.cursor:
-                scan_kwargs["last_evaluated_key"] = paginator.cursor
-
-            if "client_id" in kwargs:
-                scan_kwargs["filter_condition"] = model_class.client_id == kwargs["client_id"]
-
-            results = model_class.scan(**scan_kwargs)
+            results = model_class.scan(**paginator.get_scan_args())
 
             # Convert PynamoDB items to ClientFact instances and then into dicts for the response
-            data = [ClientFact.from_model(item).model_dump(mode="json") for item in results]
+            data = [ClientFact.from_model(item) for item in results]
 
-            paginator.total_count = getattr(results, "total_count", len(data))
             paginator.cursor = getattr(results, "last_evaluated_key", None)
+            paginator.total_count = len(data)
 
-            return SuccessResponse(data=data, metadata=paginator.get_metadata())
+            return data, paginator
+
         except ScanError as e:
             raise UnknownException(f"Failed to list clients: {str(e)}") from e
         except Exception as e:
-            raise UnknownException(f"Unexpected error while listing clients: {str(e)}") from e
+            raise UnknownException(
+                f"Unexpected error while listing clients: {str(e)}"
+            ) from e
 
     @classmethod
-    def get(cls, **kwargs) -> Response:
-        """Retrieve a specific client record.
+    def _list_by_client_id(
+        cls, client_id: str, **kwargs
+    ) -> Tuple[List[ClientFact], Paginator]:
 
-        Args:
-            **kwargs: Parameters including client identifier.
+        try:
+            # load the search parameters into a Paginator instance
+            paginator = Paginator(**kwargs)
+        except Exception as e:
+            raise BadRequestException(f"Invalid pagination parameters: {str(e)}") from e
 
-        Returns:
-            Response: SuccessResponse containing the client data.
-        """
-        client = kwargs.get("client") or kwargs.get("Client")
-        client_id = kwargs.get("client_id") or kwargs.get("ClientId")
-
-        if not client and not client_id:
-            raise BadRequestException("Client identifier is required to load ClientFact")
-
-        if client_id:
-            return cls._lookup_by_client_id(client_id)
-        else:
-            return cls._lookup_by_client(client)
-
-    @classmethod
-    def _lookup_by_client(cls, client: str) -> ClientFact | None:
-
-        model_class = ClientFact.model_class("global")
+        model_class = ClientFact.model_class()
 
         try:
             # Retrieve the client item from the database
-            item = model_class.get(client)
-            # Validate and convert PynamoDB item to ClientFact instance
-            data = ClientFact.from_model(item).model_dump(mode="json")
+            items = model_class.scan(
+                filter_condition=(model_class.client_id == client_id),
+                **paginator.get_scan_args(),
+            )
 
-            return SuccessResponse(data=data)
+            # Validate and convert PynamoDB item to ClientFact instance
+            return [ClientFact.from_model(item) for item in items], paginator
+
+        except ScanError as e:
+            if "ResourceNotFoundException" in str(e):
+                raise NotFoundException(
+                    f"Client with client_id '{client_id}' not found"
+                ) from e
+
+            log.error(
+                f"GetError while retrieving client by client_id '{client_id}': {str(e)}"
+            )
+            raise UnknownException(f"Failed to retrieve client '{client_id}'") from e
+
+        except Exception as e:
+            log.error(
+                f"Error while retrieving client by client_id '{client_id}': {str(e)}"
+            )
+            raise UnknownException(f"Failed to retrieve client '{client_id}'") from e
+
+    @classmethod
+    def get(cls, client: str) -> ClientFact:
+
+        if not client:
+            raise BadRequestException(
+                "Client identifier is required to load ClientFact"
+            )
+
+        model_class = ClientFact.model_class()
+
+        try:
+
+            item = model_class.get(client)
+
+            return ClientFact.from_model(item)
+
         except DoesNotExist:
             raise NotFoundException(f"Client '{client}' not found")
+
         except Exception as e:
             raise UnknownException(f"Failed to retrieve client '{client}'") from e
 
     @classmethod
-    def _lookup_by_client_id(cls, client_id: str) -> ClientFact | None:
+    def create(cls, *, record: ClientFact | None = None, **kwargs) -> ClientFact:
 
-        model_class = ClientFact.model_class("global")
+        model_class = ClientFact.model_class()
 
         try:
-            # Retrieve the client item from the database
-            item = model_class.scan(filter_condition=(model_class.client_id == client_id)).next()
+            if not record:
+                record = ClientFact(**kwargs)
 
-            # Validate and convert PynamoDB item to ClientFact instance
-            data = ClientFact.from_model(item).model_dump(mode="json")
-
-            return SuccessResponse(data=data)
-        except GetError as e:
-            log.error(f"GetError while retrieving client by client_id '{client_id}': {str(e)}")
-            raise UnknownException(f"Failed to retrieve client '{client_id}'") from e
         except Exception as e:
-            log.error(f"Error while retrieving client by client_id '{client_id}': {str(e)}")
-            raise UnknownException(f"Failed to retrieve client '{client_id}'") from e
-
-    @classmethod
-    def create(cls, **kwargs) -> Response:
-        """Create a new client record.
-
-        Args:
-            **kwargs: Client attributes including client identifier and configuration.
-
-        Returns:
-            Response: SuccessResponse containing the created client data.
-        """
-
-        client = kwargs.get("client") or kwargs.get("Client")
-        if not client:
-            raise BadRequestException("Client identifier is required to create ClientFact")
-
-        model_class = ClientFact.model_class(client)
+            raise BadRequestException(f"Invalid Client Record {str(e)}") from e
 
         try:
 
-            # Validate and prepare data for creation
-            data = ClientFact(**kwargs)
-            # Create pynademoDB item
-            item = data.to_model(model_class)
-            # Save the item to the database
+            item = record.to_model()
             item.save(model_class.client.does_not_exist())
 
-            return SuccessResponse(data=data.model_dump(mode="json"))
+            return record
+
         except PutError as e:
-            raise ConflictException(f"Client '{client}' already exists") from e
+            raise ConflictException(f"Client '{record.client}' already exists") from e
         except Exception as e:
-            raise UnknownException(f"Failed to create client '{client}'") from e
+            raise UnknownException(f"Failed to create client '{record.client}'") from e
 
     @classmethod
-    def update(cls, **kwargs) -> Response:
-        """Create or completely replace a client record using PUT semantics.
-
-        Args:
-            **kwargs: Complete client configuration parameters.
-
-        Returns:
-            Response: SuccessResponse containing the updated client data.
-        """
-        return cls._update(True, **kwargs)
+    def update(cls, *, record: ClientFact | None = None, **kwargs) -> ClientFact:
+        return cls._update(remove_none=True, record=record, **kwargs)
 
     @classmethod
-    def patch(cls, **kwargs) -> Response:
-        """Partially update specific fields of a client record using PATCH semantics.
-
-        Args:
-            **kwargs: Partial client update parameters.
-
-        Returns:
-            Response: SuccessResponse containing the complete updated client data.
-        """
-        return cls._update(False, **kwargs)
+    def patch(cls, *, remove_none: bool = False, **kwargs) -> ClientFact:
+        return cls._update(remove_none=remove_none, **kwargs)
 
     @classmethod
-    def delete(cls, **kwargs) -> Response:
-        """Delete a client record.
-
-        Args:
-            **kwargs: Parameters including client identifier to delete.
-
-        Returns:
-            Response: SuccessResponse with deletion confirmation.
-        """
-
-        client = kwargs.get("client") or kwargs.get("Client")
-
+    def delete(cls, *, client: str) -> bool:
         if not client:
             raise ValueError("Client identifier is required to delete ClientFact")
 
-        model_class = ClientFact.model_class(client)
+        model_class = ClientFact.model_class()
 
         try:
-            item = model_class.get(client)
-            item.delete()
-            return SuccessResponse(message=f"Client {client} deleted")
+
+            item = model_class(client)
+            item.delete(condition=model_class.client.exists())
+
+            return True
+
         except DeleteError as e:
+            if "ConditionalCheckFailedException" in str(e):
+                raise NotFoundException(f"Client '{client}' not found") from e
             raise UnknownException(f"Failed to delete client '{client}'") from e
+
         except Exception as e:
-            raise UnknownException(f"Failed to delete client '{client}': {str(e)}") from e
+            raise UnknownException(
+                f"Failed to delete client '{client}': {str(e)}"
+            ) from e
 
     @classmethod
-    def _update(cls, remove_none: bool = True, **kwargs) -> Response:
-        """Update a client record with new attributes using atomic operations.
+    def _update(
+        cls, *, remove_none: bool, record: ClientFact | None = None, **kwargs
+    ) -> ClientFact:
 
-        Args:
-            remove_none (bool): Whether to remove attributes with None values from the database
+        excluded_fields = {"client", "created_at", "updated_at"}
 
-        Returns:
-            Response: SuccessResponse containing the updated client data.
-
-        Raises:
-            BadRequestException: If client identifier is missing or validation fails
-            NotFoundException: If the client record is not found in the database
-            UnknownException: If database update operation fails
-        """
-        client = kwargs.get("client") or kwargs.get("Client")
+        if record:
+            client = record.client
+            values = record.model_dump(by_alias=False, exclude_none=False)
+        else:
+            client = kwargs.get("client")
+            values = {k: v for k, v in kwargs.items() if k not in excluded_fields}
 
         if not client:
             raise BadRequestException("Client identifier is required to update")
 
-        try:
-            if remove_none:
-                # Full validation for PUT semantics
-                data = ClientFact(**kwargs)
-            else:
-                # Skip validation for PATCH semantics (allow partial data)
-                data = ClientFact.model_construct(**kwargs)
-        except (ValueError, ValidationError) as e:
-            raise BadRequestException(f"Invalid client data: {str(e)}") from e
-
-        model_class = ClientFact.model_class(client)
-
-        excluded_fields = {"client", "created_at", "updated_at"}
+        model_class = ClientFact.model_class()
 
         try:
-            values = data.model_dump(by_alias=False, exclude_none=False, exclude=excluded_fields)
 
             attributes = model_class.get_attributes()
 
@@ -299,13 +243,19 @@ class ClientActions(RegistryAction):
             item.update(actions=actions, condition=model_class.client.exists())
             item.refresh()
 
-            data = ClientFact.from_model(item).model_dump(mode="json")
+            return ClientFact.from_model(item)
 
-            return SuccessResponse(data=data)
+        except (ValueError, ValidationError) as e:
+            raise BadRequestException(f"Invalid client data: {str(e)}") from e
 
         except UpdateError as e:
             if "ConditionalCheckFailedException" in str(e):
                 raise NotFoundException(f"Client '{client}' not found") from e
-            raise UnknownException(f"Failed to update client '{client}': {str(e)}") from e
+            raise UnknownException(
+                f"Failed to update client '{client}': {str(e)}"
+            ) from e
+
         except Exception as e:
-            raise UnknownException(f"Failed to update client '{client}': {str(e)}") from e
+            raise UnknownException(
+                f"Failed to update client '{client}': {str(e)}"
+            ) from e

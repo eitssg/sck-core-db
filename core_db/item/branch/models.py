@@ -190,7 +190,9 @@ class ReleaseInfo(BaseModel):
         if not prn:
             raise ValueError("PRN is required for ReleaseInfo")
 
-        build = values.pop("build", values.pop("Build", prn[prn.rindex(":") + 1 :] if prn else None))
+        build = values.pop(
+            "build", values.pop("Build", prn[prn.rindex(":") + 1 :] if prn else None)
+        )
         if not build:
             raise ValueError("Build is required for ReleaseInfo")
         values["build"] = build

@@ -1,3 +1,3 @@
-from .passkeys import PassKeyActions, PassKey, PassKeysModelFactory
+from .passkeys import PassKeyActions, PassKey, PassKeysModelFactory, PassKeysModel
 
-__all__ = ["PassKeyActions", "PassKey", "PassKeysModelFactory"]
+__all__ = ["PassKeyActions", "PassKey", "PassKeysModelFactory", "PassKeysModel"]

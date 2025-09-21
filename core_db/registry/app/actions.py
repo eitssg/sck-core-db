@@ -35,6 +35,8 @@ Note:
     and request body formats for maximum compatibility.
 """
 
+from enum import auto
+from typing import List, Tuple
 import re
 from pydantic_core import ValidationError
 import hashlib
@@ -54,11 +56,6 @@ import core_logging as log
 import core_framework as util
 from core_framework.time_utils import make_default_time
 
-from ...response import (
-    Response,
-    SuccessResponse,  # http 200
-    NoContentResponse,  # http 204
-)
 from ...exceptions import (
     BadRequestException,  # http 400
     ConflictException,  # http 409
@@ -111,7 +108,9 @@ def generate_app_slug(
         return base
 
     # deterministic short hash first
-    digest = hashlib.blake2b(f"{portfolio}:{source}".encode("utf-8"), digest_size=3).hexdigest()
+    digest = hashlib.blake2b(
+        f"{portfolio}:{source}".encode("utf-8"), digest_size=3
+    ).hexdigest()
     cand = with_suffix(base, digest)
     if not _is_app_id_taken(client, portfolio, cand):
         return cand
@@ -123,62 +122,23 @@ def generate_app_slug(
             return cand
 
     # last resort: longer hash
-    digest = hashlib.blake2b(f"{portfolio}:{source}".encode("utf-8"), digest_size=5).hexdigest()
+    digest = hashlib.blake2b(
+        f"{portfolio}:{source}".encode("utf-8"), digest_size=5
+    ).hexdigest()
     return with_suffix(base, digest)
 
 
 class AppActions(RegistryAction):
-    """Actions for managing application deployment patterns in the registry.
-
-    Provides comprehensive CRUD operations for application registry entries with proper
-    error handling, validation, and flexible parameter parsing. Applications define
-    regex patterns used for automated deployment matching within client-portfolio hierarchies.
-
-    The class handles composite key management (portfolio + app-regex) and supports
-    multiple parameter formats for maximum compatibility with different API patterns.
-
-    Key Capabilities:
-        - Create, read, update, delete application registry entries
-        - List applications by client-portfolio
-        - Flexible parameter parsing (composite vs separate parameters)
-        - Comprehensive validation and error handling
-        - Client-specific table isolation through factory pattern
-
-    Note:
-        All methods expect kwargs containing merged parameters from HTTP requests,
-        supporting both path parameters and request body data.
-    """
 
     @classmethod
-    def list(cls, **kwargs) -> Response:
-        """List all application deployment patterns for a client-portfolio.
-
-        Retrieves all application regex patterns registered for the specified client-portfolio
-        combination. Results are sorted by app regex for consistent ordering and include
-        complete application configuration data.
-
-        Args:
-            **kwargs: Parameters containing client-portfolio identification.
-                     Supports both composite and separate parameter formats:
-                     - client (str): Client name (required)
-                     - portfolio (str): Portfolio identifier
-
-        Returns:
-            Response: SuccessResponse containing list of application dictionaries with complete configuration.
-                     Sorted by AppRegex field for consistent ordering. Empty list if no applications found.
-
-        Raises:
-            BadRequestException: If required client-portfolio parameters are missing or have invalid format
-            UnknownException: If database query fails due to connection issues or other unexpected errors
-        """
-        log.info("Listing apps for client")
-
-        client = kwargs.get("client", kwargs.get("Client")) or util.get_client()
-        portfolio = kwargs.get("portfolio", kwargs.get("Portfolio"))
-
-        # If the query parameter has an AppRegex, we search for matching this filter
-        app_regex = kwargs.get("app_regex", kwargs.get("AppRegex"))
-
+    def list(
+        cls,
+        *,
+        client: str,
+        portfolio: str | None = None,
+        app_regex: str | None = None,
+        **kwargs,
+    ) -> Tuple[List[AppFact], Paginator]:
         if not client:
             raise BadRequestException("Missing required parameter: client")
 
@@ -188,36 +148,24 @@ class AppActions(RegistryAction):
             raise BadRequestException(f"Invalid pagination parameters: {str(e)}") from e
 
         if portfolio and app_regex:
-            return cls._get_apps_by_portfolio_app_regex(client, portfolio, app_regex, paginator)
+            return cls._get_apps_by_portfolio_app_regex(
+                client, portfolio, app_regex, paginator
+            )
         elif portfolio:
             return cls._get_apps_by_portfolio(client, portfolio, paginator)
         else:
             return cls._get_all_apps_paginated(client, paginator)
 
     @classmethod
-    def get(cls, **kwargs) -> Response:
-        """Retrieve specific application deployment pattern by client-portfolio and app name.
-
-        Args:
-            **kwargs: Parameters containing client-portfolio identification and app name.
-                     Supports both composite and separate parameter formats:
-                     - client (str): Client name (required)
-                     - portfolio (str): Portfolio identifier
-                     - app_name (str): Application name
-
-        Returns:
-            Response: SuccessResponse containing the specific application data or empty list if not found.
-
-        Raises:
-            BadRequestException: If required parameters are missing or have invalid format
-            NotFoundException: If the specific application is not found
-            UnknownException: If database query fails due to connection issues or other unexpected errors
-        """
+    def get(
+        cls,
+        *,
+        client: str,
+        portfolio: str | None = None,
+        app: str | None = None,
+        **kwargs,
+    ) -> AppFact:
         log.info("Getting specific app for client")
-
-        client = kwargs.get("client", kwargs.get("Client")) or util.get_client()
-        portfolio = kwargs.get("portfolio", kwargs.get("Portfolio"))
-        app = kwargs.get("app", kwargs.get("App"))
 
         if not client:
             raise BadRequestException("Missing required parameter: client")
@@ -229,56 +177,33 @@ class AppActions(RegistryAction):
         return cls._get_apps_by_portfolio_app(client, portfolio, app)
 
     @classmethod
-    def _get_apps_by_portfolio_app(cls, client: str, portfolio: str, app: str) -> Response:
-        """Retrieve specific application by portfolio and regex pattern.
-
-        Args:
-            client (str): Client identifier for table access
-            portfolio (str): Portfolio name (hash key)
-            app (str): Application regex pattern (range key)
-
-        Returns:
-            Response: SuccessResponse containing the specific application data or empty list if not found
-
-        Raises:
-            DoesNotExist: If the specific application is not found
-        """
+    def _get_apps_by_portfolio_app(
+        cls, client: str, portfolio: str, app: str
+    ) -> AppFact:
         log.debug("Getting specific app: %s:%s", portfolio, app)
 
         model_class = AppFact.model_class(client)
 
         try:
+
             item = model_class.get(portfolio, app)
 
-            data = AppFact.from_model(item).model_dump(mode="json")
+            data = AppFact.from_model(item)
 
-            log.info("Successfully retrieved specific app: %s:%s", portfolio, app)
+            return data
 
-            return SuccessResponse(data=data)
         except DoesNotExist as e:
-            log.warning("Specific app not found: %s:%s", portfolio, app)
-            return NoContentResponse(message=f"App {portfolio}:{app} does not exist")
+            log.warning(f"Specific app not found: {portfolio}:{app}")
+            raise NotFoundException(f"App {portfolio}:{app} does not exist") from e
+
         except Exception as e:
-            log.error(
-                "Failed to retrieve specific app %s:%s - %s",
-                portfolio,
-                app,
-                str(e),
-            )
+            log.error(f"Failed to retrieve specific app {portfolio}:{app} - {str(e)}")
             raise UnknownException(f"Failed to retrieve app {portfolio}:{app}") from e
 
     @classmethod
-    def _get_apps_by_portfolio(cls, client: str, portfolio: str, paginator: Paginator) -> Response:
-        """Retrieve all applications for a specific portfolio with pagination.
-
-        Args:
-            client (str): Client identifier for table access
-            portfolio (str): Portfolio name (hash key)
-            paginator (Paginator): Pagination configuration and state management
-
-        Returns:
-            Response: SuccessResponse containing list of applications in the portfolio with pagination metadata
-        """
+    def _get_apps_by_portfolio(
+        cls, client: str, portfolio: str, paginator: Paginator
+    ) -> Tuple[List[AppFact], Paginator]:
         log.debug("Getting all apps for portfolio: %s", portfolio)
 
         model_class = AppFact.model_class(client)
@@ -288,42 +213,43 @@ class AppActions(RegistryAction):
 
             result = model_class.query(portfolio, **query_kwargs)
 
-            data = [AppFact.from_model(item).model_dump(mode="json") for item in result]
+            data = [AppFact.from_model(item) for item in result]
 
             paginator.cursor = getattr(result, "last_evaluated_key", None)
-            paginator.total_count = getattr(result, "total_count", len(data))
+            paginator.total_count = len(data)
 
             # Sort by app for consistent ordering
-            log.info("Successfully queried %d apps for portfolio: %s", len(data), portfolio)
+            log.info(
+                "Successfully queried %d apps for portfolio: %s", len(data), portfolio
+            )
 
-            return SuccessResponse(data=data, metadata=paginator.get_metadata())
+            return data, paginator
+
         except QueryError as e:
             log.error("Failed to query apps for portfolio %s - %s", portfolio, str(e))
-            raise UnknownException(f"Failed to query apps for portfolio {portfolio}") from e
+            raise UnknownException(
+                f"Failed to query apps for portfolio {portfolio}"
+            ) from e
+
         except Exception as e:
             log.error(
                 "Unexpected error while querying apps for portfolio %s - %s",
                 portfolio,
                 str(e),
             )
-            raise UnknownException(f"Unexpected error while querying apps for {portfolio}") from e
+            raise UnknownException(
+                f"Unexpected error while querying apps for {portfolio}"
+            ) from e
 
     @classmethod
-    def _get_apps_by_portfolio_app_regex(cls, client: str, portfolio: str, app_regex: str, paginator: Paginator) -> Response:
-        """Retrieve applications by portfolio filtered by app name regex matching.
-
-        Queries all applications in the portfolio and filters them by checking if the provided
-        app_name matches any of the stored regex patterns.
-
-        Args:
-            client (str): Client identifier for table access
-            portfolio (str): Portfolio name (hash key)
-            app_regex (str): Application regex pattern to match against stored patterns
-
-        Returns:
-            Response: SuccessResponse containing list of applications where regex patterns match the app_name
-        """
-        log.debug("Filtering apps by name: %s matching patterns in portfolio: %s", app_regex, portfolio)
+    def _get_apps_by_portfolio_app_regex(
+        cls, client: str, portfolio: str, app_regex: str, paginator: Paginator
+    ) -> Tuple[List[AppFact], Paginator]:
+        log.debug(
+            "Filtering apps by name: %s matching patterns in portfolio: %s",
+            app_regex,
+            portfolio,
+        )
 
         model_class = AppFact.model_class(client)
 
@@ -339,102 +265,91 @@ class AppActions(RegistryAction):
                 try:
                     # Check if the provided value matches the stored regex pattern
                     if app_fact.app_regex and re.match(app_fact.app_regex, app_regex):
-                        data.append(app_fact.model_dump(mode="json"))
-                        log.debug("Value '%s' matches pattern '%s'", app_regex, app_fact.app_regex)
+                        data.append(app_fact)
+                        log.debug(
+                            "Value '%s' matches pattern '%s'",
+                            app_regex,
+                            app_fact.app_regex,
+                        )
                 except re.error:
                     # Skip invalid regex patterns
-                    log.warning("Invalid regex pattern in app_regex: %s", app_fact.app_regex)
+                    log.warning(
+                        "Invalid regex pattern in app_regex: %s", app_fact.app_regex
+                    )
                     continue
 
             paginator.cursor = getattr(result, "last_evaluated_key", None)
-            paginator.total_count = getattr(result, "total_count", len(data))
+            paginator.total_count = len(data)
 
-            log.info("Successfully filtered %d apps matching name: %s", len(data), app_regex)
+            log.info(
+                "Successfully filtered %d apps matching name: %s", len(data), app_regex
+            )
 
-            # Returns a list of applications that match the app_name regex
-            return SuccessResponse(data=data, metadata=paginator.get_metadata())
+            # Returns a list of applications that match the app regex
+            return data, paginator
 
         except QueryError as e:
             log.error("Failed to query apps for portfolio %s - %s", portfolio, str(e))
-            raise UnknownException(f"Failed to query apps for portfolio {portfolio}") from e
+            raise UnknownException(
+                f"Failed to query apps for portfolio {portfolio}"
+            ) from e
+
         except Exception as e:
-            log.error("Unexpected error while filtering apps by name %s in portfolio %s - %s", app_regex, portfolio, str(e))
-            raise UnknownException(f"Unexpected error while filtering apps for {portfolio}:{app_regex}") from e
+            log.error(
+                "Unexpected error while filtering apps by name %s in portfolio %s - %s",
+                app_regex,
+                portfolio,
+                str(e),
+            )
+            raise UnknownException(
+                f"Unexpected error while filtering apps for {portfolio}:{app_regex}"
+            ) from e
 
     @classmethod
-    def _get_all_apps_paginated(cls, client: str, paginator: Paginator) -> Response:
-        """Retrieve all applications for a client with pagination support.
-
-        Performs a table scan to retrieve all applications across all portfolios for the client.
-        Supports pagination for efficient handling of large datasets.
-
-        Args:
-            client (str): Client identifier for table access
-            paginator (Paginator): Pagination configuration and state management
-
-        Returns:
-            Response: SuccessResponse containing list of all applications with pagination metadata
-        """
+    def _get_all_apps_paginated(
+        cls, client: str, paginator: Paginator
+    ) -> Tuple[List[AppFact], Paginator]:
         log.debug("Scanning all apps for client: %s", client)
 
         model_class = AppFact.model_class(client)
 
         try:
-            scan_kwargs = {}
-            if paginator.limit:
-                scan_kwargs["limit"] = paginator.limit
 
-            if paginator.cursor:
-                scan_kwargs["last_evaluated_key"] = paginator.cursor
+            scan_kwargs = paginator.get_scan_args()
 
             result = model_class.scan(**scan_kwargs)
 
-            data = [AppFact.from_model(item).model_dump(mode="json") for item in result]
+            data = [AppFact.from_model(item) for item in result]
 
             paginator.cursor = getattr(result, "last_evaluated_key", None)
-            paginator.total_count = getattr(result, "total_count", len(data))
+            paginator.total_count = len(data)
 
-            log.info("Successfully scanned %d apps for client: %s", len(data), client)
-
-            return SuccessResponse(data=data, metadata=paginator.get_metadata())
+            return data, paginator
 
         except ScanError as e:
             log.error("Failed to scan apps for client %s - %s", client, str(e))
             raise UnknownException(f"Failed to scan apps for client {client}") from e
+
         except Exception as e:
             log.error(
                 "Unexpected error while scanning apps for client %s - %s",
                 client,
                 str(e),
             )
-            raise UnknownException(f"Unexpected error while scanning apps for {client}") from e
+            raise UnknownException(
+                f"Unexpected error while scanning apps for {client}"
+            ) from e
 
     @classmethod
-    def delete(cls, **kwargs) -> Response:
-        """Delete an application deployment pattern.
-
-        Removes the specified application registry entry from the database. Returns
-        success confirmation or handles not found scenarios gracefully.
-
-        Args:
-            **kwargs: Parameters identifying the application to delete:
-                     - client (str): Client name (required)
-                     - portfolio (str): Portfolio name (required)
-                     - app (str): Application regex pattern to delete (required)
-
-        Returns:
-            Response: SuccessResponse with deletion confirmation message,
-                     or NoContentResponse if application not found
-
-        Raises:
-            BadRequestException: If required parameters are missing or have invalid format
-            UnknownException: If database operation fails during retrieval or deletion
-        """
+    def delete(
+        cls,
+        *,
+        client: str,
+        portfolio: str | None = None,
+        app: str | None = None,
+        **kwargs,
+    ) -> bool:
         log.info("Deleting app")
-
-        client = kwargs.get("client", kwargs.get("Client")) or util.get_client()
-        portfolio = kwargs.get("portfolio", kwargs.get("Portfolio"))
-        app = kwargs.get("app", kwargs.get("App"))
 
         if not client:
             raise BadRequestException("Missing required parameter: client")
@@ -448,245 +363,176 @@ class AppActions(RegistryAction):
         try:
             log.debug("Deleting app: %s:%s", portfolio, app)
 
-            item = model_class.get(portfolio, app)
+            item = model_class(portfolio, app)
 
-            item.delete(condition=model_class.portfolio.exists() & model_class.app.exists())
+            item.delete(
+                condition=model_class.portfolio.exists() & model_class.app.exists()
+            )
 
             log.info("Successfully deleted app: %s:%s", portfolio, app)
 
-            return SuccessResponse(message=f"App [{portfolio}:{app}] deleted")
+            return True
 
-        except DoesNotExist as e:
-            log.info("App not found for deletion: %s:%s", portfolio, app)
-            return NoContentResponse(message=f"App [{portfolio}:{app}] does not exist")
         except DeleteError as e:
             if "ConditionalCheckFailedException" in str(e):
                 log.info("App not found for deletion: %s:%s", portfolio, app)
-                return NoContentResponse(message=f"App [{portfolio}:{app}] was deleted by another process")
+                raise NotFoundException(
+                    f"App [{portfolio}:{app}] was deleted by another process"
+                )
+
             log.error("Failed to delete app: %s:%s - %s", portfolio, app, str(e))
             raise UnknownException(f"Failed to delete app {portfolio}:{app}") from e
+
         except Exception as e:
-            log.error("Unexpected error deleting app %s:%s - %s", portfolio, app, str(e))
-            raise UnknownException(f"Unexpected error deleting app {portfolio}:{app}") from e
+            log.error(
+                "Unexpected error deleting app %s:%s - %s", portfolio, app, str(e)
+            )
+            raise UnknownException(
+                f"Unexpected error deleting app {portfolio}:{app}"
+            ) from e
 
     @classmethod
-    def create(cls, **kwargs) -> Response:
-        """Create a new application deployment pattern.
-
-        Creates a new application registry entry with the specified configuration.
-        Fails if an application with the same portfolio and app-regex already exists,
-        ensuring unique application regex patterns within each portfolio.
-
-        Args:
-            **kwargs: Parameters for application creation:
-                     - client (str): Client name (required)
-                     - portfolio (str): Portfolio name (required)
-                     - app (str): Unique application regex pattern (required)
-                     - name (str): Human-readable application name (required)
-                     - All AppFact fields supported for application configuration
-
-        Returns:
-            Response: SuccessResponse containing the created application data with all fields
-
-        Raises:
-            BadRequestException: If required parameters are missing, have invalid format,
-                               or application data validation fails
-            ConflictException: If application already exists with the same portfolio and app-regex combination
-            UnknownException: If database operation fails due to connection issues or other unexpected errors
-        """
+    def create(cls, *, client: str, record: AppFact | None = None, **kwargs) -> AppFact:
         log.info("Creating app")
-
-        client = kwargs.get("client", kwargs.get("Client", None)) or util.get_client()
-        portfolio = kwargs.get("portfolio", kwargs.get("Portfolio", None))
 
         if not client:
             raise BadRequestException("Missing required parameter: client")
-        if not portfolio:
-            raise BadRequestException("Missing required parameter: portfolio")
-
-        # Name is required now
-        name_value = kwargs.get("name") or kwargs.get("Name")
-        if not name_value:
-            raise BadRequestException("Missing required field: name")
-
-        # derive name sources for slug when App not provided
-        preferred = kwargs.get("app") or kwargs.get("App")
-        name_source = name_value
-
-        if not preferred:
-            kwargs["app"] = generate_app_slug(
-                name=name_source or "app",
-                client=client,
-                portfolio=portfolio,
-            )
 
         try:
+            if not record:
+                portfolio = kwargs.get("portfolio")
+                if not portfolio:
+                    raise BadRequestException("Missing required parameter: portfolio")
 
-            data = AppFact(**kwargs)
+                name = kwargs.get("name")
+                app = kwargs.get("app")
 
-        except (ValueError, ValidationError) as e:
+                if not name:
+                    name = app or "app"
+                    kwargs["name"] = name
+
+                if not app:
+                    auto_gen = True
+                    app = generate_app_slug(
+                        name=name,
+                        client=client or util.get_client(),
+                        portfolio=portfolio,
+                    )
+                    kwargs["app"] = app
+                else:
+                    auto_gen = False
+
+                app_regex = kwargs.get("app_regex")
+                if not app_regex:
+                    app_regex = rf"^prn:{portfolio}:{re.escape(name)}:*:*$"
+                    kwargs["app_regex"] = app_regex
+
+                # Validate and construct the AppFact record
+                record = AppFact(**kwargs)
+
+        except Exception as e:
             log.error("Invalid app data: %s", str(e))
             raise BadRequestException(f"Invalid app data: {str(e)}")
 
         model_class = AppFact.model_class(client)
+        item = record.to_model(client)
 
-        try:
-            item = data.to_model(client)
+        for _ in range(3):
+            try:
 
-            # Uniqueness on the range key `app` (within the given portfolio)
-            item.save(model_class.app.does_not_exist())
+                # Uniqueness on the range key `app` (within the given portfolio)
+                item.save(model_class.app.does_not_exist())
 
-            log.info("Successfully created app: %s:%s", data.portfolio, data.app)
+                log.info(
+                    "Successfully created app: %s:%s", record.portfolio, record.app
+                )
 
-            return SuccessResponse(data=data.model_dump(mode="json"))
+                return record
 
-        except PutError as e:
-            if "ConditionalCheckFailedException" in str(e):
+            except PutError as e:
+                if "ConditionalCheckFailedException" in str(e):
 
-                # Rare race: regenerate and retry a couple of times, then fail.
-                log.warning("App creation conflict, retrying with new slug: %s:%s", data.portfolio, data.app)
-                for _ in range(3):
-                    kwargs["app"] = generate_app_slug(
-                        name=name_source or "app",
-                        client=client,
-                        portfolio=portfolio,
-                        preferred=data.app,  # keep base, add next suffix
-                    )
+                    if auto_gen:
+                        # Rare race: regenerate and retry a couple of times, then fail.
+                        log.warning(
+                            "App creation conflict, retrying with new slug: %s:%s",
+                            portfolio,
+                            app,
+                        )
 
-                    data = AppFact(**kwargs)
-                    item = data.to_model(client)
+                        item.app = generate_app_slug(
+                            name=name,
+                            client=client,
+                            portfolio=portfolio,
+                            preferred=item.app,  # keep base, add next suffix
+                        )
+                        continue
 
-                    try:
-                        item.save(model_class.app.does_not_exist())
-                        return SuccessResponse(data=data.model_dump(mode="json"))
-                    except PutError as e2:
-                        if "ConditionalCheckFailedException" in str(e2):
-                            continue  # still colliding; try next suffix
-                        # Different failure mode: bubble up as Unknown
-                        log.error("Failed to create app on retry: %s:%s - %s", data.portfolio, data.app, str(e2))
-                        raise UnknownException(f"Failed to create app {data.portfolio}:{data.app}") from e2
+                    raise ConflictException(
+                        f"App {item.portfolio}:{item.app} already exists"
+                    ) from e
 
-                raise ConflictException(f"App {data.portfolio}:{data.app} already exists") from e
+                # Non-conditional failure
+                log.error(
+                    "Failed to create app %s:%s: %s", item.portfolio, item.app, str(e)
+                )
+                raise UnknownException(
+                    f"Failed to create app {item.portfolio}:{item.app}"
+                ) from e
 
-            # Non-conditional failure
-            log.error("Failed to create app %s:%s: %s", data.portfolio, getattr(data, "app", "<unknown>"), str(e))
-            raise UnknownException(f"Failed to create app {data.portfolio}:{getattr(data, 'app', '<unknown>')}") from e
+            except Exception as e:
+                log.error(
+                    "Unexpected error creating app %s:%s: %s",
+                    item.portfolio,
+                    item.app,
+                    str(e),
+                )
+                raise UnknownException(
+                    f"Unexpected error creating app: {str(e)}"
+                ) from e
 
-        # All exceptions come here, and we'll raise an UnknownException
-        except ConflictException:
-            raise
-        except UnknownException:
-            raise
-        except Exception as e:
-            log.error(
-                "Unexpected error creating app %s:%s: %s",
-                data.portfolio,
-                getattr(data, "app", data.app),
-                str(e),
-            )
-            raise UnknownException(f"Unexpected error creating app: {str(e)}") from e
+        raise ConflictException(
+            f"Cannot create app due to app conflict: {str(e)}"
+        ) from e
 
     @classmethod
-    def update(cls, **kwargs) -> Response:
-        """Update an application deployment pattern with complete replacement semantics.
-
-        Performs a complete replacement of application data, creating the application if it
-        doesn't exist or completely replacing it if it does (PUT semantics).
-
-        Args:
-            **kwargs: Complete application configuration parameters:
-                     - client (str): Client name (optional if set in framework)
-                     - portfolio (str): Portfolio name (required)
-                     - app (str): Application regex pattern (required)
-                     - All desired application fields for complete replacement
-
-        Returns:
-            Response: SuccessResponse containing the updated application data
-
-        Raises:
-            BadRequestException: If required parameters are missing or invalid
-            NotFoundException: If the application does not exist for update operations
-            UnknownException: If database operation fails
-        """
+    def update(cls, *, client: str, record: AppFact | None = None, **kwargs) -> AppFact:
         log.info("Updating app")
-        return cls._update(remove_none=True, **kwargs)
+        return cls._update(remove_none=True, client=client, record=record, **kwargs)
 
     @classmethod
-    def patch(cls, **kwargs) -> Response:
-        """Partially update an application deployment pattern.
-
-        Updates only the specified fields while preserving all other existing application
-        data. Only modifies existing applications - does not create new ones (PATCH semantics).
-
-        Args:
-            **kwargs: Partial application update parameters:
-                     - client (str): Client name (optional if set in framework)
-                     - portfolio (str): Portfolio name (required)
-                     - app (str): Application regex pattern (required)
-                     - Any application attribute fields to update
-
-        Returns:
-            Response: SuccessResponse containing the updated application data
-
-        Raises:
-            BadRequestException: If required parameters are missing or invalid
-            NotFoundException: If the application does not exist
-            UnknownException: If database operation fails
-        """
+    def patch(cls, *, client: str, **kwargs) -> AppFact:
         log.info("Patching app")
-        return cls._update(remove_none=False, **kwargs)
+        return cls._update(remove_none=False, client=client, **kwargs)
 
     @classmethod
-    def _update(cls, remove_none: bool = False, **kwargs) -> Response:
-        """Internal method for updating application records with configurable semantics.
-
-        Handles both PUT (complete replacement) and PATCH (partial update) semantics
-        based on the remove_none parameter. Uses DynamoDB update operations with
-        conditional existence checks.
-
-        Args:
-            remove_none (bool): Whether to remove fields with None values from the database.
-                              True for PUT semantics, False for PATCH semantics
-            **kwargs: Application update parameters
-
-        Returns:
-            Response: SuccessResponse containing the updated application data
-
-        Raises:
-            BadRequestException: If required parameters are missing or validation fails
-            NotFoundException: If the application does not exist for update
-            UnknownException: If database operation fails
-        """
-        client = kwargs.get("client") or util.get_client()
-
+    def _update(
+        cls, remove_none: bool, client: str, record: AppFact | None = None, **kwargs
+    ) -> AppFact:
         if not client:
             raise BadRequestException("Missing required parameter: client")
 
-        portfolio = kwargs.get("portfolio", kwargs.get("Portfolio"))
-        app = kwargs.get("app", kwargs.get("App"))
+        excluded_fields = ["portfolio", "app", "created_at", "updated_at"]
+
+        if record:
+            values = record.model_dump(
+                by_alias=False, exclude_none=False, exclude=excluded_fields
+            )
+        else:
+            values = kwargs
+
+        portfolio = values.get("portfolio")
+        app = values.get("app")
 
         if not portfolio:
             raise BadRequestException("Missing required parameter: portfolio")
         if not app:
             raise BadRequestException("Missing required parameter: app")
 
-        try:
-            if remove_none:
-                data = AppFact(**kwargs)
-            else:
-                data = AppFact.model_construct(**kwargs)
-        except (ValueError, ValidationError) as e:
-            log.error("Invalid app data for update: %s", str(e))
-            raise BadRequestException(f"Invalid app data: {str(e)}") from e
-
         model_class = AppFact.model_class(client)
-
-        excluded_fields = ["portfolio", "app", "created_at", "updated_at"]
 
         try:
             attributes = model_class.get_attributes()
-
-            values = data.model_dump(by_alias=False, exclude_none=False, exclude=excluded_fields)
 
             actions: list[Action] = []
             for key, value in values.items():
@@ -704,31 +550,23 @@ class AppActions(RegistryAction):
             actions.append(model_class.updated_at.set(make_default_time()))
 
             # Perform the update with proper key order
-            item = model_class(portfolio=data.portfolio, app=data.app)
+            item = model_class(portfolio, app)
             item.update(
                 actions=actions,
                 condition=model_class.portfolio.exists() & model_class.app.exists(),
             )
             item.refresh()
 
-            updated_data = AppFact.from_model(item).model_dump(mode="json")
-
-            return SuccessResponse(
-                data=updated_data,
-                message=f"App {data.portfolio}:{data.app} updated successfully",
-            )
+            return AppFact.from_model(item)
 
         except UpdateError as e:
             if "ConditionalCheckFailedException" in str(e):
-                log.warning("App not found for update: %s:%s", data.portfolio, data.app)
-                raise NotFoundException(f"App {data.portfolio}:{data.app} does not exist") from e
-            log.error("Failed to update app %s:%s: %s", data.portfolio, data.app, str(e))
-            raise UnknownException(f"Failed to update app {data.portfolio}:{data.app}") from e
+                log.warning("App not found for update: %s:%s", portfolio, app)
+                raise NotFoundException(f"App {portfolio}:{app} does not exist") from e
+
+            log.error("Failed to update app %s:%s: %s", portfolio, app, str(e))
+            raise UnknownException(f"Failed to update app {portfolio}:{app}") from e
+
         except Exception as e:
-            log.error(
-                "Unexpected error updating app %s:%s: %s",
-                data.portfolio,
-                data.app,
-                str(e),
-            )
+            log.error("Unexpected error updating app %s:%s: %s", portfolio, app, str(e))
             raise UnknownException(f"Unexpected error updating app: {str(e)}") from e

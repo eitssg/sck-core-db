@@ -1,9 +1,12 @@
+from ast import Not
+from botocore.handlers import ClientMethodAlias
 import pytest
 import datetime
 from unittest.mock import patch
 
 import core_framework as util
 
+from core_db.models import Paginator
 from core_db.registry.client.actions import ClientActions
 from core_db.registry.client.models import ClientFact
 from core_db.response import Response, SuccessResponse, ErrorResponse
@@ -161,84 +164,62 @@ client_facts = [
 
 def test_create_client_fact(bootstrap_dynamo):
     """Test creating all client facts."""
+
     for i, client_fact in enumerate(client_facts):
-        response = ClientActions.create(**client_fact)
 
-        assert isinstance(response, SuccessResponse)
-        assert response.data is not None, "Response data should not be None"
+        data: ClientFact = ClientActions.create(**client_fact)
 
-        data = ClientFact(**response.data)
         assert data.client == client_fact["client"]
         assert data.client_id == client_fact["client_id"]
 
 
 def test_get_client_facts():
     """Test retrieving specific client facts."""
-    client_name = "acme-corp"
+    client = "acme-corp"
 
-    response: Response = ClientActions.get(client=client_name)
+    response: ClientFact = ClientActions.get(client=client)
 
-    assert isinstance(response, SuccessResponse)
-    assert response.data is not None, "Response data should not be None"
-    assert isinstance(response.data, dict), "Response data should be a dictionary"
+    assert response is not None, "Response should not be None"
 
-    data = ClientFact(**response.data)
-    assert data.client_id == "ACME001"
-    assert data.client_name == "ACME Corporation"
-    assert data.client_type == "enterprise"
-    assert data.client_status == "active"
+    assert isinstance(response, ClientFact), "Response should be a ClientFact instance"
+
+    assert response.client_id == "ACME001"
+    assert response.client_name == "ACME Corporation"
+    assert response.client_type == "enterprise"
+    assert response.client_status == "active"
 
 
 def test_list_client_facts():
     """Test listing all client facts with pagination."""
-    response = ClientActions.list(client=client, limit=3)
+    client_facts, paginator = ClientActions.list(limit=3)
 
-    assert isinstance(response, SuccessResponse)
-    assert response.data is not None
-    assert isinstance(response.data, list)
-    assert len(response.data) <= 3
-    assert hasattr(response, "metadata")
-
-    # Verify each item can be converted to ClientFact
-    for item in response.data:
-        client_fact = ClientFact(**item)
-        assert client_fact.client is not None
+    assert paginator.total_count is not None
+    assert paginator.cursor is not None
+    assert len(client_facts) <= 3
 
 
 def test_list_with_pagination():
     """Test pagination functionality."""
     # Get first page
-    page1 = ClientActions.list(client=client, limit=2)
-    assert len(page1.data) <= 2
+    page1_clients, paginator = ClientActions.list(limit=2)
+    assert len(page1_clients) <= 2
+    assert paginator.cursor is not None
 
-    # Check if there's more data
-    if page1.metadata.get("cursor"):
-        page2 = ClientActions.list(
-            client=client, limit=2, cursor=page1.metadata["cursor"]
-        )
-        assert isinstance(page2, SuccessResponse)
+    page2_clients, paginator = ClientActions.list(limit=2, cursor=paginator.cursor)
 
-        # Verify different data
-        page1_clients = {item["Client"] for item in page1.data}
-        page2_clients = {item["Client"] for item in page2.data}
-        assert page1_clients.isdisjoint(page2_clients), "Pages should not overlap"
+    # Verify different data
+    page1_clients = {item.client for item in page1_clients}
+    page2_clients = {item.client for item in page2_clients}
+
+    assert page1_clients.isdisjoint(page2_clients), "Pages should not overlap"
 
 
 def test_response_structure():
     """Test that response structure uses correct casing."""
-    response = ClientActions.list(client=client, limit=2)
+    page1, paginator = ClientActions.list(limit=2)
 
-    # Top-level response keys should be snake_case
-    assert hasattr(response, "data")
-    assert hasattr(response, "metadata")
-
-    # Data dictionaries should have PascalCase keys
-    if response.data:
-        first_item = response.data[0]
-        assert "Client" in first_item  # PascalCase key
-        assert (
-            "ClientName" in first_item or "client_name" not in first_item
-        )  # Verify PascalCase
+    assert len(page1) == 2
+    assert paginator.cursor is not None
 
 
 # =============================================================================
@@ -261,13 +242,11 @@ def test_update_client_full():
         "master_region": "us-east-1",  # Changed from us-west-1
     }
 
-    response = ClientActions.update(**update_data)
-    assert isinstance(response, SuccessResponse)
+    response: ClientFact = ClientActions.update(**update_data)
 
-    updated_client = ClientFact(**response.data)
-    assert updated_client.client_name == "StartupTech Inc - Updated"
-    assert updated_client.master_region == "us-east-1"
-    assert updated_client.domain == "startup-tech-updated.io"
+    assert response.client_name == "StartupTech Inc - Updated"
+    assert response.master_region == "us-east-1"
+    assert response.domain == "startup-tech-updated.io"
 
 
 def test_patch_client_partial():
@@ -281,17 +260,13 @@ def test_patch_client_partial():
         "client_status": "maintenance",
     }
 
-    response = ClientActions.patch(**patch_data)
-    assert isinstance(response, SuccessResponse)
+    response: ClientFact = ClientActions.patch(**patch_data)
 
-    patched_client = ClientFact(**response.data)
-    assert (
-        patched_client.client_description == "Updated healthcare description via PATCH"
-    )
-    assert patched_client.client_status == "maintenance"
+    assert response.client_description == "Updated healthcare description via PATCH"
+    assert response.client_status == "maintenance"
     # Other fields should remain unchanged
-    assert patched_client.client_name == "HealthcarePlus Solutions"
-    assert patched_client.client_type == "healthcare"
+    assert response.client_name == "HealthcarePlus Solutions"
+    assert response.client_type == "healthcare"
 
 
 def test_patch_with_none_values():
@@ -304,16 +279,19 @@ def test_patch_with_none_values():
         "organization_email": None,  # This should not remove the field
     }
 
-    response = ClientActions.patch(**patch_data)
-    assert isinstance(response, SuccessResponse)
+    response: ClientFact = ClientActions.patch(**patch_data)
+    assert response.organization_email is not None
+
+    assert response.client_description == "Updated government description"
+    # organization_email should still exist (PATCH doesn't remove None fields)
+    assert response.organization_email == "cloud-admin@dts.gov"
 
     # Get the client to verify None didn't remove the field
-    get_response = ClientActions.get(client=client_name)
-    client_data = ClientFact(**get_response.data)
+    get_response: ClientFact = ClientActions.get(client=client_name)
 
-    assert client_data.client_description == "Updated government description"
+    assert get_response.client_description == "Updated government description"
     # organization_email should still exist (PATCH doesn't remove None fields)
-    assert client_data.organization_email == "cloud-admin@dts.gov"
+    assert get_response.organization_email == "cloud-admin@dts.gov"
 
 
 def test_update_with_none_values():
@@ -321,8 +299,7 @@ def test_update_with_none_values():
     client_name = "fintech-demo"
 
     # Get current data first
-    current_response = ClientActions.get(client=client_name)
-    current_data = ClientFact(**current_response.data)
+    current_data: ClientFact = ClientActions.get(client=client_name)
 
     update_data = {
         "client": client_name,
@@ -334,10 +311,8 @@ def test_update_with_none_values():
         "organization_email": None,  # This should remove the field
     }
 
-    response = ClientActions.update(**update_data)
-    assert isinstance(response, SuccessResponse)
+    updated_client: ClientFact = ClientActions.update(**update_data)
 
-    updated_client = ClientFact(**response.data)
     assert updated_client.client_description == "Updated description via PUT"
     # organization_email should be None/removed
     assert updated_client.organization_email is None
@@ -358,7 +333,9 @@ def test_create_duplicate_client():
 
 def test_get_nonexistent_client():
     """Test getting non-existent client."""
-    with pytest.raises(UnknownException):  # Your implementation raises UnknownException
+    with pytest.raises(
+        NotFoundException
+    ):  # Your implementation raises UnknownException
         ClientActions.get(client="nonexistent-client")
 
 
@@ -386,11 +363,7 @@ def test_missing_client_parameter():
 
     # Test get without client
     with pytest.raises(BadRequestException):
-        ClientActions.get()
-
-    # Test list without client
-    with pytest.raises(BadRequestException):
-        ClientActions.list()
+        ClientActions.get(client=None)
 
     # Test update without client
     with pytest.raises(BadRequestException):
@@ -411,9 +384,9 @@ def test_invalid_client_data():
 
     # This might pass or fail depending on your ClientFact validation rules
     try:
-        response = ClientActions.create(**invalid_data)
+        response: ClientFact = ClientActions.create(**invalid_data)
         # If it passes, clean up
-        ClientActions.delete(client="test-client")
+        ClientActions.delete(client=response.client)
     except BadRequestException:
         # Expected if you have strict validation
         pass
@@ -422,10 +395,10 @@ def test_invalid_client_data():
 def test_invalid_pagination_parameters():
     """Test list with invalid pagination parameters."""
     with pytest.raises((BadRequestException, ValueError)):
-        ClientActions.list(client=client, limit="invalid")  # Non-integer limit
+        ClientActions.list(limit="invalid")  # Non-integer limit
 
     with pytest.raises((BadRequestException, ValueError)):
-        ClientActions.list(client=client, limit=-1)  # Negative limit
+        ClientActions.list(limit=-1)  # Negative limit
 
 
 # =============================================================================
@@ -445,26 +418,24 @@ def test_delete_client():
     }
 
     # Create the client
-    create_response = ClientActions.create(**delete_test_data)
-    assert isinstance(create_response, SuccessResponse)
+    create_response: ClientFact = ClientActions.create(**delete_test_data)
 
     # Verify it exists
-    get_response = ClientActions.get(client="delete-test-client")
-    assert isinstance(get_response, SuccessResponse)
+    get_response: ClientFact = ClientActions.get(client="delete-test-client")
+    assert get_response.client == "delete-test-client"
 
     # Delete the client
-    delete_response = ClientActions.delete(client="delete-test-client")
-    assert isinstance(delete_response, SuccessResponse)
-    assert delete_response.message and "deleted" in delete_response.message.lower()
+    did_delete = ClientActions.delete(client="delete-test-client")
+    assert did_delete is True
 
     # Verify it's gone
-    with pytest.raises(UnknownException):
+    with pytest.raises(NotFoundException):
         ClientActions.get(client="delete-test-client")
 
 
 def test_delete_nonexistent_client():
     """Test deleting non-existent client."""
-    with pytest.raises(UnknownException):
+    with pytest.raises(NotFoundException):
         ClientActions.delete(client="nonexistent-client-for-deletion")
 
 
@@ -472,7 +443,7 @@ def test_delete_without_client_parameter():
     """Test delete without client parameter should fail."""
     # Note: Your current implementation raises ValueError, but should probably be BadRequestException
     with pytest.raises((ValueError, BadRequestException)):
-        ClientActions.delete()
+        ClientActions.delete(client=None)
 
 
 # =============================================================================
@@ -484,10 +455,8 @@ def test_minimal_client_creation():
     """Test creating client with minimal required fields."""
     minimal_data = {"client": "minimal-test", "client_name": "Minimal Test Client"}
 
-    response = ClientActions.create(**minimal_data)
-    assert isinstance(response, SuccessResponse)
+    client_data: ClientFact = ClientActions.create(**minimal_data)
 
-    client_data = ClientFact(**response.data)
     assert client_data.client == "minimal-test"
     assert client_data.client_name == "Minimal Test Client"
 
@@ -525,12 +494,10 @@ def test_large_client_data():
         "scope": "comp-",
     }
 
-    response = ClientActions.create(**comprehensive_data)
-    assert isinstance(response, SuccessResponse)
+    client_data: ClientFact = ClientActions.create(**comprehensive_data)
 
     # Verify all data was saved correctly
-    get_response = ClientActions.get(client="comprehensive-test")
-    client_data = ClientFact(**get_response.data)
+    client_data: ClientFact = ClientActions.get(client="comprehensive-test")
 
     assert client_data.organization_id == "o-comprehensive123"
     assert client_data.scope == "comp-"
@@ -550,8 +517,7 @@ def test_client_timestamps():
     }
 
     # Create client
-    create_response = ClientActions.create(**timestamp_test_data)
-    created_client = ClientFact(**create_response.data)
+    created_client: ClientFact = ClientActions.create(**timestamp_test_data)
 
     assert created_client.created_at is not None
     assert created_client.updated_at is not None
@@ -559,10 +525,9 @@ def test_client_timestamps():
     original_updated_at = created_client.updated_at
 
     # Update client (should change updated_at)
-    patch_response = ClientActions.patch(
+    updated_client: ClientFact = ClientActions.patch(
         client="timestamp-test", client_description="Updated description"
     )
-    updated_client = ClientFact(**patch_response.data)
 
     assert updated_client.created_at == created_client.created_at  # Should not change
     assert updated_client.updated_at != original_updated_at  # Should be updated
@@ -586,76 +551,25 @@ def test_response_casing_consistency():
         "client_type": "test",
     }
 
-    create_response = ClientActions.create(**create_data)
-
-    # Response level should be snake_case
-    assert hasattr(create_response, "data")
-    assert hasattr(create_response, "message")
-
-    # Data content should be PascalCase
-    data_dict = create_response.data
-    expected_pascal_keys = [
-        "Client",
-        "ClientName",
-        "ClientType",
-        "CreatedAt",
-        "UpdatedAt",
-    ]
-
-    for key in expected_pascal_keys:
-        if key in ["CreatedAt", "UpdatedAt"]:
-            continue  # These might be None in some cases
-        assert (
-            key in data_dict
-        ), f"Expected PascalCase key '{key}' not found in response data"
+    create_response: ClientFact = ClientActions.create(**create_data)
 
     # Test get response
-    get_response = ClientActions.get(client="casing-test")
-    assert hasattr(get_response, "data")
-    get_data_dict = get_response.data
-    assert "Client" in get_data_dict
-    assert "ClientName" in get_data_dict
+    get_response: ClientFact = ClientActions.get(client="casing-test")
 
     # Test list response
-    list_response = ClientActions.list(client=client, limit=1)
-    assert hasattr(list_response, "data")
-    assert hasattr(list_response, "metadata")  # snake_case
+    list_response, paginator = ClientActions.list(limit=1)
 
-    if list_response.data:
-        list_item = list_response.data[0]
-        assert "Client" in list_item  # PascalCase
+    assert len(list_response) == 1
+    assert paginator.cursor is not None
+    assert paginator.total_count == 1
 
     # Clean up
     ClientActions.delete(client="casing-test")
 
 
-def test_metadata_structure():
-    """Test metadata structure in list responses."""
-    response = ClientActions.list(client=client, limit=1)
-
-    # Metadata should exist and be snake_case
-    assert hasattr(response, "metadata")
-    metadata = response.metadata
-
-    # Common metadata fields (snake_case)
-    expected_metadata_keys = ["limit", "total_count", "has_more"]
-
-    for key in expected_metadata_keys:
-        # Not all metadata keys may be present depending on implementation
-        if hasattr(metadata, key) or (isinstance(metadata, dict) and key in metadata):
-            # Key exists, verify it's snake_case (no caps)
-            assert (
-                key.islower() or "_" in key
-            ), f"Metadata key '{key}' should be snake_case"
-
-
 def test_error_response_casing():
     """Test that error responses also follow casing conventions."""
 
-    try:
+    with pytest.raises(NotFoundException) as exc_info:
         ClientActions.get(client="nonexistent-client-casing-test")
-        assert False, "Should have raised an exception"
-    except Exception as e:
-        # Error messages should be consistent
-        # The exception itself doesn't need to follow the JSON casing rules
-        assert isinstance(e, (UnknownException, NotFoundException))
+    assert exc_info.value.message == "Client 'nonexistent-client-casing-test' not found"

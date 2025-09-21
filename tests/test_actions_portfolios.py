@@ -1,3 +1,4 @@
+from pydantic.type_adapter import P
 import pytest
 from unittest.mock import patch
 import core_framework as util
@@ -166,9 +167,7 @@ portfolio_facts: list[dict] = [
             "description": "Internal productivity and development tools",
         },
         "owner": {"name": "Alex Rodriguez", "email": "alex.rodriguez@acme.com"},
-        "contacts": [
-            {"name": "DevEx Team", "email": "devex@acme.com", "enabled": True}
-        ],
+        "contacts": [{"name": "DevEx Team", "email": "devex@acme.com", "enabled": True}],
         "approvers": [
             {
                 "sequence": 1,
@@ -258,88 +257,53 @@ portfolio_facts: list[dict] = [
 def test_portfolio_create(bootstrap_dynamo):
     """Test creating all portfolio facts."""
     for portfolio in portfolio_facts:
-        response = PortfolioActions.create(client=client, **portfolio)
-
-        assert isinstance(response, SuccessResponse)
-        assert response.data is not None
-        assert isinstance(response.data, dict)
-
-        # Keys in response.data should be PascalCase
-        assert "Portfolio" in response.data
-        assert response.data["Portfolio"] == portfolio["portfolio"]
-
-        # Verify specific field mappings with PascalCase keys
-        if "domain" in portfolio:
-            assert "Domain" in response.data
-            assert response.data["Domain"] == portfolio["domain"]
-        if "project" in portfolio:
-            assert "Project" in response.data
-            assert response.data["Project"]["Name"] == portfolio["project"]["name"]
+        PortfolioActions.create(client=client, **portfolio)
 
 
 def test_portfolio_get():
     """Test retrieving specific portfolio facts."""
     portfolio_name = "web-services"
 
-    response = PortfolioActions.get(client=client, portfolio=portfolio_name)
-
-    assert isinstance(response, SuccessResponse)
-    assert response.data is not None
-    assert isinstance(response.data, dict)
+    response: PortfolioFact = PortfolioActions.get(client=client, portfolio=portfolio_name)
 
     # Keys in response.data should be PascalCase
-    assert "Portfolio" in response.data
-    assert response.data["Portfolio"] == portfolio_name
-    assert "Domain" in response.data
-    assert response.data["Domain"] == "webservices.acme.com"
-    assert "Project" in response.data
-    assert response.data["Project"]["Name"] == "Web Services Platform"
-    assert "Owner" in response.data
-    assert response.data["Owner"]["Name"] == "Sarah Johnson"
+    assert response.portfolio == portfolio_name
+    assert response.domain == "webservices.acme.com"
+    assert response.project.name == "Web Services Platform"
+    assert response.owner.name == "Sarah Johnson"
 
 
 def test_portfolio_list():
     """Test listing all portfolio facts with pagination."""
-    response = PortfolioActions.list(client=client, limit=3)
+    portfolio_list, paginator = PortfolioActions.list(client=client, limit=3)
 
-    assert isinstance(response, SuccessResponse)
-    assert response.data is not None
-    assert isinstance(response.data, list)
-    assert len(response.data) <= 3
-    assert hasattr(response, "metadata")  # snake_case response attribute
+    assert isinstance(portfolio_list, list)
+    assert len(portfolio_list) == 3
+    assert paginator.total_count == 3
 
     # Verify each item has PascalCase keys and can be converted to PortfolioFact
-    for item in response.data:
-        assert isinstance(item, dict)
-        assert "Portfolio" in item  # PascalCase key in data
-
-        # Convert using the actual data structure (PascalCase keys)
-        portfolio_fact = PortfolioFact(**item)
-        assert portfolio_fact.portfolio is not None
-
-    # Check response structure
-    if response.data:
-        first_item = response.data[0]
-        assert "Portfolio" in first_item  # PascalCase key
+    for item in portfolio_list:
+        assert item.portfolio is not None
 
 
 def test_portfolio_list_with_pagination():
     """Test pagination functionality."""
     # Get first page
-    page1 = PortfolioActions.list(client=client, limit=2)
-    assert len(page1.data) <= 2
+    page1, paginator = PortfolioActions.list(client=client, limit=2)
+    assert len(page1) == 2
+    assert paginator.total_count == 2
+    assert paginator.cursor is not None
 
-    # Check if there's more data
-    if page1.metadata.get("cursor"):
-        page2 = PortfolioActions.list(
-            client=client, limit=2, cursor=page1.metadata["cursor"]
-        )
-        assert isinstance(page2, SuccessResponse)
+    page2, paginator = PortfolioActions.list(client=client, limit=2, cursor=paginator.cursor)
+    assert len(page2) == 2
+    assert paginator.total_count == 2
+    assert paginator.cursor is not None  # there are more items
 
-        # Verify different data using PascalCase keys
-        page1_portfolios = {item["Portfolio"] for item in page1.data}
-        page2_portfolios = {item["Portfolio"] for item in page2.data}
-        assert page1_portfolios.isdisjoint(page2_portfolios), "Pages should not overlap"
+    # Verify different data using PascalCase keys
+    page1_portfolios = {item.portfolio for item in page1}
+    page2_portfolios = {item.portfolio for item in page2}
+
+    assert page1_portfolios.isdisjoint(page2_portfolios), "Pages should not overlap"
 
 
 # =============================================================================
@@ -352,7 +316,6 @@ def test_portfolio_update_full():
     portfolio_name = "mobile-apps"
 
     update_data = {
-        "client": client,
         "portfolio": portfolio_name,
         "domain": "mobile-updated.acme.com",
         "project": {
@@ -373,19 +336,12 @@ def test_portfolio_update_full():
         },
     }
 
-    response = PortfolioActions.update(**update_data)
-    assert isinstance(response, SuccessResponse)
+    response: PortfolioFact = PortfolioActions.update(client=client, **update_data)
 
-    # Verify PascalCase keys in response.data
-    assert "Portfolio" in response.data
-    assert "Domain" in response.data
-    assert response.data["Domain"] == "mobile-updated.acme.com"
-    assert "Project" in response.data
-    assert response.data["Project"]["Name"] == "Updated Mobile Applications"
-    assert "Owner" in response.data
-    assert response.data["Owner"]["Phone"] == "+1-555-9999"
-    assert "Tags" in response.data
-    assert response.data["Tags"]["Version"] == "2.0"
+    assert response.domain == "mobile-updated.acme.com"
+    assert response.project.name == "Updated Mobile Applications"
+    assert response.owner.phone == "+1-555-9999"
+    assert response.tags["Version"] == "2.0"
 
 
 def test_portfolio_patch_partial():
@@ -394,7 +350,6 @@ def test_portfolio_patch_partial():
 
     # Only update specific fields
     patch_data = {
-        "client": client,
         "portfolio": portfolio_name,
         "domain": "analytics-updated.acme.com",
         "metadata": {
@@ -405,22 +360,15 @@ def test_portfolio_patch_partial():
         },
     }
 
-    response = PortfolioActions.patch(**patch_data)
-    assert isinstance(response, SuccessResponse)
+    response: PortfolioFact = PortfolioActions.patch(client=client, **patch_data)
 
-    # Verify PascalCase keys in response.data
-    assert "Portfolio" in response.data
-    assert "Domain" in response.data
-    assert response.data["Domain"] == "analytics-updated.acme.com"
-    assert "Metadata" in response.data
-    assert response.data["Metadata"]["data_retention"] == "10years"
-    assert response.data["Metadata"]["new_field"] == "patch-added"
+    assert response.domain == "analytics-updated.acme.com"
+    assert response.metadata["data_retention"] == "10years"
+    assert response.metadata["new_field"] == "patch-added"
 
     # Other fields should remain unchanged
-    assert "Project" in response.data
-    assert response.data["Project"]["Name"] == "Data Analytics Platform"
-    assert "Owner" in response.data
-    assert response.data["Owner"]["Name"] == "Dr. Lisa Wang"
+    assert response.project.name == "Data Analytics Platform"
+    assert response.owner.name == "Dr. Lisa Wang"
 
 
 def test_portfolio_patch_with_none_values():
@@ -428,7 +376,6 @@ def test_portfolio_patch_with_none_values():
     portfolio_name = "internal-tools"
 
     patch_data = {
-        "client": client,
         "portfolio": portfolio_name,
         "attributes": {
             "access_level": "all-employees",
@@ -437,13 +384,11 @@ def test_portfolio_patch_with_none_values():
         "domain": None,  # This should not remove the field in PATCH mode
     }
 
-    response = PortfolioActions.patch(**patch_data)
-    assert isinstance(response, SuccessResponse)
+    response: PortfolioFact = PortfolioActions.patch(client=client, **patch_data)
 
-    # Verify the attributes were updated using PascalCase keys
-    assert "Attributes" in response.data
-    assert response.data["Attributes"]["access_level"] == "all-employees"
-    assert response.data["Attributes"]["deployment_frequency"] == "daily"
+    assert response.attributes["access_level"] == "all-employees"
+    assert response.attributes["deployment_frequency"] == "daily"
+
     # Domain should still exist (PATCH doesn't remove None fields)
 
 
@@ -452,30 +397,28 @@ def test_portfolio_update_with_none_values():
     portfolio_name = "legacy-migration"
 
     # Get current data first for required fields
-    current_response = PortfolioActions.get(client=client, portfolio=portfolio_name)
-    current_data = current_response.data  # This has PascalCase keys
+    current_data: PortfolioFact = PortfolioActions.get(client=client, portfolio=portfolio_name)
 
     update_data = {
-        "client": client,
         "portfolio": portfolio_name,
         # Convert PascalCase back to snake_case for input
         "project": {
-            "name": current_data["Project"]["Name"],
-            "code": current_data["Project"]["Code"],
-            "description": current_data["Project"]["Description"],
+            "name": current_data.project.name,
+            "code": current_data.project.code,
+            "description": current_data.project.description,
         },
         "owner": {
-            "name": current_data["Owner"]["Name"],
-            "email": current_data["Owner"]["Email"],
-            "phone": current_data["Owner"]["Phone"],
+            "name": current_data.owner.name,
+            "email": current_data.owner.email,
+            "phone": current_data.owner.phone,
         },
         "contacts": [
             {
-                "name": contact["Name"],
-                "email": contact["Email"],
-                "enabled": contact["Enabled"],
+                "name": contact.name,
+                "email": contact.email,
+                "enabled": contact.enabled,
             }
-            for contact in current_data.get("Contacts", [])
+            for contact in current_data.contacts
         ],
         "domain": None,  # This should remove the field in UPDATE mode
         "metadata": {
@@ -484,14 +427,13 @@ def test_portfolio_update_with_none_values():
         },
     }
 
-    response = PortfolioActions.update(**update_data)
-    assert isinstance(response, SuccessResponse)
+    response: PortfolioFact = PortfolioActions.update(client=client, **update_data)
 
     # Verify PascalCase keys in response
-    assert "Metadata" in response.data
-    assert response.data["Metadata"]["migration_phase"] == "implementation"
+    assert response.metadata["migration_phase"] == "implementation"
+
     # Domain should be None/removed
-    assert response.data.get("Domain") is None
+    assert response.domain is None
 
 
 # =============================================================================
@@ -538,16 +480,13 @@ def test_portfolio_with_complex_approvers():
     }
 
     # Create
-    response = PortfolioActions.create(**complex_portfolio)
-    assert isinstance(response, SuccessResponse)
+    response: PortfolioFact = PortfolioActions.create(**complex_portfolio)
 
-    # Verify complex structure with PascalCase keys
-    assert "Approvers" in response.data
-    assert len(response.data["Approvers"]) == 3
-    assert response.data["Approvers"][2]["DependsOn"] == [1, 2]
+    assert len(response.approvers) == 3
+    assert response.approvers[2].depends_on == [1, 2]
 
     # Clean up
-    PortfolioActions.delete(client=client, portfolio="complex-approval-test")
+    PortfolioActions.delete(client=client, portfolio=response.portfolio)
 
 
 def test_portfolio_with_both_project_and_bizapp():
@@ -569,14 +508,10 @@ def test_portfolio_with_both_project_and_bizapp():
     }
 
     # Create
-    response = PortfolioActions.create(**dual_project_portfolio)
-    assert isinstance(response, SuccessResponse)
+    response: PortfolioFact = PortfolioActions.create(**dual_project_portfolio)
 
-    # Verify both projects exist with PascalCase keys
-    assert "Project" in response.data
-    assert response.data["Project"]["Name"] == "Main Project"
-    assert "Bizapp" in response.data
-    assert response.data["Bizapp"]["Name"] == "Business Application"
+    assert response.project.name == "Main Project"
+    assert response.bizapp.name == "Business Application"
 
     # Clean up
     PortfolioActions.delete(client=client, portfolio="dual-project-test")
@@ -590,7 +525,6 @@ def test_portfolio_with_both_project_and_bizapp():
 def test_create_duplicate_portfolio():
     """Test creating duplicate portfolio should fail."""
     duplicate_data = {
-        "client": client,
         "portfolio": "web-services",  # Already exists
         "project": {
             "name": "Duplicate Test",
@@ -601,14 +535,13 @@ def test_create_duplicate_portfolio():
     }
 
     with pytest.raises(ConflictException):
-        PortfolioActions.create(**duplicate_data)
+        PortfolioActions.create(client=client, **duplicate_data)
 
 
 def test_get_nonexistent_portfolio():
     """Test getting non-existent portfolio."""
-    response = PortfolioActions.get(client=client, portfolio="nonexistent-portfolio")
-    assert isinstance(response, NoContentResponse)
-    assert "does not exist" in response.data["message"]
+    with pytest.raises(NotFoundException):
+        response = PortfolioActions.get(client=client, portfolio="nonexistent-portfolio")
 
 
 def test_update_nonexistent_portfolio():
@@ -629,9 +562,7 @@ def test_update_nonexistent_portfolio():
 def test_patch_nonexistent_portfolio():
     """Test patching non-existent portfolio."""
     with pytest.raises(NotFoundException):
-        PortfolioActions.patch(
-            client=client, portfolio="nonexistent-portfolio", domain="should-fail.com"
-        )
+        PortfolioActions.patch(client=client, portfolio="nonexistent-portfolio", domain="should-fail.com")
 
 
 def test_missing_required_parameters():
@@ -642,12 +573,12 @@ def test_missing_required_parameters():
 
     # Test get without portfolio
     with pytest.raises(BadRequestException):
-        PortfolioActions.get(client=client)
+        PortfolioActions.get(client=client, portfolio=None)
 
     # Test list without client (if util.get_client() returns None)
     with patch("core_framework.get_client", return_value=None):
         with pytest.raises(BadRequestException):
-            PortfolioActions.list()
+            PortfolioActions.list(client=None)
 
     # Test update without portfolio
     with pytest.raises(BadRequestException):
@@ -689,8 +620,7 @@ def test_delete_portfolio():
     """Test deleting a portfolio."""
     # Create a portfolio specifically for deletion
     delete_test_data = {
-        "client": client,
-        "portfolio": "delete-test-portfolio",
+        "portfolio": "delete-test-portfolio1",
         "project": {
             "name": "Portfolio for Deletion Test",
             "code": "delete-test",
@@ -700,46 +630,34 @@ def test_delete_portfolio():
     }
 
     # Create the portfolio
-    create_response = PortfolioActions.create(**delete_test_data)
-    assert isinstance(create_response, SuccessResponse)
+    PortfolioActions.create(client=client, **delete_test_data)
 
     # Verify it exists
-    get_response = PortfolioActions.get(
-        client=client, portfolio="delete-test-portfolio"
-    )
-    assert isinstance(get_response, SuccessResponse)
+    PortfolioActions.get(client=client, portfolio="delete-test-portfolio1")
 
     # Delete the portfolio
-    delete_response = PortfolioActions.delete(
-        client=client, portfolio="delete-test-portfolio"
-    )
-    assert isinstance(delete_response, SuccessResponse)
-    assert "deleted" in delete_response.message.lower()
+    PortfolioActions.delete(client=client, portfolio="delete-test-portfolio1")
 
     # Verify it's gone
-    get_after_delete = PortfolioActions.get(
-        client=client, portfolio="delete-test-portfolio"
-    )
-    assert isinstance(get_after_delete, NoContentResponse)
+    with pytest.raises(NotFoundException):
+        PortfolioActions.get(client=client, portfolio="delete-test-portfolio1")
 
 
 def test_delete_nonexistent_portfolio():
     """Test deleting non-existent portfolio."""
-    response = PortfolioActions.delete(
-        client=client, portfolio="nonexistent-portfolio-for-deletion"
-    )
-    assert isinstance(response, NoContentResponse)
-    assert "does not exist" in response.data["message"]
+
+    with pytest.raises(NotFoundException):
+        PortfolioActions.delete(client=client, portfolio="nonexistent-portfolio-for-deletion")
 
 
 def test_delete_without_required_parameters():
     """Test delete without required parameters."""
     with pytest.raises(BadRequestException):
-        PortfolioActions.delete(client=client)  # Missing portfolio
+        PortfolioActions.delete(client=client, portfolio=None)  # Missing portfolio
 
     with patch("core_framework.get_client", return_value=None):
         with pytest.raises(BadRequestException):
-            PortfolioActions.delete(portfolio="test")  # Missing client
+            PortfolioActions.delete(client=None, portfolio="test")  # Missing client
 
 
 # =============================================================================
@@ -749,23 +667,18 @@ def test_delete_without_required_parameters():
 
 def test_minimal_portfolio_creation():
     """Test creating portfolio with minimal required fields."""
-    minimal_data = {"client": client, "portfolio": "minimal-test"}
+    minimal_data = {"portfolio": "minimal-test1"}
 
-    response = PortfolioActions.create(**minimal_data)
-    assert isinstance(response, SuccessResponse)
-
-    # Verify PascalCase key in response
-    assert "Portfolio" in response.data
-    assert response.data["Portfolio"] == "minimal-test"
+    response: PortfolioFact = PortfolioActions.create(client=client, **minimal_data)
+    assert response.portfolio == "minimal-test1"
 
     # Clean up
-    PortfolioActions.delete(client=client, portfolio="minimal-test")
+    PortfolioActions.delete(client=client, portfolio="minimal-test1")
 
 
 def test_portfolio_timestamps():
     """Test that timestamps are properly managed."""
     timestamp_test_data = {
-        "client": client,
         "portfolio": "timestamp-test",
         "project": {
             "name": "Timestamp Test Project",
@@ -776,26 +689,21 @@ def test_portfolio_timestamps():
     }
 
     # Create portfolio
-    create_response = PortfolioActions.create(**timestamp_test_data)
+    create_response: PortfolioFact = PortfolioActions.create(client=client, **timestamp_test_data)
 
-    # Verify timestamps exist with PascalCase keys
-    assert "CreatedAt" in create_response.data
-    assert "UpdatedAt" in create_response.data
-    assert create_response.data["CreatedAt"] is not None
-    assert create_response.data["UpdatedAt"] is not None
+    assert create_response.created_at is not None
+    assert create_response.updated_at is not None
 
-    original_updated_at = create_response.data["UpdatedAt"]
+    original_updated_at = create_response.updated_at
 
     # Update portfolio (should change updated_at)
-    patch_response = PortfolioActions.patch(
+    patch_response: PortfolioFact = PortfolioActions.patch(
         client=client, portfolio="timestamp-test", domain="timestamp-updated.test.com"
     )
 
     # Verify timestamp behavior with PascalCase keys
-    assert (
-        patch_response.data["CreatedAt"] == create_response.data["CreatedAt"]
-    )  # Should not change
-    assert patch_response.data["UpdatedAt"] != original_updated_at  # Should be updated
+    assert patch_response.created_at == create_response.created_at  # Should not change
+    assert patch_response.updated_at != original_updated_at  # Should be updated
 
     # Clean up
     PortfolioActions.delete(client=client, portfolio="timestamp-test")
@@ -811,7 +719,6 @@ def test_response_casing_consistency():
 
     # Test create response
     create_data = {
-        "client": client,
         "portfolio": "casing-test",
         "project": {
             "name": "Casing Test Project",
@@ -821,68 +728,25 @@ def test_response_casing_consistency():
         "owner": {"name": "Casing Test Owner", "email": "casing@test.com"},
     }
 
-    create_response = PortfolioActions.create(**create_data)
-
-    # Response level should be snake_case
-    assert hasattr(create_response, "data")
-    assert hasattr(create_response, "message")
-
-    # Data content should be PascalCase
-    data_dict = create_response.data
-    expected_pascal_keys = ["Portfolio", "Project", "Owner", "CreatedAt", "UpdatedAt"]
-
-    for key in expected_pascal_keys:
-        if key in ["CreatedAt", "UpdatedAt"]:
-            continue  # These might be None in some cases
-        assert (
-            key in data_dict
-        ), f"Expected PascalCase key '{key}' not found in response data"
+    data_dict: PortfolioFact = PortfolioActions.create(client=client, **create_data)
 
     # Test get response
-    get_response = PortfolioActions.get(client=client, portfolio="casing-test")
-    assert hasattr(get_response, "data")
-    get_data_dict = get_response.data
-    assert "Portfolio" in get_data_dict
-    assert "Project" in get_data_dict
+    get_response: PortfolioFact = PortfolioActions.get(client=client, portfolio="casing-test")
 
     # Test list response
-    list_response = PortfolioActions.list(client=client, limit=1)
-    assert hasattr(list_response, "data")
-    assert hasattr(list_response, "metadata")  # snake_case
+    list_response, paginator = PortfolioActions.list(client=client, limit=1)
 
-    if list_response.data:
-        list_item = list_response.data[0]
-        assert "Portfolio" in list_item  # PascalCase
+    assert len(list_response) == 1
+    assert paginator.total_count >= 1
 
     # Clean up
     PortfolioActions.delete(client=client, portfolio="casing-test")
-
-
-def test_metadata_structure():
-    """Test metadata structure in list responses."""
-    response = PortfolioActions.list(client=client, limit=1)
-
-    # Metadata should exist and be snake_case
-    assert hasattr(response, "metadata")
-    metadata = response.metadata
-
-    # Common metadata fields (snake_case)
-    expected_metadata_keys = ["limit", "total_count", "has_more"]
-
-    for key in expected_metadata_keys:
-        # Not all metadata keys may be present depending on implementation
-        if hasattr(metadata, key) or (isinstance(metadata, dict) and key in metadata):
-            # Key exists, verify it's snake_case (no caps)
-            assert (
-                key.islower() or "_" in key
-            ), f"Metadata key '{key}' should be snake_case"
 
 
 def test_nested_data_structure_casing():
     """Test that nested data structures maintain PascalCase in response.data."""
 
     complex_data = {
-        "client": client,
         "portfolio": "nested-test",
         "project": {
             "name": "Nested Test Project",
@@ -912,37 +776,7 @@ def test_nested_data_structure_casing():
         "metadata": {"test_type": "nested", "complexity": "high"},
     }
 
-    response = PortfolioActions.create(**complex_data)
-    assert isinstance(response, SuccessResponse)
-
-    data = response.data
-
-    # Top-level fields should be PascalCase
-    assert "Portfolio" in data
-    assert "Project" in data
-    assert "Owner" in data
-    assert "Contacts" in data
-    assert "Approvers" in data
-    assert "Tags" in data
-    assert "Metadata" in data
-
-    # Nested object fields should be PascalCase
-    assert "Name" in data["Project"]
-    assert "Code" in data["Project"]
-    assert "Repository" in data["Project"]
-
-    assert "Name" in data["Owner"]
-    assert "Email" in data["Owner"]
-    assert "Phone" in data["Owner"]
-
-    # Array elements should have PascalCase keys
-    assert "Name" in data["Contacts"][0]
-    assert "Email" in data["Contacts"][0]
-    assert "Enabled" in data["Contacts"][0]
-
-    assert "Sequence" in data["Approvers"][0]
-    assert "Name" in data["Approvers"][0]
-    assert "Roles" in data["Approvers"][0]
+    response: PortfolioFact = PortfolioActions.create(client=client, **complex_data)
 
     # Clean up
-    PortfolioActions.delete(client=client, portfolio="nested-test")
+    PortfolioActions.delete(client=client, portfolio=response.portfolio)

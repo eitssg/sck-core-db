@@ -9,6 +9,7 @@ dynamic, scalable configuration management for cloud deployments.
 
 from collections import ChainMap
 from http import client
+from math import e
 import os
 from pydoc import cli
 import re
@@ -33,6 +34,7 @@ from core_framework.constants import (
 )
 
 from core_framework.models import DeploymentDetails
+from pynamodb.exceptions import GetError, QueryError, ScanError
 
 from ..constants import REGION, ENVIRONMENT, ZONE_KEY
 
@@ -94,12 +96,15 @@ def get_client_facts(client: str) -> dict | None:
         raise ValueError("Client must be a valid string")
 
     try:
-        model_class = ClientFact.model_class(client)
+        model_class = ClientFact.model_class()
+
         item = model_class.get(client)
-        data = ClientFact.from_model(item).model_dump()
 
-        return data
+        return ClientFact.from_model(item).model_dump(by_alias=True)
 
+    except GetError as e:
+        log.error(f"Client not found: {client}")
+        return None
     except Exception as e:
         log.error(f"Error getting client facts: {str(e)}")
         return None
@@ -169,11 +174,14 @@ def get_portfolio_facts(client: str, portfolio: str) -> dict | None:
 
     try:
         model_class = PortfolioFact.model_class(client)
+
         item = model_class.get(portfolio)
 
-        data = PortfolioFact.from_model(item).model_dump()
+        return PortfolioFact.from_model(item).model_dump(by_alias=True)
 
-        return data
+    except GetError as e:
+        log.error(f"Portfolio not found: {client} / {portfolio}")
+        return None
 
     except Exception as e:
         log.error(f"Error getting portfolio facts: {e}")
@@ -249,12 +257,14 @@ def get_zone_facts(client: str, zone: str) -> dict | None:
 
     try:
         model_class = ZoneFact.model_class(client)
+
         item = model_class.get(zone)
 
-        data = ZoneFact.from_model(item).model_dump()
+        return ZoneFact.from_model(item).model_dump(by_alias=True)
 
-        return data
-
+    except GetError as e:
+        log.error(f"Zone not found: {client} / {zone}")
+        return None
     except Exception as e:
         log.error(f"Error getting zone facts: {e}")
         return None
@@ -310,13 +320,17 @@ def get_zone_facts_by_account_id(client: str, account_id: str) -> list[dict] | N
         data = []
         for item in result:
             if isinstance(item, ZoneFact) and item.account_facts.aws_account_id == account_id:
-                data.append(ZoneFact.from_model(item).model_dump())
+                data.append(ZoneFact.from_model(item).model_dump(by_alias=True))
 
         if not data:
             log.warning(f"No zones found for account ID: {account_id} in client: {client}")
             return None
 
         return data
+
+    except ScanError as e:
+        log.error(f"Zone facts scan error: {e}")
+        return None
 
     except Exception as e:
         log.error(f"Error getting zone facts by account ID: {e}")
@@ -417,18 +431,28 @@ def get_app_facts(deployment_details: DeploymentDetails) -> list[dict] | None:
 
     model_class = AppFact.model_class(client)
 
-    app_facts_list = model_class.query(portfolio, scan_index_forward=True)
+    try:
 
-    data = []
-    for app_facts in app_facts_list:
-        if isinstance(app_facts, model_class) and app_facts.app_regex and re.match(app_facts.app_regex, identity):
-            data.append(AppFact.from_model(app_facts).model_dump(mode="json"))
+        app_facts_list = model_class.query(portfolio, scan_index_forward=True)
 
-    if not data:
-        log.warning(f"No app facts found for client: {client}, portfolio: {portfolio}, app: {app}")
+        data = []
+        for app_facts in app_facts_list:
+            if isinstance(app_facts, model_class) and app_facts.app_regex and re.match(app_facts.app_regex, identity):
+                data.append(AppFact.from_model(app_facts).model_dump(by_alias=True))
+
+        if not data:
+            log.warning(f"No app facts found for client: {client}, portfolio: {portfolio}, app: {app}")
+            return None
+
+        return data
+
+    except QueryError as e:
+        log.error(f"App facts query error: {e}")
         return None
 
-    return data
+    except Exception as e:
+        log.error(f"Error getting app facts: {e}")
+        return None
 
 
 def derive_environment_from_branch(branch: str) -> tuple[str, str]:
@@ -996,7 +1020,11 @@ def _get_portfolio_facts(deployment_details: DeploymentDetails) -> dict:
     portfolio_facts = get_portfolio_facts(client, portfolio)
     if not portfolio_facts:
         log.info(f"No portfolio facts found for {client}:{portfolio}. Contact DevOps to register this portfolio.")
-        portfolio_facts = {"Portfolio": portfolio, "Client": client, "PortfolioStatus": "UNREGISTERED"}
+        portfolio_facts = {
+            "Portfolio": portfolio,
+            "Client": client,
+            "PortfolioStatus": "UNREGISTERED",
+        }
 
     log.debug(f"Portfolio facts:", details=portfolio_facts)
 
