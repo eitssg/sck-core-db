@@ -1,19 +1,20 @@
 import pytest
-from datetime import datetime
 
 from pynamodb.attributes import MapAttribute
 
 import core_framework as util
 
-from core_db.registry import (
-    ClientFactsModel,
-    ClientFact,
-    PortfolioFactsModel,
-    PortfolioFact,
+from core_db.registry.client import ClientFactsModel, ClientFact
+from core_db.registry.portfolio import PortfolioFactsModel, PortfolioFact, PortfolioActions
+from core_db.registry.zone import (
     ZoneFactsModel,
     ZoneFact,
+    ZoneActions,
+)
+from core_db.registry.app import (
     AppFactsModel,
     AppFact,
+    AppActions,
 )
 from core_db.registry.portfolio.models import (
     ContactFacts,
@@ -516,6 +517,7 @@ def app_facts():
     return {
         # Primary keys - ACTUAL FIELD NAMES from AppFactsModel model
         "portfolio": "acme:platform-services",  # This is the hash key
+        "app": "user-service",  # This is the range key
         "app_regex": "user-service.*",  # This is the range key
         # App Details - ACTUAL FIELDS from AppFactsModel model
         "name": "User Management Service",
@@ -550,6 +552,7 @@ def app_facts_alias():
     return {
         # Primary keys - PascalCase aliases from AppFact model
         "Portfolio": "acme:platform-services",  # alias for portfolio
+        "App": "user-service",  # alias for app
         "AppRegex": "user-service.*",  # alias for app_regex
         # App Details - PascalCase aliases from AppFact model
         "Name": "User Management Service",  # alias for name
@@ -586,10 +589,7 @@ def validate_client_facts_model(result: ClientFactsModel):
     assert result.client_id == "acme-corp-2024"
     assert result.client_type == "enterprise"
     assert result.client_status == "active"
-    assert (
-        result.client_description
-        == "Large enterprise corporation specializing in technology solutions"
-    )
+    assert result.client_description == "Large enterprise corporation specializing in technology solutions"
     assert result.client_name == "ACME Corporation"
     # AWS Organization configuration
     assert result.organization_id == "o-123456789abc"
@@ -634,10 +634,7 @@ def validate_client_facts_snake_case(data: dict):
     assert data["client_id"] == "acme-corp-2024"
     assert data["client_type"] == "enterprise"
     assert data["client_status"] == "active"
-    assert (
-        data["client_description"]
-        == "Large enterprise corporation specializing in technology solutions"
-    )
+    assert data["client_description"] == "Large enterprise corporation specializing in technology solutions"
     assert data["client_name"] == "ACME Corporation"
     assert data["organization_id"] == "o-123456789abc"
     assert data["organization_name"] == "ACME Holdings Inc"
@@ -663,10 +660,7 @@ def validate_client_facts_snake_case(data: dict):
 def validate_client_facts_pascal_case(data: dict):
     assert data["ClientType"] == "enterprise"
     assert data["ClientStatus"] == "active"
-    assert (
-        data["ClientDescription"]
-        == "Large enterprise corporation specializing in technology solutions"
-    )
+    assert data["ClientDescription"] == "Large enterprise corporation specializing in technology solutions"
     assert data["ClientName"] == "ACME Corporation"
     assert data["OrganizationId"] == "o-123456789abc"
     assert data["OrganizationName"] == "ACME Holdings Inc"
@@ -694,10 +688,7 @@ def validate_client_fact_model(result: ClientFact):
     assert result.client_id == "acme-corp-2024"
     assert result.client_type == "enterprise"
     assert result.client_status == "active"
-    assert (
-        result.client_description
-        == "Large enterprise corporation specializing in technology solutions"
-    )
+    assert result.client_description == "Large enterprise corporation specializing in technology solutions"
     assert result.client_name == "ACME Corporation"
     assert result.organization_id == "o-123456789abc"
     assert result.organization_name == "ACME Holdings Inc"
@@ -726,7 +717,7 @@ def test_client_fact_data(client_fact: dict, client_fact_alias: dict):
     for data in [client_fact, client_fact_alias]:
         result = ClientFact(**data)
         validate_client_fact_model(result)
-        data = result.to_model(client)
+        data = result.to_model()
         validate_client_facts_model(data)
 
 
@@ -750,7 +741,7 @@ def test_client_fact_dynamodb_conversion(client_fact: dict):
     result = ClientFact(**client_fact)
 
     # Test DynamoDB conversion (snake_case)
-    pynamo_data = result.to_model(client)
+    pynamo_data = result.to_model()
     validate_client_facts_model(pynamo_data)
 
     data = ClientFact.from_model(pynamo_data)
@@ -1331,9 +1322,7 @@ def test_zone_facts_model_instantiation(zone_facts: dict):
     assert us_west_2.proxy[0].host == "proxy-west-1.acme.com"
 
 
-def test_portfolio_fact_pydantic_instantiation(
-    portfolio_facts: dict, portfolio_fact_alias: dict
-):
+def test_portfolio_fact_pydantic_instantiation(portfolio_facts: dict, portfolio_fact_alias: dict):
     """Test PortfolioFact Pydantic model instantiation with all fields."""
 
     for data in [portfolio_facts, portfolio_fact_alias]:
@@ -1413,6 +1402,6 @@ def test_app_fact_pydantic_instantiation(app_facts: dict):
     assert result.enforce_validation == "true"
 
     # Test business logic methods
-    assert result.matches_app_name("user-service-api") == True
-    assert result.matches_app_name("order-service") == False
+    assert result.matches_app("user-service-api") == True
+    assert result.matches_app("order-service") == False
     assert result.is_validation_enforced() == True

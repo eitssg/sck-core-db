@@ -25,7 +25,10 @@ def handler(event, context):
 
         print(f"SUCCESS: {count} records deleted")
 
-        return {"statusCode": 200, "body": json.dumps(f"Success: {count} records deleted")}
+        return {
+            "statusCode": 200,
+            "body": json.dumps(f"Success: {count} records deleted"),
+        }
 
     except Exception as e:
         print(f"ERROR: {str(e)}")

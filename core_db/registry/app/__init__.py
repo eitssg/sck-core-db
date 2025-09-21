@@ -232,7 +232,7 @@ Note:
     to accommodate application naming conventions. Always test patterns before production use.
 """
 
-from .models import AppFact
+from .models import AppFact, AppFactsFactory, AppFactsModel
 from .actions import AppActions
 
-__all__ = ["AppFact", "AppActions"]
+__all__ = ["AppFact", "AppActions", "AppFactsFactory", "AppFactsModel"]

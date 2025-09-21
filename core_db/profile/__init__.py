@@ -345,10 +345,6 @@ Note:
 """
 
 from .actions import ProfileActions
-from .model import UserProfile, ProfileModelFactory
+from .model import UserProfile, ProfileModelFactory, ProfileModel
 
-__all__ = [
-    "ProfileActions",
-    "UserProfile",
-    "ProfileModelFactory",
-]
+__all__ = ["ProfileActions", "UserProfile", "ProfileModelFactory", "ProfileModel"]

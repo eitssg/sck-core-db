@@ -54,14 +54,13 @@ from pydantic import (
     Field,
     field_validator,
     model_validator,
-    validator,
 )
 from pynamodb.attributes import (
+    DESERIALIZE_CLASS_MAP,
     Attribute,
     BinaryAttribute,
     BinarySetAttribute,
     BooleanAttribute,
-    DESERIALIZE_CLASS_MAP,
     ListAttribute,
     MapAttribute,
     NullAttribute,
@@ -706,7 +705,7 @@ class TableFactory:
     _cache_lock = threading.Lock()
 
     @classmethod
-    def get_model(cls, base_model: Type[T], client: str) -> Type[T]:
+    def get_model(cls, base_model: Type[T], client: str | None = None) -> Type[T]:
         """Get a client-specific model class with proper table naming.
 
         Creates a new class dynamically to avoid Meta class conflicts.
@@ -733,7 +732,7 @@ class TableFactory:
             >>> acme_item = acme_portfolio(client="acme", portfolio="web-services")
             >>> enterprise_item = enterprise_portfolio(client="enterprise", portfolio="platform")
         """
-        cache_key = f"{base_model.__name__}_{client}"
+        cache_key = f"{base_model.__name__}_{client}" if client else base_model.__name__
 
         # Check cache first (outside lock for performance)
         if cache_key in cls._model_cache:
@@ -760,9 +759,7 @@ class TableFactory:
             ClientMeta = type("Meta", (), meta_attrs)
 
             # Create new model class with client-specific Meta
-            client_model = type(
-                f"{base_model.__name__}_{client}", (base_model,), {"Meta": ClientMeta}
-            )
+            client_model = type(cache_key, (base_model,), {"Meta": ClientMeta})
 
             # Cache the new class
             cls._model_cache[cache_key] = client_model
@@ -770,7 +767,9 @@ class TableFactory:
             return client_model
 
     @classmethod
-    def create_table(cls, base_model: Type[T], client: str, wait: bool = True) -> bool:
+    def create_table(
+        cls, base_model: Type[T], client: str | None = None, wait: bool = True
+    ) -> bool:
         """Create the table for a client-specific model.
 
         Args:
@@ -803,7 +802,9 @@ class TableFactory:
         return False
 
     @classmethod
-    def delete_table(cls, base_model: Type[T], client: str, wait: bool = True) -> bool:
+    def delete_table(
+        cls, base_model: Type[T], client: str | None = None, wait: bool = True
+    ) -> bool:
         """Delete the table for a client-specific model.
 
         Args:
@@ -835,7 +836,7 @@ class TableFactory:
         return False
 
     @classmethod
-    def exists(cls, base_model: Type[T], client: str) -> bool:
+    def exists(cls, base_model: Type[T], client: str | None = None) -> bool:
         """Check if the table for a client-specific model exists.
 
         Args:
@@ -1013,7 +1014,7 @@ class Paginator(BaseModel):
     limit: int = Field(
         default=10,
         ge=1,
-        le=100,
+        le=1000,
         description="Maximum number of items to return per page",
     )
 
@@ -1032,10 +1033,35 @@ class Paginator(BaseModel):
     email_filter: str | None = Field(
         default=None, description="Filter by email address"
     )
+    page_size: int | None = Field(
+        default=None, ge=1, le=100, description="Number of items per page"
+    )
 
     total_count: int = Field(
         default=0, description="Total count of items in the result set"
     )
+
+    def get_query_args(self) -> dict:
+        args = {"limit": self.limit}
+        if self.cursor is not None:
+            args["last_evaluated_key"] = self.cursor
+        if self.sort_forward is not None:
+            args["scan_index_forward"] = self.sort_forward
+        if self.page_size is not None:
+            args["page_size"] = self.page_size
+        return args
+
+    def get_scan_args(self) -> dict:
+        """
+        Docstring for get_query_args
+        """
+        args = {"limit": self.limit}
+        if self.cursor is not None:
+            args["last_evaluated_key"] = self.cursor
+        if self.page_size is not None:
+            args["page_size"] = self.page_size
+
+        return args
 
     @property
     def sort(self) -> str:

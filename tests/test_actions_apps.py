@@ -1,8 +1,10 @@
+import re
 import pytest
 from unittest.mock import patch
 from pydantic import ValidationError
 
 import core_framework as util
+from test.test_reprlib import r
 
 from core_db.registry.app.actions import AppActions
 from core_db.registry.app.models import AppFact
@@ -97,136 +99,94 @@ app_facts = [
 def test_app_create(bootstrap_dynamo):
     """Test creating all app facts."""
     for app_fact in app_facts:
-        response = AppActions.create(client=client, **app_fact)
 
-        assert isinstance(response, SuccessResponse)
-        assert response.data is not None
-        assert isinstance(response.data, dict)
+        response: AppFact = AppActions.create(client=client, **app_fact)
 
         # Keys in response.data should be PascalCase
-        assert "Portfolio" in response.data
-        assert response.data["Portfolio"] == app_fact["portfolio"]
-        assert "AppRegex" in response.data
-        assert response.data["AppRegex"] == app_fact["app_regex"]
-        assert "Name" in response.data
-        assert response.data["Name"] == app_fact["name"]
+        assert response.portfolio == app_fact["portfolio"]
+        assert response.app_regex == app_fact["app_regex"]
+        assert response.name == app_fact["name"]
 
         # Verify specific field mappings with PascalCase keys
         if "environment" in app_fact:
-            assert "Environment" in response.data
-            assert response.data["Environment"] == app_fact["environment"]
+            assert response.environment == app_fact["environment"]
         if "zone" in app_fact:
-            assert "Zone" in response.data
-            assert response.data["Zone"] == app_fact["zone"]
+            assert response.zone == app_fact["zone"]
         if "region" in app_fact:
-            assert "Region" in response.data
-            assert response.data["Region"] == app_fact["region"]
+            assert response.region == app_fact["region"]
+            assert response.region == app_fact["region"]
 
 
 def test_app_get():
     """Test retrieving specific app facts."""
     portfolio = "acme-web"
     app_regex = "core-api-.*"
+    app = "core-api-v1"  # Should match the regex
 
-    response = AppActions.get(client=client, portfolio=portfolio, app_regex=app_regex)
+    app_facts, paginator = AppActions.list(
+        client=client, portfolio=portfolio, app_regex=app_regex
+    )
 
-    assert isinstance(response, SuccessResponse)
-    assert response.data is not None
-    assert isinstance(response.data, dict)
+    assert len(app_facts) > 0
+    response = app_facts[0]
 
     # Keys in response.data should be PascalCase
-    assert "Portfolio" in response.data
-    assert response.data["Portfolio"] == portfolio
-    assert "AppRegex" in response.data
-    assert response.data["AppRegex"] == app_regex
-    assert "Name" in response.data
-    assert response.data["Name"] == "Core API Production"
-    assert "Environment" in response.data
-    assert response.data["Environment"] == "production"
-    assert "Zone" in response.data
-    assert response.data["Zone"] == "prod-east"
+    assert response.portfolio == portfolio
+    assert response.app_regex == app_regex
+    assert response.name == "Core API Production"
+    assert response.environment == "production"
+    assert response.zone == "prod-east"
 
 
 def test_app_list_all():
     """Test listing all app facts with pagination."""
-    response = AppActions.list(client=client, limit=10)
+    app_facts, paginator = AppActions.list(client=client, limit=10)
 
-    assert isinstance(response, SuccessResponse)
-    assert response.data is not None
-    assert isinstance(response.data, list)
-    assert len(response.data) <= 10
-    assert hasattr(response, "metadata")  # snake_case response attribute
-
-    # Verify each item has PascalCase keys
-    for item in response.data:
-        assert isinstance(item, dict)
-        assert "Portfolio" in item  # PascalCase key in data
-        assert "AppRegex" in item  # PascalCase key in data
-        assert "Name" in item  # PascalCase key in data
-
-    # Check response structure
-    if response.data:
-        first_item = response.data[0]
-        assert "Portfolio" in first_item  # PascalCase key
+    assert len(app_facts) == 3
+    assert paginator.total_count == 3
 
 
 def test_app_list_by_portfolio():
     """Test listing apps by portfolio."""
     portfolio = "acme-web"
 
-    response = AppActions.list(client=client, portfolio=portfolio, limit=5)
+    app_facts, paginator = AppActions.list(client=client, portfolio=portfolio, limit=5)
 
-    assert isinstance(response, SuccessResponse)
-    assert response.data is not None
-    assert isinstance(response.data, list)
-    assert hasattr(response, "metadata")
+    assert len(app_facts) == 2
+    assert paginator.total_count == 2
 
-    # All returned apps should be from the specified portfolio
-    for item in response.data:
-        assert "Portfolio" in item
-        assert item["Portfolio"] == portfolio
-        assert "AppRegex" in item
-        assert "Name" in item
+    for item in app_facts:
+        assert item.portfolio == portfolio
 
 
-def test_app_list_by_portfolio_and_app_name():
+def test_app_list_by_portfolio_and_app():
     """Test listing apps by portfolio and app name matching."""
     portfolio = "acme-web"
-    app_name = "core-api-v1"  # Should match "core-api-.*" regex
+    app = "core-api-production"
 
-    response = AppActions.list(
-        client=client, portfolio=portfolio, app_name=app_name, limit=5
-    )
+    app_fact = AppActions.get(client=client, portfolio=portfolio, app=app, limit=5)
 
-    assert isinstance(response, SuccessResponse)
-    assert response.data is not None
-    assert isinstance(response.data, list)
-    assert hasattr(response, "metadata")
-
-    # Should return apps where regex matches the app_name
-    for item in response.data:
-        assert "Portfolio" in item
-        assert item["Portfolio"] == portfolio
-        assert "AppRegex" in item
-        # Verify the app_name would match the regex pattern
-        app_fact = AppFact(**item)
-        assert app_fact.matches_app_name(app_name)
+    # Verify the returned app fact matches the expected values
+    assert app_fact.portfolio == portfolio
+    assert app_fact.app == app
 
 
 def test_app_list_with_pagination():
     """Test pagination functionality."""
     # Get first page
-    page1 = AppActions.list(client=client, limit=2)
-    assert len(page1.data) <= 2
+    app_facts, paginator = AppActions.list(client=client, limit=2)
+    assert len(app_facts) <= 2
 
     # Check if there's more data
-    if page1.metadata.get("cursor"):
-        page2 = AppActions.list(client=client, limit=2, cursor=page1.metadata["cursor"])
-        assert isinstance(page2, SuccessResponse)
+    if paginator.cursor:
+        page2, paginator = AppActions.list(
+            client=client, limit=2, cursor=paginator.cursor
+        )
 
         # Verify different data using PascalCase keys
-        page1_apps = {f"{item['Portfolio']}:{item['AppRegex']}" for item in page1.data}
-        page2_apps = {f"{item['Portfolio']}:{item['AppRegex']}" for item in page2.data}
+        page1_apps = {f"{item.portfolio}:{item.app_regex}" for item in app_facts}
+        page2_apps = {f"{item.portfolio}:{item.app_regex}" for item in page2}
+
         assert page1_apps.isdisjoint(page2_apps), "Pages should not overlap"
 
 
@@ -238,10 +198,11 @@ def test_app_list_with_pagination():
 def test_app_update_full():
     """Test full app update (PUT semantics)."""
     portfolio = "acme-mobile"
+    app = "mobile-backend-dev"
     app_regex = "mobile-backend-.*"
 
     update_data = {
-        "client": client,
+        "app": app,
         "portfolio": portfolio,
         "app_regex": app_regex,
         "name": "Updated Mobile Backend",
@@ -254,30 +215,25 @@ def test_app_update_full():
         "metadata": {"deployment_strategy": "blue-green", "new_field": "updated-value"},
     }
 
-    response = AppActions.update(**update_data)
-    assert isinstance(response, SuccessResponse)
-
-    # Verify PascalCase keys in response.data
-    assert "Portfolio" in response.data
-    assert "AppRegex" in response.data
-    assert response.data["Name"] == "Updated Mobile Backend"
-    assert response.data["Environment"] == "staging"
-    assert response.data["Zone"] == "staging-west"
-    assert response.data["Region"] == "us-west-1"
-    assert "Tags" in response.data
-    assert response.data["Tags"]["Version"] == "2.0"
-    assert "Metadata" in response.data
-    assert response.data["Metadata"]["new_field"] == "updated-value"
+    response: AppFact = AppActions.update(client=client, **update_data)
+    assert response.name == "Updated Mobile Backend"
+    assert response.environment == "staging"
+    assert response.zone == "staging-west"
+    assert response.region == "us-west-1"
+    assert response.tags["Version"] == "2.0"
+    assert response.metadata
+    assert response.metadata["new_field"] == "updated-value"
 
 
 def test_app_patch_partial():
     """Test partial app update (PATCH semantics)."""
     portfolio = "acme-web"
+    app = "billing-service-uat"
     app_regex = "billing-service-.*"
 
     # Only update specific fields
     patch_data = {
-        "client": client,
+        "app": app,
         "portfolio": portfolio,
         "app_regex": app_regex,
         "environment": "pre-production",
@@ -288,79 +244,76 @@ def test_app_patch_partial():
         },
     }
 
-    response = AppActions.patch(**patch_data)
-    assert isinstance(response, SuccessResponse)
+    response: AppFact = AppActions.patch(client=client, **patch_data)
 
     # Verify PascalCase keys in response.data
-    assert "Portfolio" in response.data
-    assert "AppRegex" in response.data
-    assert response.data["Environment"] == "pre-production"
-    assert "Metadata" in response.data
-    assert response.data["Metadata"]["deployment_strategy"] == "canary"
-    assert response.data["Metadata"]["patch_field"] == "patch-added"
+    assert response.portfolio
+    assert response.app_regex
+    assert response.environment == "pre-production"
+    assert response.metadata
+    assert response.metadata["deployment_strategy"] == "canary"
+    assert response.metadata["patch_field"] == "patch-added"
 
     # Other fields should remain unchanged
-    assert response.data["Name"] == "Billing Service UAT"  # Should not change
-    assert response.data["Zone"] == "uat-central"  # Should not change
+    assert response.name == "Billing Service UAT"  # Should not change
+    assert response.zone == "uat-central"  # Should not change
 
 
 def test_app_patch_with_none_values():
     """Test PATCH behavior with None values (should not remove fields)."""
     portfolio = "acme-web"
+    app = "core-api-production"
     app_regex = "core-api-.*"
 
     patch_data = {
-        "client": client,
+        "app": app,
         "portfolio": portfolio,
         "app_regex": app_regex,
         "metadata": {"monitoring_level": "standard", "new_monitoring_field": "enabled"},
         "account": None,  # This should not remove the field in PATCH mode
     }
 
-    response = AppActions.patch(**patch_data)
-    assert isinstance(response, SuccessResponse)
+    response: AppFact = AppActions.patch(client=client, **patch_data)
 
     # Verify the metadata was updated using PascalCase keys
-    assert "Metadata" in response.data
-    assert response.data["Metadata"]["monitoring_level"] == "standard"
-    assert response.data["Metadata"]["new_monitoring_field"] == "enabled"
+    assert response.metadata
+    assert response.metadata["monitoring_level"] == "standard"
+    assert response.metadata["new_monitoring_field"] == "enabled"
+
     # Account should still exist (PATCH doesn't remove None fields)
-    assert "Account" in response.data
+    assert response.account == "123456789012"
 
 
 def test_app_update_with_none_values():
     """Test UPDATE behavior with None values (should remove fields)."""
     portfolio = "acme-mobile"
+    app = "mobile-backend-dev"
     app_regex = "mobile-backend-.*"
 
     # Get current data first for required fields
-    current_response = AppActions.get(
-        client=client, portfolio=portfolio, app_regex=app_regex
-    )
-    current_data = current_response.data  # This has PascalCase keys
+    current_data: AppFact = AppActions.get(client=client, portfolio=portfolio, app=app)
 
     update_data = {
-        "client": client,
+        "app": app,
         "portfolio": portfolio,
         "app_regex": app_regex,
-        "name": current_data["Name"],
-        "zone": current_data["Zone"],
-        "region": current_data["Region"],
+        "name": current_data.name,
+        "zone": current_data.zone,
+        "region": current_data.region,
         "environment": "production",  # Change this
         "account": None,  # This should remove the field in UPDATE mode
         "metadata": {"deployment_strategy": "rolling", "environment_updated": "true"},
     }
 
-    response = AppActions.update(**update_data)
-    assert isinstance(response, SuccessResponse)
+    response: AppFact = AppActions.update(client=client, **update_data)
 
     # Verify PascalCase keys in response
-    assert "Environment" in response.data
-    assert response.data["Environment"] == "production"
-    assert "Metadata" in response.data
-    assert response.data["Metadata"]["environment_updated"] == "true"
+    assert response.environment == "production"
+    assert response.metadata
+    assert response.metadata["environment_updated"] == "true"
+
     # Account should be None/removed
-    assert response.data.get("Account") is None
+    assert response.account is None
 
 
 # =============================================================================
@@ -370,9 +323,10 @@ def test_app_update_with_none_values():
 
 def test_app_with_complex_structures():
     """Test app with complex image aliases, tags, and metadata."""
+
     complex_app = {
-        "client": client,
         "portfolio": "test-complex",
+        "app": "complex-app-v2",
         "app_regex": "complex-app-.*",
         "name": "Complex Test App",
         "zone": "test-zone",
@@ -398,33 +352,28 @@ def test_app_with_complex_structures():
     }
 
     # Create
-    response = AppActions.create(**complex_app)
-    assert isinstance(response, SuccessResponse)
+    response: AppFact = AppActions.create(client=client, **complex_app)
 
     # Verify complex structure with PascalCase keys
-    assert "ImageAliases" in response.data
-    assert len(response.data["ImageAliases"]) == 4
-    assert response.data["ImageAliases"]["base"] == "ubuntu:20.04"
-    assert response.data["ImageAliases"]["db"] == "postgres:13"
+    assert len(response.image_aliases) == 4
+    assert response.image_aliases["base"] == "ubuntu:20.04"
+    assert response.image_aliases["db"] == "postgres:13"
 
-    assert "Tags" in response.data
-    assert response.data["Tags"]["Complexity"] == "high"
-    assert response.data["Tags"]["SpecialChars"] == "test@value.com"
+    assert response.tags
+    assert response.tags["Complexity"] == "high"
+    assert response.tags["SpecialChars"] == "test@value.com"
 
-    assert "Metadata" in response.data
-    assert response.data["Metadata"]["nested_config"] == "enabled"
-    assert response.data["Metadata"]["json_like"] == '{"key": "value"}'
+    assert response.metadata["nested_config"] == "enabled"
+    assert response.metadata["json_like"] == '{"key": "value"}'
 
     # Clean up
-    AppActions.delete(
-        client=client, portfolio="test-complex", app_regex="complex-app-.*"
-    )
+    AppActions.delete(client=client, portfolio=response.portfolio, app=response.app)
 
 
 def test_app_regex_validation():
     """Test app regex pattern validation and matching."""
     test_app = {
-        "client": client,
+        "app": "test-api-v1",
         "portfolio": "test-regex",
         "app_regex": "test-api-v[0-9]+",
         "name": "Regex Test App",
@@ -433,20 +382,15 @@ def test_app_regex_validation():
     }
 
     # Create
-    response = AppActions.create(**test_app)
-    assert isinstance(response, SuccessResponse)
+    response: AppFact = AppActions.create(client=client, **test_app)
 
-    # Test the matches_app_name functionality
-    created_app = AppFact(**response.data)
-    assert created_app.matches_app_name("test-api-v1")
-    assert created_app.matches_app_name("test-api-v999")
-    assert not created_app.matches_app_name("test-api-beta")
-    assert not created_app.matches_app_name("other-api-v1")
+    assert response.matches_app("test-api-v1")
+    assert response.matches_app("test-api-v999")
+    assert not response.matches_app("test-api-beta")
+    assert not response.matches_app("other-api-v1")
 
     # Clean up
-    AppActions.delete(
-        client=client, portfolio="test-regex", app_regex="test-api-v[0-9]+"
-    )
+    AppActions.delete(client=client, portfolio=response.portfolio, app=response.app)
 
 
 # =============================================================================
@@ -457,7 +401,7 @@ def test_app_regex_validation():
 def test_create_duplicate_app():
     """Test creating duplicate app should fail."""
     duplicate_data = {
-        "client": client,
+        "app": "core-api-production",
         "portfolio": "acme-web",  # Already exists
         "app_regex": "core-api-.*",  # Already exists
         "name": "Duplicate Test",
@@ -466,16 +410,16 @@ def test_create_duplicate_app():
     }
 
     with pytest.raises(ConflictException):
-        AppActions.create(**duplicate_data)
+        AppActions.create(client=client, **duplicate_data)
 
 
 def test_get_nonexistent_app():
     """Test getting non-existent app."""
-    response = AppActions.get(
-        client=client, portfolio="nonexistent", app_regex="nonexistent-.*"
-    )
-    assert isinstance(response, NoContentResponse)
-    assert "does not exist" in response.message
+
+    with pytest.raises(NotFoundException):
+        response: AppFact = AppActions.get(
+            client=client, portfolio="nonexistent", app="nonexistent-app"
+        )
 
 
 def test_update_nonexistent_app():
@@ -484,7 +428,7 @@ def test_update_nonexistent_app():
         AppActions.update(
             client=client,
             portfolio="nonexistent",
-            app_regex="nonexistent-.*",
+            app="nonexistent-.*",
             name="Should Fail",
             zone="test",
             region="us-test-1",
@@ -497,7 +441,7 @@ def test_patch_nonexistent_app():
         AppActions.patch(
             client=client,
             portfolio="nonexistent",
-            app_regex="nonexistent-.*",
+            app="nonexistent-.*",
             environment="should-fail",
         )
 
@@ -521,7 +465,7 @@ def test_missing_required_parameters():
     # Test list without client (if util.get_client() returns None)
     with patch("core_framework.get_client", return_value=None):
         with pytest.raises(BadRequestException):
-            AppActions.list()
+            AppActions.list(client=None)
 
     # Test update without portfolio
     with pytest.raises(BadRequestException):
@@ -583,36 +527,28 @@ def test_delete_app():
     }
 
     # Create the app
-    create_response = AppActions.create(**delete_test_data)
-    assert isinstance(create_response, SuccessResponse)
+    a: AppFact = AppActions.create(**delete_test_data)
 
     # Verify it exists
-    get_response = AppActions.get(
-        client=client, portfolio="delete-test", app_regex="delete-test-.*"
+    get_response: AppFact = AppActions.get(
+        client=client, portfolio=a.portfolio, app=a.app
     )
-    assert isinstance(get_response, SuccessResponse)
 
     # Delete the app
-    delete_response = AppActions.delete(
-        client=client, portfolio="delete-test", app_regex="delete-test-.*"
-    )
-    assert isinstance(delete_response, SuccessResponse)
-    assert "deleted" in delete_response.message.lower()
+    result = AppActions.delete(client=client, portfolio=a.portfolio, app=a.app)
+    assert result is True
 
-    # Verify it's gone
-    get_after_delete = AppActions.get(
-        client=client, portfolio="delete-test", app_regex="delete-test-.*"
-    )
-    assert isinstance(get_after_delete, NoContentResponse)
+    # Verify it's gone.  Expect NotFoundException
+    with pytest.raises(NotFoundException):
+        AppActions.get(client=client, portfolio=a.portfolio, app=a.app)
 
 
 def test_delete_nonexistent_app():
     """Test deleting non-existent app."""
-    response = AppActions.delete(
-        client=client, portfolio="nonexistent", app_regex="nonexistent-.*"
-    )
-    assert isinstance(response, NoContentResponse)
-    assert "does not exist" in response.message
+    with pytest.raises(NotFoundException):
+        result = AppActions.delete(
+            client=client, portfolio="nonexistent", app="nonexistent-.*"
+        )
 
 
 def test_delete_without_required_parameters():
@@ -625,7 +561,9 @@ def test_delete_without_required_parameters():
 
     with patch("core_framework.get_client", return_value=None):
         with pytest.raises(BadRequestException):
-            AppActions.delete(portfolio="test", app_regex="test")  # Missing client
+            AppActions.delete(
+                client=None, sportfolio="test", app="test"
+            )  # Missing client
 
 
 # =============================================================================
@@ -635,8 +573,8 @@ def test_delete_without_required_parameters():
 
 def test_minimal_app_creation():
     """Test creating app with minimal required fields."""
+
     minimal_data = {
-        "client": client,
         "portfolio": "minimal-test",
         "app_regex": "minimal-.*",
         "name": "Minimal App",
@@ -644,25 +582,22 @@ def test_minimal_app_creation():
         "region": "us-minimal-1",
     }
 
-    response = AppActions.create(**minimal_data)
-    assert isinstance(response, SuccessResponse)
+    response: AppFact = AppActions.create(client=client, **minimal_data)
 
     # Verify PascalCase keys in response
-    assert "Portfolio" in response.data
-    assert response.data["Portfolio"] == "minimal-test"
-    assert "AppRegex" in response.data
-    assert response.data["AppRegex"] == "minimal-.*"
-    assert "Name" in response.data
-    assert response.data["Name"] == "Minimal App"
+    assert response.portfolio == "minimal-test"
+    assert response.app_regex == "minimal-.*"
+    assert response.name == "Minimal App"
+    assert response.zone == "minimal-zone"
+    assert response.region == "us-minimal-1"
 
     # Clean up
-    AppActions.delete(client=client, portfolio="minimal-test", app_regex="minimal-.*")
+    AppActions.delete(client=client, portfolio=response.portfolio, app=response.app)
 
 
 def test_app_timestamps():
     """Test that timestamps are properly managed."""
     timestamp_test_data = {
-        "client": client,
         "portfolio": "timestamp-test",
         "app_regex": "timestamp-.*",
         "name": "Timestamp Test App",
@@ -671,34 +606,29 @@ def test_app_timestamps():
     }
 
     # Create app
-    create_response = AppActions.create(**timestamp_test_data)
+    create_response: AppFact = AppActions.create(client=client, **timestamp_test_data)
 
     # Verify timestamps exist with PascalCase keys
-    assert "CreatedAt" in create_response.data
-    assert "UpdatedAt" in create_response.data
-    assert create_response.data["CreatedAt"] is not None
-    assert create_response.data["UpdatedAt"] is not None
+    assert create_response.created_at is not None
+    assert create_response.updated_at is not None
+    assert create_response.updated_at is not None
 
-    original_updated_at = create_response.data["UpdatedAt"]
+    original_updated_at = create_response.updated_at
 
     # Update app (should change updated_at)
-    patch_response = AppActions.patch(
+    pr: AppFact = AppActions.patch(
         client=client,
         portfolio="timestamp-test",
-        app_regex="timestamp-.*",
+        app=create_response.app,
         environment="updated",
     )
 
     # Verify timestamp behavior with PascalCase keys
-    assert (
-        patch_response.data["CreatedAt"] == create_response.data["CreatedAt"]
-    )  # Should not change
-    assert patch_response.data["UpdatedAt"] != original_updated_at  # Should be updated
+    assert pr.created_at == create_response.created_at  # Should not change
+    assert pr.updated_at != original_updated_at  # Should be updated
 
     # Clean up
-    AppActions.delete(
-        client=client, portfolio="timestamp-test", app_regex="timestamp-.*"
-    )
+    AppActions.delete(client=client, portfolio=pr.portfolio, app=pr.app)
 
 
 # =============================================================================
@@ -711,7 +641,6 @@ def test_response_casing_consistency():
 
     # Test create response
     create_data = {
-        "client": client,
         "portfolio": "casing-test",
         "app_regex": "casing-.*",
         "name": "Casing Test App",
@@ -719,79 +648,27 @@ def test_response_casing_consistency():
         "region": "us-test-1",
     }
 
-    create_response = AppActions.create(**create_data)
-
-    # Response level should be snake_case
-    assert hasattr(create_response, "data")
-    assert hasattr(create_response, "message")
-
-    # Data content should be PascalCase
-    data_dict = create_response.data
-    expected_pascal_keys = [
-        "Portfolio",
-        "AppRegex",
-        "Name",
-        "Zone",
-        "Region",
-        "CreatedAt",
-        "UpdatedAt",
-    ]
-
-    for key in expected_pascal_keys:
-        if key in ["CreatedAt", "UpdatedAt"]:
-            continue  # These might be None in some cases
-        assert (
-            key in data_dict
-        ), f"Expected PascalCase key '{key}' not found in response data"
+    cr: AppFact = AppActions.create(client=client, **create_data)
 
     # Test get response
-    get_response = AppActions.get(
-        client=client, portfolio="casing-test", app_regex="casing-.*"
+    get_response: AppFact = AppActions.get(
+        client=client, portfolio=cr.portfolio, app=cr.app
     )
-    assert hasattr(get_response, "data")
-    get_data_dict = get_response.data
-    assert "Portfolio" in get_data_dict
-    assert "AppRegex" in get_data_dict
 
     # Test list response
-    list_response = AppActions.list(client=client, limit=1)
-    assert hasattr(list_response, "data")
-    assert hasattr(list_response, "metadata")  # snake_case
+    list_response, paginator = AppActions.list(client=client, limit=1)
 
-    if list_response.data:
-        list_item = list_response.data[0]
-        assert "Portfolio" in list_item  # PascalCase
-        assert "AppRegex" in list_item  # PascalCase
+    if list_response:
+        list_item = list_response[0]
 
     # Clean up
-    AppActions.delete(client=client, portfolio="casing-test", app_regex="casing-.*")
-
-
-def test_metadata_structure():
-    """Test metadata structure in list responses."""
-    response = AppActions.list(client=client, limit=1)
-
-    # Metadata should exist and be snake_case
-    assert hasattr(response, "metadata")
-    metadata = response.metadata
-
-    # Common metadata fields (snake_case)
-    expected_metadata_keys = ["limit", "total_count", "has_more"]
-
-    for key in expected_metadata_keys:
-        # Not all metadata keys may be present depending on implementation
-        if hasattr(metadata, key) or (isinstance(metadata, dict) and key in metadata):
-            # Key exists, verify it's snake_case (no caps)
-            assert (
-                key.islower() or "_" in key
-            ), f"Metadata key '{key}' should be snake_case"
+    AppActions.delete(client=client, portfolio=cr.portfolio, app=cr.app)
 
 
 def test_nested_data_structure_casing():
     """Test that nested data structures maintain PascalCase in response.data."""
 
     complex_data = {
-        "client": client,
         "portfolio": "nested-casing-test",
         "app_regex": "nested-.*",
         "name": "Nested Casing Test",
@@ -806,10 +683,9 @@ def test_nested_data_structure_casing():
         "metadata": {"test_type": "nested", "complexity": "high"},
     }
 
-    response = AppActions.create(**complex_data)
-    assert isinstance(response, SuccessResponse)
+    response: AppFact = AppActions.create(client=client, **complex_data)
 
-    data = response.data
+    data = response.model_dump()
 
     # Top-level fields should be PascalCase
     assert "Portfolio" in data
@@ -834,16 +710,13 @@ def test_nested_data_structure_casing():
     assert "complexity" in data["Metadata"]
 
     # Clean up
-    AppActions.delete(
-        client=client, portfolio="nested-casing-test", app_regex="nested-.*"
-    )
+    AppActions.delete(client=client, portfolio=response.portfolio, app=response.app)
 
 
 def test_validation_enforcement_methods():
     """Test validation enforcement utility methods."""
     # Create app with validation enabled
     validation_app = {
-        "client": client,
         "portfolio": "validation-test",
         "app_regex": "validation-.*",
         "name": "Validation Test App",
@@ -852,11 +725,10 @@ def test_validation_enforcement_methods():
         "enforce_validation": "true",
     }
 
-    response = AppActions.create(**validation_app)
-    created_app = AppFact(**response.data)
+    response: AppFact = AppActions.create(client=client, **validation_app)
 
     # Test validation enforcement
-    assert created_app.is_validation_enforced() == True
+    assert response.is_validation_enforced() == True
 
     # Update with different validation values
     for validation_value, expected in [
@@ -871,16 +743,13 @@ def test_validation_enforcement_methods():
         (None, False),
     ]:
         if validation_value is not None:
-            patch_response = AppActions.patch(
+            patched_app: AppFact = AppActions.patch(
                 client=client,
-                portfolio="validation-test",
-                app_regex="validation-.*",
+                portfolio=response.portfolio,
+                app=response.app,
                 enforce_validation=validation_value,
             )
-            patched_app = AppFact(**patch_response.data)
             assert patched_app.is_validation_enforced() == expected
 
     # Clean up
-    AppActions.delete(
-        client=client, portfolio="validation-test", app_regex="validation-.*"
-    )
+    AppActions.delete(client=client, portfolio=response.portfolio, app=response.app)

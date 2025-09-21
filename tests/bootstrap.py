@@ -1,7 +1,5 @@
 import pytest
 
-import boto3
-
 from .conftest import *
 
 import core_framework as util
@@ -31,9 +29,9 @@ def bootstrap_dynamo():
     try:
         client = util.get_client()
 
-        if ClientFactsFactory.exists(client):
-            ClientFactsFactory.delete_table(client, wait=True)
-        ClientFactsFactory.create_table(client, wait=True)
+        if ClientFactsFactory.exists():
+            ClientFactsFactory.delete_table(wait=True)
+        ClientFactsFactory.create_table(wait=True)
 
         if ZoneFactsFactory.exists(client):
             ZoneFactsFactory.delete_table(client, wait=True)
