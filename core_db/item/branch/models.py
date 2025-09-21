@@ -62,6 +62,7 @@ class BranchModel(ItemModel):
 
     short_name = UnicodeAttribute(null=False, attr_name="ShortName")
     released_build = MapAttribute(null=True, attr_name="ReleasedBuild")
+
     portfolio_prn = UnicodeAttribute(null=False, attr_name="PortfolioPrn")
     app_prn = UnicodeAttribute(null=False, attr_name="AppPrn")
 

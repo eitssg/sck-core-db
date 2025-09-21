@@ -205,14 +205,10 @@ class ItemTableActions(TableActions):
 
         model_class: ItemModelType = record_type.model_class(client)
         try:
-            item = model_class.get(
-                prn,
-                consistent_read=True,
-                condition=model_class.prn.exists(),
-            )
-            data: ItemModelRecordType = record_type.from_model(item)
+            item = model_class.get(prn, condition=model_class.prn.exists())
+            data = record_type.from_model(item).model_dump(mode="json")
 
-            return SuccessResponse(data=data.model_dump(mode="json"))
+            return SuccessResponse(data=data)
         except ValueError as e:
             raise BadRequestException(f"Invalid item data: {e}")
         except GetError as e:
@@ -268,13 +264,9 @@ class ItemTableActions(TableActions):
 
         parent_prn = record_type.get_parent_prn(prn)
 
-        model_class: ItemModelType = record_type.model_class(client)
+        model_class = record_type.model_class(client)
         try:
-            item = model_class.get(
-                hash_key=parent_prn,
-                range_key=prn,
-                consistent_read=True,
-            )
+            item = model_class.get(hash_key=parent_prn, range_key=prn)
             data = [record_type.from_model(item).model_dump(mode="json")]
 
             return SuccessResponse(data=data)
@@ -350,7 +342,7 @@ class ItemTableActions(TableActions):
 
     @classmethod
     def _update(
-        cls, record_type: ItemModelRecordType, remove_none: bool = False, **kwargs
+        cls, record_type: ItemModelRecord, remove_none: bool, **kwargs
     ) -> Response:
 
         client = kwargs.get("client", util.get_client())
@@ -392,10 +384,7 @@ class ItemTableActions(TableActions):
             actions.append(model_class.updated_at.set(make_default_time()))
 
             item = model_class.get(hash_key=parent_prn, range_key=prn)
-            item.update(
-                actions=actions,
-                condition=model_class.prn.exists(),
-            )
+            item.update(actions=actions, condition=model_class.prn.exists())
             item.refresh()
 
             data: ItemModelRecordType = record_type.from_model(item).model_dump(

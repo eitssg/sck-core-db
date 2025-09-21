@@ -425,7 +425,7 @@ class EventActions(TableActions):
         Returns:
             Response: SuccessResponse containing the list of events for the specified PRN
         """
-        client = kwargs.get("client") or util.get_client()
+        client = kwargs.get("client")
         if not client:
             raise BadRequestException(
                 "Client identifier is required for event listing."
@@ -442,7 +442,6 @@ class EventActions(TableActions):
         model_class = EventItem.model_class(client)
 
         # Build range key condition based on time filters
-        range_key_condition = None
         if paginator.earliest_time and paginator.latest_time:
             range_key_condition = model_class.timestamp.between(
                 paginator.earliest_time, paginator.latest_time
@@ -451,54 +450,39 @@ class EventActions(TableActions):
             range_key_condition = model_class.timestamp >= paginator.earliest_time
         elif paginator.latest_time:
             range_key_condition = model_class.timestamp <= paginator.latest_time
-
-        # range_key_condition: Optional[Condition] = None,
-        # filter_condition: Optional[Condition] = None,
-        # consistent_read: bool = False,
-        # index_name: Optional[str] = None,
-        # scan_index_forward: Optional[bool] = None,
-        # limit: Optional[int] = None,
-        # last_evaluated_key: Optional[Dict[str, Dict[str, Any]]] = None,
-        # attributes_to_get: Optional[Iterable[str]] = None,
-        # page_size: Optional[int] = None,
-        # rate_limit: Optional[float] = None,
+        else:
+            range_key_condition = None
 
         # Build query kwargs
-        query_kwargs = {
-            "limit": paginator.limit,
-            "page_size": paginator.limit,
-            "scan_index_forward": paginator.sort_forward,
-        }
+        query_kwargs = paginator.get_query_args()
 
         if range_key_condition is not None:
             query_kwargs["range_key_condition"] = range_key_condition
 
-        if paginator.cursor is not None:
-            query_kwargs["last_evaluated_key"] = paginator.cursor
-
         # Execute query
-        results = model_class.query(prn, **query_kwargs)
+        try:
+            results = model_class.query(prn, **query_kwargs)
 
-        # Convert results to EventItem instances
-        data = []
-        for item in results:
-            try:
-                # Fix: Use proper model validation instead of from_model
-                event_item = EventItem.from_model(item)
-                data.append(
-                    event_item.model_dump(mode="json")
-                )  # Serialize to JSON with ISO date strings
-            except Exception as e:
-                log.warning("Failed to convert event item: %s", str(e))
-                continue
+            # Convert results to EventItem instances
+            data = [
+                EventItem.from_model(item).model_dump(mode="json") for item in results
+            ]
 
-        # Update paginator with results metadata
-        paginator.cursor = getattr(results, "last_evaluated_key", None)
-        paginator.total_count = getattr(results, "total_count", len(data))
+            # Update paginator with results metadata
+            paginator.cursor = getattr(results, "last_evaluated_key", None)
+            paginator.total_count = len(data)
 
-        log.info("Retrieved %d events for PRN: %s", len(data), prn)
+            log.info("Retrieved %d events for PRN: %s", len(data), prn)
 
-        return SuccessResponse(data=data, metadata=paginator.get_metadata())
+            return SuccessResponse(data=data, metadata=paginator.get_metadata())
+        except QueryError as e:
+            log.error("Failed to query events for PRN %s: %s", prn, str(e))
+            raise UnknownException(f"Failed to query events for PRN {prn}") from e
+        except Exception as e:
+            log.error("Unexpected error querying events for PRN %s: %s", prn, str(e))
+            raise UnknownException(
+                f"Unexpected error querying events for PRN {prn}"
+            ) from e
 
     @classmethod
     def _list_all_events(cls, **kwargs) -> Response:
@@ -568,7 +552,7 @@ class EventActions(TableActions):
         return SuccessResponse(data=data, metadata=paginator.get_metadata())
 
     @classmethod
-    def _update(cls, remove_none: bool = True, **kwargs) -> Response:
+    def _update(cls, remove_none: bool, **kwargs) -> Response:
         """Update an existing event in the database with Action statements.
 
         Creates PynamoDB Action statements for efficient updates. By default,

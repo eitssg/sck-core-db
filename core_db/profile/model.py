@@ -1,3 +1,4 @@
+from ast import List
 from datetime import datetime, timezone
 from typing import Type, Optional, Dict, Any
 
@@ -5,6 +6,7 @@ from pydantic import Field, field_validator
 
 
 from pynamodb.attributes import (
+    ListAttribute,
     UnicodeAttribute,
     UTCDateTimeAttribute,
     MapAttribute,
@@ -38,6 +40,7 @@ class ProfileByEmailIndex(GlobalSecondaryIndex):
         billing_mode = "PAY_PER_REQUEST"
 
     email = UnicodeAttribute(hash_key=True, attr_name="Email")
+    profile_name = UnicodeAttribute(range_key=True, attr_name="ProfileName")
 
 
 class ProfileModel(DatabaseTable):
@@ -71,8 +74,6 @@ class ProfileModel(DatabaseTable):
             May differ by role. Default: "UTC"
         language (str, optional): User's preferred language code for this profile.
             May differ by organizational context. Default: "en-US"
-        theme (str, optional): User's preferred UI theme setting for this profile.
-            May differ by role. Default: "light"
         notifications_enabled (bool, optional): Whether user wants notifications for this profile.
             May differ by role. Default: True
         last_login (datetime, optional): Timestamp of user's last login using this specific profile.
@@ -129,6 +130,8 @@ class ProfileModel(DatabaseTable):
 
     # Basic profile information
     email = UnicodeAttribute(attr_name="Email", null=True)
+    email_verified = BooleanAttribute(attr_name="EmailVerified", null=True, default=False)
+    email_verified_at = UTCDateTimeAttribute(attr_name="EmailVerifiedAt", null=True)
     display_name = UnicodeAttribute(attr_name="DisplayName", null=True)
     first_name = UnicodeAttribute(attr_name="FirstName", null=True)
     last_name = UnicodeAttribute(attr_name="LastName", null=True)
@@ -138,7 +141,6 @@ class ProfileModel(DatabaseTable):
     # User preferences (can differ per profile)
     timezone = UnicodeAttribute(attr_name="Timezone", null=True, default="UTC")
     language = UnicodeAttribute(attr_name="Language", null=True, default="en-US")
-    theme = UnicodeAttribute(attr_name="Theme", null=True, default="light")
     notifications_enabled = BooleanAttribute(attr_name="NotificationsEnabled", null=True, default=True)
 
     # Timestamps (per profile)
@@ -156,9 +158,15 @@ class ProfileModel(DatabaseTable):
     permissions = MapAttribute(attr_name="Permissions", null=True, default=dict)
     preferences = MapAttribute(attr_name="Preferences", null=True, default=dict)
 
+    # MFA tokens
+    mfa_enabled = BooleanAttribute(attr_name="MfaEnabled", null=True, default=False)
+    mfa_methods = ListAttribute(of=UnicodeAttribute, attr_name="MfaMethods", null=True, default=list)
+    totp_secret = UnicodeAttribute(attr_name="TotpSecret", null=True)
+    recovery_codes = ListAttribute(of=UnicodeAttribute, attr_name="RecoveryCodes", null=True, default=list)
+
     # Usage tracking (per profile)
-    session_count = NumberAttribute(attr_name="SessionCount", null=True, default=0)
-    is_active = BooleanAttribute(attr_name="IsActive", null=True, default=True)
+    session_count = NumberAttribute(attr_name="SessionCount", default=0)
+    is_active = BooleanAttribute(attr_name="IsActive", default=True)
 
     # Indexes
     email_index = ProfileByEmailIndex()
@@ -337,6 +345,16 @@ class UserProfile(DatabaseRecord):
         description="User's email address for contact and notifications",
         alias="Email",
     )
+    email_verified: Optional[bool] = Field(
+        None,
+        description="Whether the user's email address has been verified",
+        alias="EmailVerified",
+    )
+    email_verified_at: Optional[datetime] = Field(
+        None,
+        description="Timestamp when the user's email was verified",
+        alias="EmailVerifiedAt",
+    )
     # How you want your name to appear on the browser
     display_name: Optional[str] = Field(
         None,
@@ -374,11 +392,6 @@ class UserProfile(DatabaseRecord):
         description="User's preferred language code for this profile",
         alias="Language",
     )
-    theme: Optional[str] = Field(
-        None,
-        description="User's preferred UI theme setting for this profile",
-        alias="Theme",
-    )
     notifications_enabled: Optional[bool] = Field(
         None,
         description="Whether user wants notifications for this profile",
@@ -389,16 +402,6 @@ class UserProfile(DatabaseRecord):
         None,
         description="Timestamp of user's last login using this specific profile",
         alias="LastLogin",
-    )
-    created_at: Optional[datetime] = Field(
-        description="Profile creation timestamp in UTC",
-        alias="CreatedAt",
-        default_factory=lambda: datetime.now(timezone.utc),
-    )
-    updated_at: Optional[datetime] = Field(
-        description="Last modification timestamp for this profile",
-        alias="UpdatedAt",
-        default_factory=lambda: datetime.now(timezone.utc),
     )
     # AWS-specific information
     aws_account_id: Optional[str] = Field(
@@ -432,15 +435,39 @@ class UserProfile(DatabaseRecord):
         description="Additional user preferences for this profile",
         alias="Preferences",
     )
-    # Usage tracking (per profile)
-    session_count: Optional[int] = Field(
+
+    # MFA tokens
+    mfa_enabled: Optional[bool] = Field(
         None,
+        description="Whether multi-factor authentication (MFA) is enabled for this profile",
+        alias="MfaEnabled",
+    )
+    mfa_methods: Optional[list[str]] = Field(
+        None,
+        description="List of MFA methods enabled for this profile",
+        alias="MfaMethods",
+    )
+    totp_secret: Optional[str] = Field(
+        None,
+        description="TOTP secret for time-based one-time passwords (if TOTP is enabled)",
+        alias="TotpSecret",
+    )
+    recovery_codes: Optional[list[str]] = Field(
+        None,
+        description="List of recovery codes for MFA account recovery",
+        alias="RecoveryCodes",
+    )
+
+    # Usage tracking (per profile)
+    session_count: int = Field(
+        0,
         description="Total authentication sessions for this specific profile",
         ge=0,
         alias="SessionCount",
     )
-    is_active: Optional[bool] = Field(
-        None,
+
+    is_active: bool = Field(
+        True,
         description="Whether this specific profile is active and enabled",
         alias="IsActive",
     )

@@ -72,6 +72,7 @@ class ComponentModel(ItemModel):
     component_type = UnicodeAttribute(null=True, attr_name="ComponentType")
     image_id = UnicodeAttribute(null=True, attr_name="ImageId")
     image_alias = UnicodeAttribute(null=True, attr_name="ImageAlias")
+
     portfolio_prn = UnicodeAttribute(null=False, attr_name="PortfolioPrn")
     app_prn = UnicodeAttribute(null=False, attr_name="AppPrn")
     branch_prn = UnicodeAttribute(null=False, attr_name="BranchPrn")

@@ -15,18 +15,5 @@ from ..models import DatabaseRecord
 
 
 class RegistryFact(DatabaseRecord):
-    """Base class for all registry fact models with consistent PascalCase serialization.
-
-    Extends DatabaseRecord to provide uniform API behavior across all registry items.
-    Inherits model_dump behavior that uses PascalCase aliases by default, matching DynamoDB
-    attribute naming while allowing Python snake_case field names.
-
-    Attributes:
-        Inherits all attributes from DatabaseRecord including created_at and updated_at timestamps.
-
-    Note:
-        Uses dual naming convention: snake_case for Python code, PascalCase for APIs/DynamoDB.
-        Inherits serialization with by_alias=True and exclude_none=True for consistent output.
-    """
 
     pass
