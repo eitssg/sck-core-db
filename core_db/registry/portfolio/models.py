@@ -97,9 +97,7 @@ class PortfolioFactsModel(DatabaseTable):
 
     # Ops and integration
     links = ListAttribute(of=LinkFacts, null=True, attr_name="Links")
-    dependencies = ListAttribute(
-        of=UnicodeAttribute, null=True, attr_name="Dependencies"
-    )
+    dependencies = ListAttribute(of=UnicodeAttribute, null=True, attr_name="Dependencies")
 
     app_count = NumberAttribute(default=0, attr_name="AppCount")
 

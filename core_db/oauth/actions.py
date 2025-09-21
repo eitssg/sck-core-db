@@ -66,9 +66,7 @@ class OAuthActions(TableActions):
             raise UnknownException(f"Failed to create authorization: {e}") from e
 
     @classmethod
-    def list(
-        cls, record_type: OAuthRecord, **kwargs
-    ) -> Tuple[List[OAuthRecord], Paginator]:
+    def list(cls, record_type: OAuthRecord, **kwargs) -> Tuple[List[OAuthRecord], Paginator]:
         """List authorization codes for a client.
 
         Args:
@@ -156,16 +154,12 @@ class OAuthActions(TableActions):
         return cls._update(record_type, remove_none=False, **kwargs)
 
     @classmethod
-    def _update(
-        cls, record_type: OAuthRecord, remove_none: bool, **kwargs
-    ) -> OAuthRecord:
+    def _update(cls, record_type: OAuthRecord, remove_none: bool, **kwargs) -> OAuthRecord:
         """Internal update helper."""
 
         client = kwargs.get("client", kwargs.get("Client"))
         code = kwargs.get("code", kwargs.get("Code"))
-        client_id = kwargs.get(
-            "client_id", kwargs.get("ClientId", kwargs.get("clientId"))
-        )
+        client_id = kwargs.get("client_id", kwargs.get("ClientId", kwargs.get("clientId")))
 
         if not client:
             raise BadRequestException("Missing client parameter")
@@ -209,15 +203,10 @@ class OAuthActions(TableActions):
                     actions.append(attr.set(value))
                     if key == "used" and value is True:
                         if not client_id:
-                            raise BadRequestException(
-                                "client_id is required when marking used=True"
-                            )
+                            raise BadRequestException("client_id is required when marking used=True")
                         actions.append(attributes["used_at"].set(now))
                         # If marking used=True, ensure it was previously False (or not set)
-                        conditions.append(
-                            (model_class.used == False)
-                            | model_class.used.does_not_exist()
-                        )
+                        conditions.append((model_class.used == False) | model_class.used.does_not_exist())
                         conditions.append(model_class.client_id == client_id)
                         conditions.append(model_class.expires_at > now)
 
@@ -236,9 +225,7 @@ class OAuthActions(TableActions):
         except UpdateError as e:
             if "ConditionalCheckFailed" in str(e):
                 # Any conditional failure (missing item, already used, expired, or client mismatch)
-                raise NotFoundException(
-                    "Authorization code not found or not eligible for update"
-                ) from e
+                raise NotFoundException("Authorization code not found or not eligible for update") from e
 
             raise UnknownException(f"Failed to update authorization: {e}") from e
 

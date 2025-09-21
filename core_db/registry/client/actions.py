@@ -41,9 +41,7 @@ from .models import ClientFact
 class ClientActions(RegistryAction):
 
     @classmethod
-    def list(
-        cls, *, client_id: str | None = None, **kwargs
-    ) -> Tuple[list[ClientFact], Paginator]:
+    def list(cls, *, client_id: str | None = None, **kwargs) -> Tuple[list[ClientFact], Paginator]:
 
         if client_id:
             return cls._list_by_client_id(client_id, **kwargs)
@@ -76,14 +74,10 @@ class ClientActions(RegistryAction):
         except ScanError as e:
             raise UnknownException(f"Failed to list clients: {str(e)}") from e
         except Exception as e:
-            raise UnknownException(
-                f"Unexpected error while listing clients: {str(e)}"
-            ) from e
+            raise UnknownException(f"Unexpected error while listing clients: {str(e)}") from e
 
     @classmethod
-    def _list_by_client_id(
-        cls, client_id: str, **kwargs
-    ) -> Tuple[List[ClientFact], Paginator]:
+    def _list_by_client_id(cls, client_id: str, **kwargs) -> Tuple[List[ClientFact], Paginator]:
 
         try:
             # load the search parameters into a Paginator instance
@@ -105,28 +99,20 @@ class ClientActions(RegistryAction):
 
         except ScanError as e:
             if "ResourceNotFoundException" in str(e):
-                raise NotFoundException(
-                    f"Client with client_id '{client_id}' not found"
-                ) from e
+                raise NotFoundException(f"Client with client_id '{client_id}' not found") from e
 
-            log.error(
-                f"GetError while retrieving client by client_id '{client_id}': {str(e)}"
-            )
+            log.error(f"GetError while retrieving client by client_id '{client_id}': {str(e)}")
             raise UnknownException(f"Failed to retrieve client '{client_id}'") from e
 
         except Exception as e:
-            log.error(
-                f"Error while retrieving client by client_id '{client_id}': {str(e)}"
-            )
+            log.error(f"Error while retrieving client by client_id '{client_id}': {str(e)}")
             raise UnknownException(f"Failed to retrieve client '{client_id}'") from e
 
     @classmethod
     def get(cls, client: str) -> ClientFact:
 
         if not client:
-            raise BadRequestException(
-                "Client identifier is required to load ClientFact"
-            )
+            raise BadRequestException("Client identifier is required to load ClientFact")
 
         model_class = ClientFact.model_class()
 
@@ -194,14 +180,10 @@ class ClientActions(RegistryAction):
             raise UnknownException(f"Failed to delete client '{client}'") from e
 
         except Exception as e:
-            raise UnknownException(
-                f"Failed to delete client '{client}': {str(e)}"
-            ) from e
+            raise UnknownException(f"Failed to delete client '{client}': {str(e)}") from e
 
     @classmethod
-    def _update(
-        cls, *, remove_none: bool, record: ClientFact | None = None, **kwargs
-    ) -> ClientFact:
+    def _update(cls, *, remove_none: bool, record: ClientFact | None = None, **kwargs) -> ClientFact:
 
         excluded_fields = {"client", "created_at", "updated_at"}
 
@@ -251,11 +233,7 @@ class ClientActions(RegistryAction):
         except UpdateError as e:
             if "ConditionalCheckFailedException" in str(e):
                 raise NotFoundException(f"Client '{client}' not found") from e
-            raise UnknownException(
-                f"Failed to update client '{client}': {str(e)}"
-            ) from e
+            raise UnknownException(f"Failed to update client '{client}': {str(e)}") from e
 
         except Exception as e:
-            raise UnknownException(
-                f"Failed to update client '{client}': {str(e)}"
-            ) from e
+            raise UnknownException(f"Failed to update client '{client}': {str(e)}") from e

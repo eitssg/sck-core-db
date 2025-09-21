@@ -123,9 +123,7 @@ def test_app_get():
     app_regex = "core-api-.*"
     app = "core-api-v1"  # Should match the regex
 
-    app_facts, paginator = AppActions.list(
-        client=client, portfolio=portfolio, app_regex=app_regex
-    )
+    app_facts, paginator = AppActions.list(client=client, portfolio=portfolio, app_regex=app_regex)
 
     assert len(app_facts) > 0
     response = app_facts[0]
@@ -179,9 +177,7 @@ def test_app_list_with_pagination():
 
     # Check if there's more data
     if paginator.cursor:
-        page2, paginator = AppActions.list(
-            client=client, limit=2, cursor=paginator.cursor
-        )
+        page2, paginator = AppActions.list(client=client, limit=2, cursor=paginator.cursor)
 
         # Verify different data using PascalCase keys
         page1_apps = {f"{item.portfolio}:{item.app_regex}" for item in app_facts}
@@ -417,9 +413,7 @@ def test_get_nonexistent_app():
     """Test getting non-existent app."""
 
     with pytest.raises(NotFoundException):
-        response: AppFact = AppActions.get(
-            client=client, portfolio="nonexistent", app="nonexistent-app"
-        )
+        response: AppFact = AppActions.get(client=client, portfolio="nonexistent", app="nonexistent-app")
 
 
 def test_update_nonexistent_app():
@@ -450,9 +444,7 @@ def test_missing_required_parameters():
     """Test various operations without required parameters."""
     # Test create without portfolio
     with pytest.raises(BadRequestException):
-        AppActions.create(
-            client=client, app_regex="test", name="test", zone="test", region="test"
-        )
+        AppActions.create(client=client, app_regex="test", name="test", zone="test", region="test")
 
     # Test get without portfolio
     with pytest.raises(BadRequestException):
@@ -469,9 +461,7 @@ def test_missing_required_parameters():
 
     # Test update without portfolio
     with pytest.raises(BadRequestException):
-        AppActions.update(
-            client=client, app_regex="test", name="test", zone="test", region="test"
-        )
+        AppActions.update(client=client, app_regex="test", name="test", zone="test", region="test")
 
     # Test patch without app_regex
     with pytest.raises(BadRequestException):
@@ -530,9 +520,7 @@ def test_delete_app():
     a: AppFact = AppActions.create(**delete_test_data)
 
     # Verify it exists
-    get_response: AppFact = AppActions.get(
-        client=client, portfolio=a.portfolio, app=a.app
-    )
+    get_response: AppFact = AppActions.get(client=client, portfolio=a.portfolio, app=a.app)
 
     # Delete the app
     result = AppActions.delete(client=client, portfolio=a.portfolio, app=a.app)
@@ -546,9 +534,7 @@ def test_delete_app():
 def test_delete_nonexistent_app():
     """Test deleting non-existent app."""
     with pytest.raises(NotFoundException):
-        result = AppActions.delete(
-            client=client, portfolio="nonexistent", app="nonexistent-.*"
-        )
+        result = AppActions.delete(client=client, portfolio="nonexistent", app="nonexistent-.*")
 
 
 def test_delete_without_required_parameters():
@@ -561,9 +547,7 @@ def test_delete_without_required_parameters():
 
     with patch("core_framework.get_client", return_value=None):
         with pytest.raises(BadRequestException):
-            AppActions.delete(
-                client=None, sportfolio="test", app="test"
-            )  # Missing client
+            AppActions.delete(client=None, sportfolio="test", app="test")  # Missing client
 
 
 # =============================================================================
@@ -651,9 +635,7 @@ def test_response_casing_consistency():
     cr: AppFact = AppActions.create(client=client, **create_data)
 
     # Test get response
-    get_response: AppFact = AppActions.get(
-        client=client, portfolio=cr.portfolio, app=cr.app
-    )
+    get_response: AppFact = AppActions.get(client=client, portfolio=cr.portfolio, app=cr.app)
 
     # Test list response
     list_response, paginator = AppActions.list(client=client, limit=1)

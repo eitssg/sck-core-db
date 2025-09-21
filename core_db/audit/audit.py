@@ -84,23 +84,13 @@ class AuthAuditModel(DatabaseTable):
     before_hash = UnicodeAttribute(null=True, attr_name="BeforeHash")
     after_hash = UnicodeAttribute(null=True, attr_name="AfterHash")
 
-    role_additions = ListAttribute(
-        of=UnicodeAttribute, null=True, attr_name="RoleAdditions"
-    )
-    role_removals = ListAttribute(
-        of=UnicodeAttribute, null=True, attr_name="RoleRemovals"
-    )
+    role_additions = ListAttribute(of=UnicodeAttribute, null=True, attr_name="RoleAdditions")
+    role_removals = ListAttribute(of=UnicodeAttribute, null=True, attr_name="RoleRemovals")
 
-    grant_additions = ListAttribute(
-        of=MapAttribute, null=True, attr_name="GrantAdditions"
-    )
-    grant_removals = ListAttribute(
-        of=MapAttribute, null=True, attr_name="GrantRemovals"
-    )
+    grant_additions = ListAttribute(of=MapAttribute, null=True, attr_name="GrantAdditions")
+    grant_removals = ListAttribute(of=MapAttribute, null=True, attr_name="GrantRemovals")
 
-    deny_additions = ListAttribute(
-        of=MapAttribute, null=True, attr_name="DenyAdditions"
-    )
+    deny_additions = ListAttribute(of=MapAttribute, null=True, attr_name="DenyAdditions")
     deny_removals = ListAttribute(of=MapAttribute, null=True, attr_name="DenyRemovals")
 
     reason = UnicodeAttribute(null=True, attr_name="Reason")
@@ -159,46 +149,26 @@ class AuthAuditSchemas(DatabaseRecord):
 
     model_config = ConfigDict(populate_by_name=True)
 
-    pk: str = Field(
-        ..., description="Partition key, e.g. tenant#<tenant_slug>#user#<user_id>"
-    )
+    pk: str = Field(..., description="Partition key, e.g. tenant#<tenant_slug>#user#<user_id>")
     sk: str = Field(..., description="Sort key, e.g. ts#<ISO8601>#<short-uuid>")
 
-    actor_user_id: Optional[str] = Field(
-        None, description="ID (email) of actor performing the change"
-    )
-    change_type: Optional[str] = Field(
-        None, description="Type of change, e.g. permissions.update"
-    )
+    actor_user_id: Optional[str] = Field(None, description="ID (email) of actor performing the change")
+    change_type: Optional[str] = Field(None, description="Type of change, e.g. permissions.update")
 
-    before_hash: Optional[str] = Field(
-        None, description="Hash of effective state before the change"
-    )
-    after_hash: Optional[str] = Field(
-        None, description="Hash of effective state after the change"
-    )
+    before_hash: Optional[str] = Field(None, description="Hash of effective state before the change")
+    after_hash: Optional[str] = Field(None, description="Hash of effective state after the change")
 
     role_additions: list[str] = Field(default_factory=list, description="Roles added")
     role_removals: list[str] = Field(default_factory=list, description="Roles removed")
 
-    grant_additions: list[dict[str, Any]] = Field(
-        default_factory=list, description="Grants added"
-    )
-    grant_removals: list[dict[str, Any]] = Field(
-        default_factory=list, description="Grants removed"
-    )
+    grant_additions: list[dict[str, Any]] = Field(default_factory=list, description="Grants added")
+    grant_removals: list[dict[str, Any]] = Field(default_factory=list, description="Grants removed")
 
-    deny_additions: list[dict[str, Any]] = Field(
-        default_factory=list, description="Denies added"
-    )
-    deny_removals: list[dict[str, Any]] = Field(
-        default_factory=list, description="Denies removed"
-    )
+    deny_additions: list[dict[str, Any]] = Field(default_factory=list, description="Denies added")
+    deny_removals: list[dict[str, Any]] = Field(default_factory=list, description="Denies removed")
 
     reason: Optional[str] = Field(None, description="Reason/comment for the change")
-    request_id: Optional[str] = Field(
-        None, description="Request correlation id (if available)"
-    )
+    request_id: Optional[str] = Field(None, description="Request correlation id (if available)")
     expire_at: Optional[int] = Field(
         None,
         description="Optional UNIX epoch seconds for TTL expiry (DynamoDB TTL)",
@@ -250,9 +220,7 @@ class AuthAuditActions(TableActions):
         try:
 
             item = record.to_model(client)
-            item.save(
-                condition=model_cls.pk.does_not_exist() & model_cls.sk.does_not_exist()
-            )
+            item.save(condition=model_cls.pk.does_not_exist() & model_cls.sk.does_not_exist())
 
             return AuthAuditSchemas.from_model(item)
 
@@ -264,18 +232,14 @@ class AuthAuditActions(TableActions):
             raise UnknownException(str(e)) from e
 
     @classmethod
-    def query_by_actor(
-        cls, *, client: str, actor_user_id: str, limit: int = 50
-    ) -> Tuple[list[AuthAuditSchemas], Paginator]:
+    def query_by_actor(cls, *, client: str, actor_user_id: str, limit: int = 50) -> Tuple[list[AuthAuditSchemas], Paginator]:
 
         try:
             model_cls = AuthAuditModelFactory.get_model(client)
 
             paginator = Paginator(limit=limit)
 
-            result = model_cls.by_actor_index.query(
-                actor_user_id, **paginator.get_query_args()
-            )
+            result = model_cls.by_actor_index.query(actor_user_id, **paginator.get_query_args())
 
             results = []
             for item in result:
@@ -292,17 +256,13 @@ class AuthAuditActions(TableActions):
             raise UnknownException(str(e)) from e
 
     @classmethod
-    def query_by_change_type(
-        cls, *, client: str, change_type: str, limit: int = 50
-    ) -> Tuple[list[AuthAuditSchemas], Paginator]:
+    def query_by_change_type(cls, *, client: str, change_type: str, limit: int = 50) -> Tuple[list[AuthAuditSchemas], Paginator]:
         try:
             model_cls = AuthAuditModelFactory.get_model(client)
 
             paginator = Paginator(limit=limit)
 
-            result = model_cls.by_change_type_index.query(
-                change_type, **paginator.get_query_args()
-            )
+            result = model_cls.by_change_type_index.query(change_type, **paginator.get_query_args())
 
             results = []
             for item in result:
@@ -316,9 +276,7 @@ class AuthAuditActions(TableActions):
             raise UnknownException(str(e)) from e
 
     @classmethod
-    def query_by_request_id(
-        cls, *, client: str, request_id: str
-    ) -> list[AuthAuditSchemas]:
+    def query_by_request_id(cls, *, client: str, request_id: str) -> list[AuthAuditSchemas]:
         model_cls = AuthAuditModelFactory.get_model(client)
 
         try:
@@ -340,9 +298,7 @@ class AuthAuditActions(TableActions):
             raise UnknownException(str(e)) from e
 
     @classmethod
-    def list_all(
-        cls, *, client: str, limit: int = 50
-    ) -> Tuple[list[AuthAuditSchemas], Paginator]:
+    def list_all(cls, *, client: str, limit: int = 50) -> Tuple[list[AuthAuditSchemas], Paginator]:
 
         try:
             model_cls = AuthAuditModelFactory.get_model(client)
@@ -380,9 +336,7 @@ class AuthAuditActions(TableActions):
             raise UnknownException("Audit record delete failed") from e
 
     @classmethod
-    def update(
-        cls, *, client: str, record: AuthAuditSchemas
-    ) -> Optional[AuthAuditSchemas]:
+    def update(cls, *, client: str, record: AuthAuditSchemas) -> Optional[AuthAuditSchemas]:
 
         model_cls = AuthAuditModelFactory.get_model(client)
 

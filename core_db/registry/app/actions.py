@@ -108,9 +108,7 @@ def generate_app_slug(
         return base
 
     # deterministic short hash first
-    digest = hashlib.blake2b(
-        f"{portfolio}:{source}".encode("utf-8"), digest_size=3
-    ).hexdigest()
+    digest = hashlib.blake2b(f"{portfolio}:{source}".encode("utf-8"), digest_size=3).hexdigest()
     cand = with_suffix(base, digest)
     if not _is_app_id_taken(client, portfolio, cand):
         return cand
@@ -122,9 +120,7 @@ def generate_app_slug(
             return cand
 
     # last resort: longer hash
-    digest = hashlib.blake2b(
-        f"{portfolio}:{source}".encode("utf-8"), digest_size=5
-    ).hexdigest()
+    digest = hashlib.blake2b(f"{portfolio}:{source}".encode("utf-8"), digest_size=5).hexdigest()
     return with_suffix(base, digest)
 
 
@@ -148,9 +144,7 @@ class AppActions(RegistryAction):
             raise BadRequestException(f"Invalid pagination parameters: {str(e)}") from e
 
         if portfolio and app_regex:
-            return cls._get_apps_by_portfolio_app_regex(
-                client, portfolio, app_regex, paginator
-            )
+            return cls._get_apps_by_portfolio_app_regex(client, portfolio, app_regex, paginator)
         elif portfolio:
             return cls._get_apps_by_portfolio(client, portfolio, paginator)
         else:
@@ -177,9 +171,7 @@ class AppActions(RegistryAction):
         return cls._get_apps_by_portfolio_app(client, portfolio, app)
 
     @classmethod
-    def _get_apps_by_portfolio_app(
-        cls, client: str, portfolio: str, app: str
-    ) -> AppFact:
+    def _get_apps_by_portfolio_app(cls, client: str, portfolio: str, app: str) -> AppFact:
         log.debug("Getting specific app: %s:%s", portfolio, app)
 
         model_class = AppFact.model_class(client)
@@ -201,9 +193,7 @@ class AppActions(RegistryAction):
             raise UnknownException(f"Failed to retrieve app {portfolio}:{app}") from e
 
     @classmethod
-    def _get_apps_by_portfolio(
-        cls, client: str, portfolio: str, paginator: Paginator
-    ) -> Tuple[List[AppFact], Paginator]:
+    def _get_apps_by_portfolio(cls, client: str, portfolio: str, paginator: Paginator) -> Tuple[List[AppFact], Paginator]:
         log.debug("Getting all apps for portfolio: %s", portfolio)
 
         model_class = AppFact.model_class(client)
@@ -219,17 +209,13 @@ class AppActions(RegistryAction):
             paginator.total_count = len(data)
 
             # Sort by app for consistent ordering
-            log.info(
-                "Successfully queried %d apps for portfolio: %s", len(data), portfolio
-            )
+            log.info("Successfully queried %d apps for portfolio: %s", len(data), portfolio)
 
             return data, paginator
 
         except QueryError as e:
             log.error("Failed to query apps for portfolio %s - %s", portfolio, str(e))
-            raise UnknownException(
-                f"Failed to query apps for portfolio {portfolio}"
-            ) from e
+            raise UnknownException(f"Failed to query apps for portfolio {portfolio}") from e
 
         except Exception as e:
             log.error(
@@ -237,9 +223,7 @@ class AppActions(RegistryAction):
                 portfolio,
                 str(e),
             )
-            raise UnknownException(
-                f"Unexpected error while querying apps for {portfolio}"
-            ) from e
+            raise UnknownException(f"Unexpected error while querying apps for {portfolio}") from e
 
     @classmethod
     def _get_apps_by_portfolio_app_regex(
@@ -273,26 +257,20 @@ class AppActions(RegistryAction):
                         )
                 except re.error:
                     # Skip invalid regex patterns
-                    log.warning(
-                        "Invalid regex pattern in app_regex: %s", app_fact.app_regex
-                    )
+                    log.warning("Invalid regex pattern in app_regex: %s", app_fact.app_regex)
                     continue
 
             paginator.cursor = getattr(result, "last_evaluated_key", None)
             paginator.total_count = len(data)
 
-            log.info(
-                "Successfully filtered %d apps matching name: %s", len(data), app_regex
-            )
+            log.info("Successfully filtered %d apps matching name: %s", len(data), app_regex)
 
             # Returns a list of applications that match the app regex
             return data, paginator
 
         except QueryError as e:
             log.error("Failed to query apps for portfolio %s - %s", portfolio, str(e))
-            raise UnknownException(
-                f"Failed to query apps for portfolio {portfolio}"
-            ) from e
+            raise UnknownException(f"Failed to query apps for portfolio {portfolio}") from e
 
         except Exception as e:
             log.error(
@@ -301,14 +279,10 @@ class AppActions(RegistryAction):
                 portfolio,
                 str(e),
             )
-            raise UnknownException(
-                f"Unexpected error while filtering apps for {portfolio}:{app_regex}"
-            ) from e
+            raise UnknownException(f"Unexpected error while filtering apps for {portfolio}:{app_regex}") from e
 
     @classmethod
-    def _get_all_apps_paginated(
-        cls, client: str, paginator: Paginator
-    ) -> Tuple[List[AppFact], Paginator]:
+    def _get_all_apps_paginated(cls, client: str, paginator: Paginator) -> Tuple[List[AppFact], Paginator]:
         log.debug("Scanning all apps for client: %s", client)
 
         model_class = AppFact.model_class(client)
@@ -336,9 +310,7 @@ class AppActions(RegistryAction):
                 client,
                 str(e),
             )
-            raise UnknownException(
-                f"Unexpected error while scanning apps for {client}"
-            ) from e
+            raise UnknownException(f"Unexpected error while scanning apps for {client}") from e
 
     @classmethod
     def delete(
@@ -365,9 +337,7 @@ class AppActions(RegistryAction):
 
             item = model_class(portfolio, app)
 
-            item.delete(
-                condition=model_class.portfolio.exists() & model_class.app.exists()
-            )
+            item.delete(condition=model_class.portfolio.exists() & model_class.app.exists())
 
             log.info("Successfully deleted app: %s:%s", portfolio, app)
 
@@ -376,20 +346,14 @@ class AppActions(RegistryAction):
         except DeleteError as e:
             if "ConditionalCheckFailedException" in str(e):
                 log.info("App not found for deletion: %s:%s", portfolio, app)
-                raise NotFoundException(
-                    f"App [{portfolio}:{app}] was deleted by another process"
-                )
+                raise NotFoundException(f"App [{portfolio}:{app}] was deleted by another process")
 
             log.error("Failed to delete app: %s:%s - %s", portfolio, app, str(e))
             raise UnknownException(f"Failed to delete app {portfolio}:{app}") from e
 
         except Exception as e:
-            log.error(
-                "Unexpected error deleting app %s:%s - %s", portfolio, app, str(e)
-            )
-            raise UnknownException(
-                f"Unexpected error deleting app {portfolio}:{app}"
-            ) from e
+            log.error("Unexpected error deleting app %s:%s - %s", portfolio, app, str(e))
+            raise UnknownException(f"Unexpected error deleting app {portfolio}:{app}") from e
 
     @classmethod
     def create(cls, *, client: str, record: AppFact | None = None, **kwargs) -> AppFact:
@@ -443,9 +407,7 @@ class AppActions(RegistryAction):
                 # Uniqueness on the range key `app` (within the given portfolio)
                 item.save(model_class.app.does_not_exist())
 
-                log.info(
-                    "Successfully created app: %s:%s", record.portfolio, record.app
-                )
+                log.info("Successfully created app: %s:%s", record.portfolio, record.app)
 
                 return record
 
@@ -468,17 +430,11 @@ class AppActions(RegistryAction):
                         )
                         continue
 
-                    raise ConflictException(
-                        f"App {item.portfolio}:{item.app} already exists"
-                    ) from e
+                    raise ConflictException(f"App {item.portfolio}:{item.app} already exists") from e
 
                 # Non-conditional failure
-                log.error(
-                    "Failed to create app %s:%s: %s", item.portfolio, item.app, str(e)
-                )
-                raise UnknownException(
-                    f"Failed to create app {item.portfolio}:{item.app}"
-                ) from e
+                log.error("Failed to create app %s:%s: %s", item.portfolio, item.app, str(e))
+                raise UnknownException(f"Failed to create app {item.portfolio}:{item.app}") from e
 
             except Exception as e:
                 log.error(
@@ -487,13 +443,9 @@ class AppActions(RegistryAction):
                     item.app,
                     str(e),
                 )
-                raise UnknownException(
-                    f"Unexpected error creating app: {str(e)}"
-                ) from e
+                raise UnknownException(f"Unexpected error creating app: {str(e)}") from e
 
-        raise ConflictException(
-            f"Cannot create app due to app conflict: {str(e)}"
-        ) from e
+        raise ConflictException(f"Cannot create app due to app conflict: {str(e)}") from e
 
     @classmethod
     def update(cls, *, client: str, record: AppFact | None = None, **kwargs) -> AppFact:
@@ -506,18 +458,14 @@ class AppActions(RegistryAction):
         return cls._update(remove_none=False, client=client, **kwargs)
 
     @classmethod
-    def _update(
-        cls, remove_none: bool, client: str, record: AppFact | None = None, **kwargs
-    ) -> AppFact:
+    def _update(cls, remove_none: bool, client: str, record: AppFact | None = None, **kwargs) -> AppFact:
         if not client:
             raise BadRequestException("Missing required parameter: client")
 
         excluded_fields = ["portfolio", "app", "created_at", "updated_at"]
 
         if record:
-            values = record.model_dump(
-                by_alias=False, exclude_none=False, exclude=excluded_fields
-            )
+            values = record.model_dump(by_alias=False, exclude_none=False, exclude=excluded_fields)
         else:
             values = kwargs
 

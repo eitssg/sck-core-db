@@ -333,26 +333,20 @@ def test_create_duplicate_client():
 
 def test_get_nonexistent_client():
     """Test getting non-existent client."""
-    with pytest.raises(
-        NotFoundException
-    ):  # Your implementation raises UnknownException
+    with pytest.raises(NotFoundException):  # Your implementation raises UnknownException
         ClientActions.get(client="nonexistent-client")
 
 
 def test_update_nonexistent_client():
     """Test updating non-existent client."""
     with pytest.raises(NotFoundException):
-        ClientActions.update(
-            client="nonexistent-client", client_name="This Should Fail"
-        )
+        ClientActions.update(client="nonexistent-client", client_name="This Should Fail")
 
 
 def test_patch_nonexistent_client():
     """Test patching non-existent client."""
     with pytest.raises(NotFoundException):
-        ClientActions.patch(
-            client="nonexistent-client", client_description="This Should Fail"
-        )
+        ClientActions.patch(client="nonexistent-client", client_description="This Should Fail")
 
 
 def test_missing_client_parameter():
@@ -525,9 +519,7 @@ def test_client_timestamps():
     original_updated_at = created_client.updated_at
 
     # Update client (should change updated_at)
-    updated_client: ClientFact = ClientActions.patch(
-        client="timestamp-test", client_description="Updated description"
-    )
+    updated_client: ClientFact = ClientActions.patch(client="timestamp-test", client_description="Updated description")
 
     assert updated_client.created_at == created_client.created_at  # Should not change
     assert updated_client.updated_at != original_updated_at  # Should be updated

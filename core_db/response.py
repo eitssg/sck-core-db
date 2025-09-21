@@ -751,11 +751,7 @@ def _build_error_chain(exc: Exception) -> list[ErrorDetail]:
 
         for error in exc.errors():
             # Extract field path
-            field_path = (
-                " -> ".join(str(loc) for loc in error["loc"])
-                if error["loc"]
-                else "root"
-            )
+            field_path = " -> ".join(str(loc) for loc in error["loc"]) if error["loc"] else "root"
 
             # Build detailed error message
             error_type = error["type"]
@@ -771,9 +767,7 @@ def _build_error_chain(exc: Exception) -> list[ErrorDetail]:
             error_detail = ErrorDetail(
                 type=f"ValidationError.{error_type}",
                 message=message,
-                track="".join(
-                    traceback.format_exception(type(exc), exc, exc.__traceback__)
-                ),
+                track="".join(traceback.format_exception(type(exc), exc, exc.__traceback__)),
             )
             error_chain.append(error_detail)
 
@@ -785,9 +779,7 @@ def _build_error_chain(exc: Exception) -> list[ErrorDetail]:
         error_detail = ErrorDetail(
             type=type(exc).__name__,
             message=str(exc),
-            track="".join(
-                traceback.format_exception(type(exc), exc, exc.__traceback__)
-            ),
+            track="".join(traceback.format_exception(type(exc), exc, exc.__traceback__)),
         )
         error_chain.append(error_detail)
         exc = exc.__cause__ or exc.__context__
@@ -857,9 +849,7 @@ def cookie_opts() -> Dict[str, Any]:
         "on",
     )
     path = os.getenv("SCK_COOKIE_PATH", "/")
-    domain = (
-        os.getenv("SCK_COOKIE_DOMAIN") or None
-    )  # Keep None to omit Domain attribute
+    domain = os.getenv("SCK_COOKIE_DOMAIN") or None  # Keep None to omit Domain attribute
 
     return {
         "path": path,

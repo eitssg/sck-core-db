@@ -38,12 +38,8 @@ class ClientFactsModel(DatabaseTable):
     client_status = UnicodeAttribute(null=True, attr_name="ClientStatus")
     client_description = UnicodeAttribute(null=True, attr_name="ClientDescription")
     client_name = UnicodeAttribute(null=True, attr_name="ClientName")
-    client_scopes = ListAttribute(
-        of=UnicodeAttribute, null=True, attr_name="ClientScopes"
-    )
-    client_redirect_urls = ListAttribute(
-        of=UnicodeAttribute, null=True, attr_name="ClientRedirectUrls"
-    )
+    client_scopes = ListAttribute(of=UnicodeAttribute, null=True, attr_name="ClientScopes")
+    client_redirect_urls = ListAttribute(of=UnicodeAttribute, null=True, attr_name="ClientRedirectUrls")
 
     # AWS Organization configuration
     organization_id = UnicodeAttribute(null=True, attr_name="OrganizationId")
@@ -95,9 +91,7 @@ class ClientFactsModel(DatabaseTable):
         }
 
         if bucket_type not in bucket_mapping:
-            raise ValueError(
-                f"Unknown bucket type: {bucket_type}. Valid types: {list(bucket_mapping.keys())}"
-            )
+            raise ValueError(f"Unknown bucket type: {bucket_type}. Valid types: {list(bucket_mapping.keys())}")
 
         return bucket_mapping[bucket_type]
 
@@ -345,9 +339,7 @@ class ClientFact(DatabaseRecord):
         }
 
         if bucket_type not in bucket_mapping:
-            raise ValueError(
-                f"Unknown bucket type: {bucket_type}. Valid types: {list(bucket_mapping.keys())}"
-            )
+            raise ValueError(f"Unknown bucket type: {bucket_type}. Valid types: {list(bucket_mapping.keys())}")
 
         return bucket_mapping[bucket_type]
 
@@ -374,9 +366,7 @@ class ClientFact(DatabaseRecord):
 
     def to_model(self) -> ClientFactsModel:
         model_class = ClientFactsFactory.get_model()
-        return model_class(
-            **self.model_dump(include_secrets=True, by_alias=False, exclude_none=True)
-        )
+        return model_class(**self.model_dump(include_secrets=True, by_alias=False, exclude_none=True))
 
     def model_dump(self, **kwargs) -> dict:
         if "include_secrets" in kwargs and not kwargs.pop("include_secrets", False):
