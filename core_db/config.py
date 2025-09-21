@@ -29,6 +29,7 @@ Examples:
     'dev-acme-core-automation-zones'
 """
 
+from calendar import c
 from typing import Optional
 import core_framework as util
 from core_framework.constants import V_CORE_AUTOMATION
@@ -79,6 +80,56 @@ def get_region() -> str:
         'us-west-2'
     """
     return util.get_dynamodb_region() or "us-east-1"
+
+
+def table_map(client: str | None = None) -> dict:
+
+    if not client:
+        client = "core"
+
+    prefix = util.get_automation_scope() or ""
+
+    return {
+        #
+        # Global tables
+        #
+        # OAuth Authorizations Table
+        "AuthorizationsModel": f"{prefix}core-{V_CORE_AUTOMATION}-oauth",
+        "RateLimitsModel": f"{prefix}core-{V_CORE_AUTOMATION}-oauth",
+        "OAuthTableModel": f"{prefix}core-{V_CORE_AUTOMATION}-oauth",
+        "ForgotPasswordModel": f"{prefix}core-{V_CORE_AUTOMATION}-oauth",
+        # Passkeys / WebAuthn Table
+        "PassKeysModel": f"{prefix}core-{V_CORE_AUTOMATION}-passkeys",
+        # Client Facts is the base tenant registration table (no "client" prefix)
+        "ClientFactsModel": f"{prefix}core-{V_CORE_AUTOMATION}-clients",
+        #
+        # Tenant aware tables
+        #
+        # Profiles for user-defined configurations
+        "ProfileModel": f"{prefix}{client}-{V_CORE_AUTOMATION}-profiles",
+        # Authorization audit events
+        "AuthAuditModel": f"{prefix}{client}-{V_CORE_AUTOMATION}-auth-audit",
+        # AWS Account(s) and zone names
+        "ZoneFactsModel": f"{prefix}{client}-{V_CORE_AUTOMATION}-zones",
+        # Portfolio BizApps / Deployment App targets
+        "PortfolioFactsModel": f"{prefix}{client}-{V_CORE_AUTOMATION}-portfolios",
+        # The application zone selectors (App Registry)
+        "AppFactsModel": f"{prefix}{client}-{V_CORE_AUTOMATION}-apps",
+        # Components and Items deployed to AWS
+        "ItemModel": f"{prefix}{client}-{V_CORE_AUTOMATION}-items",
+        # All the portfolio deployment items
+        "PortfolioModel": f"{prefix}{client}-{V_CORE_AUTOMATION}-items",
+        # All the app deployments items
+        "AppModel": f"{prefix}{client}-{V_CORE_AUTOMATION}-items",
+        # All branch deployment items
+        "BranchModel": f"{prefix}{client}-{V_CORE_AUTOMATION}-items",
+        # All build deployment items
+        "BuildModel": f"{prefix}{client}-{V_CORE_AUTOMATION}-items",
+        # All component deployment items
+        "ComponentModel": f"{prefix}{client}-{V_CORE_AUTOMATION}-items",
+        # All the events that are generated during deployment
+        "EventModel": f"{prefix}{client}-{V_CORE_AUTOMATION}-events",
+    }
 
 
 def get_table_name(model: type, client: str | None = None, default: Optional[str] | None = None) -> str:
@@ -157,51 +208,9 @@ def get_table_name(model: type, client: str | None = None, default: Optional[str
         ...     print(f"Error: {e}")
         Error: Table name not found for UnknownModel
     """
-    if not client:
-        client = "core"
-
-    prefix = util.get_automation_scope() or ""
 
     # The key of this table is the model class name
-    tables = {
-        #
-        # Global tables
-        #
-        # OAuth Authorizations Table
-        "AuthorizationsModel": f"{prefix}core-{V_CORE_AUTOMATION}-oauth",
-        "RateLimitsModel": f"{prefix}core-{V_CORE_AUTOMATION}-oauth",
-        "OAuthTableModel": f"{prefix}core-{V_CORE_AUTOMATION}-oauth",
-        "ForgotPasswordModel": f"{prefix}core-{V_CORE_AUTOMATION}-oauth",
-        # Passkeys / WebAuthn Table
-        "PassKeysModel": f"{prefix}core-{V_CORE_AUTOMATION}-passkeys",
-        # Client Facts is the base tenant registration table (no "client" prefix)
-        "ClientFactsModel": f"{prefix}core-{V_CORE_AUTOMATION}-clients",
-        #
-        # Tenant aware tables
-        #
-        # Profiles for user-defined configurations
-        "ProfileModel": f"{prefix}{client}-{V_CORE_AUTOMATION}-profiles",
-        # AWS Account(s) and zone names
-        "ZoneFactsModel": f"{prefix}{client}-{V_CORE_AUTOMATION}-zones",
-        # Portfolio BizApps / Deployment App targets
-        "PortfolioFactsModel": f"{prefix}{client}-{V_CORE_AUTOMATION}-portfolios",
-        # The application zone selectors (App Registry)
-        "AppFactsModel": f"{prefix}{client}-{V_CORE_AUTOMATION}-apps",
-        # Components and Items deployed to AWS
-        "ItemModel": f"{prefix}{client}-{V_CORE_AUTOMATION}-items",
-        # All the portfolio deployment items
-        "PortfolioModel": f"{prefix}{client}-{V_CORE_AUTOMATION}-items",
-        # All the app deployments items
-        "AppModel": f"{prefix}{client}-{V_CORE_AUTOMATION}-items",
-        # All branch deployment items
-        "BranchModel": f"{prefix}{client}-{V_CORE_AUTOMATION}-items",
-        # All build deployment items
-        "BuildModel": f"{prefix}{client}-{V_CORE_AUTOMATION}-items",
-        # All component deployment items
-        "ComponentModel": f"{prefix}{client}-{V_CORE_AUTOMATION}-items",
-        # All the events that are generated during deployment
-        "EventModel": f"{prefix}{client}-{V_CORE_AUTOMATION}-events",
-    }
+    tables = table_map(client)
 
     # We may also want to first check if an environment variable is set
     # and if so, use that value instead of the default

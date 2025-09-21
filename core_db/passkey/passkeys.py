@@ -1,7 +1,7 @@
-from calendar import c
-from typing import Type
+from typing import Type, List, Tuple
 from datetime import datetime
 
+from pydantic.type_adapter import P
 from pynamodb.attributes import (
     UnicodeAttribute,
     UTCDateTimeAttribute,
@@ -9,7 +9,14 @@ from pynamodb.attributes import (
     NumberAttribute,
     BooleanAttribute,
 )
-from pynamodb.exceptions import PutError, ScanError, QueryError, GetError, UpdateError, DeleteError
+from pynamodb.exceptions import (
+    PutError,
+    ScanError,
+    QueryError,
+    GetError,
+    UpdateError,
+    DeleteError,
+)
 from pynamodb.expressions.update import Action
 from pydantic import Field, field_validator
 
@@ -18,8 +25,12 @@ from core_framework.time_utils import make_default_time
 
 from ..models import TableFactory, DatabaseTable, DatabaseRecord, Paginator
 from ..actions import TableActions
-from ..response import Response, SuccessResponse
-from ..exceptions import BadRequestException, ConflictException, UnknownException, NotFoundException
+from ..exceptions import (
+    BadRequestException,
+    ConflictException,
+    UnknownException,
+    NotFoundException,
+)
 
 
 class PassKeysModel(DatabaseTable):
@@ -116,7 +127,7 @@ class PassKey(DatabaseRecord):
         return v
 
     @classmethod
-    def get_model(cls, client: str | None = None) -> Type[PassKeysModel]:
+    def get_model(cls) -> Type[PassKeysModel]:
         """Get the ProfileModel class for the given client.
 
         Args:
@@ -125,7 +136,7 @@ class PassKey(DatabaseRecord):
         Returns:
             ProfileModelType: Client-specific ProfileModel class
         """
-        return TableFactory.get_model(PassKeysModel, client=client)
+        return TableFactory.get_model(PassKeysModel)
 
     def to_item(self) -> PassKeysModel:
         return PassKeysModel(**self.model_dump(exclude_none=True))
@@ -138,35 +149,39 @@ class PassKey(DatabaseRecord):
 class PassKeyActions(TableActions):
 
     @classmethod
-    def list(cls, **kwargs) -> Response:
+    def list(cls, *, user_id: str, **kwargs) -> Tuple[List[PassKey], Paginator]:
 
-        user_id = kwargs.pop("user_id", None)
-        if user_id:
-            return cls._get_for_user(user_id, **kwargs)
+        if not user_id:
+            raise BadRequestException(code=400, message="user_id is required")
 
-        return cls._get_all(**kwargs)
+        return cls._get_for_user(user_id, **kwargs)
 
     @classmethod
-    def _get_all(cls, **kwargs) -> Response:
+    def _get_all(cls, **kwargs) -> Tuple[List[PassKey], Paginator]:
 
         paginator = Paginator(**kwargs)
 
         model_class = PassKey.get_model()
 
         try:
+            scan_args = paginator.get_scan_args()
 
-            result = model_class.scan(**paginator.get_scan_args())
-            data = []
-            for item in result:
-                data.append(PassKey.from_item(item).model_dump(mode="json"))
+            result = model_class.scan(**scan_args)
 
-            return SuccessResponse(data=data, meta=paginator.get_metadata())
+            data = [PassKey.from_item(item) for item in result]
+
+            paginator.cursor = getattr(result, "last_evaluated_key", None)
+            paginator.total_count = len(data)
+
+            return data, paginator
 
         except ScanError as e:
             raise UnknownException(str(e)) from e
+        except Exception as e:
+            raise UnknownException(str(e)) from e
 
     @classmethod
-    def _get_for_user(cls, user_id: str, **kwargs) -> Response:
+    def _get_for_user(cls, user_id: str, **kwargs) -> Tuple[List[PassKey], Paginator]:
 
         key_id = kwargs.get("key_id")
 
@@ -174,37 +189,37 @@ class PassKeyActions(TableActions):
 
         model_class = PassKey.get_model()
 
+        query_args = paginator.get_query_args()
         if key_id:
-            range_key_condition = model_class.key_id.is_in([key_id])
-        else:
-            range_key_condition = None
+            query_args["range_key_condition"] = model_class.key_id.is_in([key_id])
 
         try:
-            result = model_class.query(user_id, range_key_condition=range_key_condition, **paginator.get_scan_args())
-            data = []
-            for item in result:
-                data.append(PassKey.from_item(item).model_dump(mode="json"))
+            result = model_class.query(user_id, **query_args)
 
-            return SuccessResponse(data=data, meta=paginator.get_metadata())
+            data = [PassKey.from_item(item) for item in result]
+
+            paginator.cursor = getattr(result, "last_evaluated_key", None)
+            paginator.total_count = len(data)
+
+            return data, paginator
+
         except QueryError as e:
+            raise UnknownException(str(e)) from e
+        except Exception as e:
             raise UnknownException(str(e)) from e
 
     @classmethod
-    def get(cls, **kwargs) -> Response:
-        model_class = PassKey.get_model()
-
-        user_id = kwargs.get("user_id")
-        key_id = kwargs.get("key_id")
+    def get(cls, *, user_id: str, key_id: str, **kwargs) -> PassKey:
 
         if not user_id or not key_id:
             raise BadRequestException(code=400, message="user_id and key_id are required")
 
+        model_class = PassKey.get_model()
+
         try:
             result = model_class.get(hash_key=user_id, range_key=key_id)
 
-            data = PassKey.from_item(result).model_dump(mode="json")
-
-            return SuccessResponse(data=data)
+            return PassKey.from_item(result)
 
         except GetError as e:
             raise NotFoundException("PassKey not found")
@@ -212,16 +227,15 @@ class PassKeyActions(TableActions):
             raise UnknownException(str(e)) from e
 
     @classmethod
-    def create(cls, **kwargs) -> Response:
+    def create(cls, **kwargs) -> PassKey:
+
         model_class = PassKey.get_model()
 
         try:
             item = model_class(**kwargs)
             item.save(condition=model_class.user_id.does_not_exist() & model_class.key_id.does_not_exist())
 
-            data = PassKey.from_item(item).model_dump(mode="json")
-
-            return SuccessResponse(data=data)
+            return PassKey.from_item(item)
 
         except PutError:
             if "ConditionalCheckFailedException" in str(e):
@@ -233,7 +247,7 @@ class PassKeyActions(TableActions):
             raise UnknownException(str(e)) from e
 
     @classmethod
-    def update(cls, **kwargs) -> Response:
+    def update(cls, **kwargs) -> PassKey:
         model_class = PassKey.get_model()
 
         data = PassKey(**kwargs)
@@ -242,7 +256,7 @@ class PassKeyActions(TableActions):
             item = model_class(**kwargs)
             item.save(condition=model_class.user_id.exists() & model_class.key_id.exists())
 
-            return SuccessResponse(data=data.model_dump(mode="json"))
+            return data
 
         except UpdateError as e:
             if "ConditionalCheckFailedException" in str(e):
@@ -253,7 +267,7 @@ class PassKeyActions(TableActions):
             raise UnknownException(str(e)) from e
 
     @classmethod
-    def patch(cls, **kwargs) -> Response:
+    def patch(cls, **kwargs) -> PassKey:
 
         user_id = kwargs.pop("user_id", None)
         key_id = kwargs.pop("key_id", None)
@@ -276,13 +290,13 @@ class PassKeyActions(TableActions):
             actions.append(model_class.updated_at.set(make_default_time()))
 
             item = model_class(user_id=user_id, key_id=key_id)
-            item.update(actions=actions, condition=model_class.user_id.exists() & model_class.key_id.exists())
-
+            item.update(
+                actions=actions,
+                condition=model_class.user_id.exists() & model_class.key_id.exists(),
+            )
             item.refresh()
 
-            data = PassKey.from_item(item).model_dump(mode="json")
-
-            return SuccessResponse(data=data)
+            return PassKey.from_item(item)
 
         except UpdateError as e:
             if "ConditionalCheckFailedException" in str(e):
@@ -294,7 +308,7 @@ class PassKeyActions(TableActions):
             raise UnknownException(str(e)) from e
 
     @classmethod
-    def delete(cls, **kwargs) -> Response:
+    def delete(cls, **kwargs) -> bool:
 
         user_id = kwargs.get("user_id")
         key_id = kwargs.get("key_id")
@@ -305,13 +319,18 @@ class PassKeyActions(TableActions):
         try:
             model_class = PassKey.get_model()
 
-            model_class.delete(user_id=user_id, key_id=key_id, condition=model_class.user_id.exists() & model_class.key_id.exists())
+            model_class.delete(
+                user_id=user_id,
+                key_id=key_id,
+                condition=model_class.user_id.exists() & model_class.key_id.exists(),
+            )
 
-            return SuccessResponse(code=204, message="PassKey deleted")
+            return True
 
         except DeleteError as e:
             if "ConditionalCheckFailedException" in str(e):
                 raise NotFoundException("PassKey not found")
             raise UnknownException(str(e)) from e
+
         except Exception as e:
             raise UnknownException(str(e)) from e

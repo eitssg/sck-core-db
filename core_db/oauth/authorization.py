@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pynamodb.attributes import MapAttribute, UnicodeAttribute, UTCDateTimeAttribute, BooleanAttribute
+from pynamodb.attributes import UnicodeAttribute, UTCDateTimeAttribute, BooleanAttribute
 from pydantic import Field
 
 from ..models import TableFactory

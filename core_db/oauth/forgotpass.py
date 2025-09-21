@@ -51,15 +51,37 @@ class ForgotPassword(OAuthRecord):
         description="Client where the profile is located",
         alias="Client",
     )
-    client_id: str = Field(..., description="OAuth Client ID where the request initiated", alias="ClientID")
+    client_id: str = Field(
+        ..., description="OAuth Client ID where the request initiated", alias="ClientID"
+    )
 
-    user_id: str = Field(..., description="User ID associated with the account", alias="UserID")
-    email: str = Field(..., description="Email address associated with the account", alias="Email")
-    reset_token: str = Field(..., description="Reset token for password recovery", alias="ResetToken")
-    verified: bool = Field(description="Indicates if the email has been verified", default=False, alias="Verified")
-    used: bool = Field(description="Indicates if the reset token has been used", default=False, alias="Used")
-    used_at: datetime | None = Field(default=None, description="Timestamp when the reset token was used", alias="UsedAt")
-    expires_at: datetime = Field(..., description="Expiration timestamp for the reset token", alias="ExpiresAt")
+    user_id: str = Field(
+        ..., description="User ID associated with the account", alias="UserID"
+    )
+    email: str = Field(
+        ..., description="Email address associated with the account", alias="Email"
+    )
+    reset_token: str = Field(
+        ..., description="Reset token for password recovery", alias="ResetToken"
+    )
+    verified: bool = Field(
+        description="Indicates if the email has been verified",
+        default=False,
+        alias="Verified",
+    )
+    used: bool = Field(
+        description="Indicates if the reset token has been used",
+        default=False,
+        alias="Used",
+    )
+    used_at: datetime | None = Field(
+        default=None,
+        description="Timestamp when the reset token was used",
+        alias="UsedAt",
+    )
+    expires_at: datetime = Field(
+        ..., description="Expiration timestamp for the reset token", alias="ExpiresAt"
+    )
 
     # created_at is defined in DatabaseRecord parent class
     # updated_at is defined in DatabaseRecord parent class

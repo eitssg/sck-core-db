@@ -367,7 +367,7 @@ Note:
     scalable, and cost-effective multi-environment operations.
 """
 
-from .models import ZoneFact
+from .models import ZoneFact, ZoneFactsFactory, ZoneFactsModel
 from .actions import ZoneActions
 
-__all__ = ["ZoneFact", "ZoneActions"]
+__all__ = ["ZoneFact", "ZoneActions", "ZoneFactsFactory", "ZoneFactsModel"]

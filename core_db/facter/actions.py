@@ -1,6 +1,7 @@
 """Defines the get method for the Facts table view."""
 
-from csv import Error
+from typing import Tuple
+
 import core_logging as log
 import core_framework as util
 
@@ -16,11 +17,9 @@ from core_framework.constants import (
 
 from core_framework.models import DeploymentDetails
 
-from ..constants import PRN
 from ..actions import TableActions
 
-from ..response import Response, SuccessResponse, ErrorResponse
-from ..exceptions import BadRequestException
+from ..exceptions import BadRequestException, UnknownException
 
 from .facter import get_facts
 
@@ -67,7 +66,7 @@ class FactsActions(TableActions):
     @classmethod
     def validate_prn_scope(
         cls, prn: str | None
-    ) -> tuple[str | None, str | None, str | None, str | None, str | None]:
+    ) -> Tuple[str | None, str | None, str | None, str | None, str | None]:
         """Validate PRN format and extract scope components.
 
         Validates the provided PRN against the expected format for its scope
@@ -173,15 +172,15 @@ class FactsActions(TableActions):
 
         # Extract components from PRN format: prn:portfolio:app:branch:build:component
         # Skip "prn" part and extract the hierarchy components
-        if len(parts) >= 2:  # At least portfolio
+        if num_parts >= 2:  # At least portfolio
             portfolio = parts[1]
-        if len(parts) >= 3:  # At least app
+        if num_parts >= 3:  # At least app
             app = parts[2]
-        if len(parts) >= 4:  # At least branch
+        if num_parts >= 4:  # At least branch
             branch = parts[3]
-        if len(parts) >= 5:  # At least build
+        if num_parts >= 5:  # At least build
             build = parts[4]
-        if len(parts) >= 6:  # Component
+        if num_parts >= 6:  # Component
             component = parts[5]
 
         log.debug(
@@ -191,7 +190,7 @@ class FactsActions(TableActions):
         return portfolio, app, branch, build, component
 
     @classmethod
-    def get(cls, **kwargs: dict) -> Response:
+    def get(cls, **kwargs: dict) -> dict:
         """Retrieve Facts for a specific deployment context.
 
         Combines registry data from multiple sources (Client, Portfolio, App, Zone)
@@ -321,12 +320,12 @@ class FactsActions(TableActions):
         )
 
         try:
+
             the_facts = get_facts(deployment_details)
 
             log.debug("Facter is return facts: ", details=the_facts)
 
-            return SuccessResponse(
-                data=the_facts, metadata={"client": client, "prn": prn}
-            )
+            return the_facts
+
         except Exception as e:
-            return ErrorResponse(code=404, message=str(e))
+            raise UnknownException(f"Failed to retrieve Facts: {e}") from e

@@ -260,6 +260,13 @@ Note:
 """
 
 from .models import ItemModel
+
+from .portfolio.models import PortfolioModel
+from .app.models import AppModel
+from .branch.models import BranchModel
+from .build.models import BuildModel
+from .component.models import ComponentModel
+
 from .actions import ItemTableActions as ItemActions
 
-__all__ = ["ItemModel", "ItemActions"]
+__all__ = ["ItemModel", "PortfolioModel", "AppModel", "BranchModel", "BuildModel", "ComponentModel", "ItemActions"]

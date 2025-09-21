@@ -6,6 +6,7 @@ from pydantic import Field, field_validator
 
 
 from pynamodb.attributes import (
+    ListAttribute,
     UnicodeAttribute,
     UTCDateTimeAttribute,
     MapAttribute,
@@ -39,6 +40,7 @@ class ProfileByEmailIndex(GlobalSecondaryIndex):
         billing_mode = "PAY_PER_REQUEST"
 
     email = UnicodeAttribute(hash_key=True, attr_name="Email")
+    profile_name = UnicodeAttribute(range_key=True, attr_name="ProfileName")
 
 
 class ProfileModel(DatabaseTable):
@@ -158,9 +160,9 @@ class ProfileModel(DatabaseTable):
 
     # MFA tokens
     mfa_enabled = BooleanAttribute(attr_name="MfaEnabled", null=True, default=False)
-    mfa_methods = List(of=UnicodeAttribute, attr_name="MfaMethods", null=True, default=list)
+    mfa_methods = ListAttribute(of=UnicodeAttribute, attr_name="MfaMethods", null=True, default=list)
     totp_secret = UnicodeAttribute(attr_name="TotpSecret", null=True)
-    recovery_codes = List(of=UnicodeAttribute, attr_name="RecoveryCodes", null=True, default=list)
+    recovery_codes = ListAttribute(of=UnicodeAttribute, attr_name="RecoveryCodes", null=True, default=list)
 
     # Usage tracking (per profile)
     session_count = NumberAttribute(attr_name="SessionCount", default=0)
