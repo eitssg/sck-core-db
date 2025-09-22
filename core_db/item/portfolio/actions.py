@@ -8,7 +8,8 @@ The PortfolioActions class extends ItemTableActions to provide portfolio-specifi
 while inheriting common item management functionality.
 """
 
-from ...response import Response
+from typing import Type
+
 from ..actions import ItemTableActions
 from .models import PortfolioItem
 
@@ -25,7 +26,7 @@ class PortfolioActions(ItemTableActions):
     """
 
     @classmethod
-    def list(cls, **kwargs) -> Response:
+    def list(cls, *, client: str, **kwargs):
         """List portfolio items with optional filtering and pagination.
 
         Convenience method that automatically uses PortfolioItem type.
@@ -42,7 +43,7 @@ class PortfolioActions(ItemTableActions):
                 - sort_forward (bool, optional): Sort order (default: True)
 
         Returns:
-            Response: SuccessResponse with structure:
+            BaseModel: BaseModel object with structure:
                 - data (List[Dict]): List of portfolio item dictionaries, each containing:
                     - prn (str): Portfolio PRN
                     - parent_prn (str): Parent PRN (same as prn for top-level items)
@@ -56,10 +57,10 @@ class PortfolioActions(ItemTableActions):
                     - cursor (str): Cursor token for next page (if more results exist)
                     - total_count (int): Total number of items returned in this page
         """
-        return super().list(record_type=PortfolioItem, **kwargs)
+        return super().list(PortfolioItem, client=client, **kwargs)
 
     @classmethod
-    def get(cls, **kwargs) -> Response:
+    def get(cls, **kwargs) -> PortfolioItem:
         """Retrieve a specific portfolio item by PRN.
 
         Convenience method that automatically uses PortfolioItem type.
@@ -70,7 +71,7 @@ class PortfolioActions(ItemTableActions):
                 - prn (str): Portfolio PRN to retrieve (e.g., "prn:ecommerce-platform")
 
         Returns:
-            Response: SuccessResponse with structure:
+            BaseModel: BaseModel object with structure:
                 - data (Dict): Single portfolio item dictionary containing:
                     - prn (str): Portfolio PRN
                     - parent_prn (str): Parent PRN (same as prn for top-level items)
@@ -88,7 +89,7 @@ class PortfolioActions(ItemTableActions):
         return super().get(record_type=PortfolioItem, **kwargs)
 
     @classmethod
-    def create(cls, **kwargs) -> Response:
+    def create(cls, *, client: str, **kwargs) -> PortfolioItem:
         """Create a new portfolio item in the CMDB.
 
         Convenience method that automatically uses PortfolioItem type.
@@ -104,7 +105,7 @@ class PortfolioActions(ItemTableActions):
                     - Any other custom metadata fields
 
         Returns:
-            Response: SuccessResponse with structure:
+            BaseModel: BaseModel object with structure:
                 - data (Dict): Created portfolio item dictionary containing:
                     - prn (str): Generated portfolio PRN
                     - parent_prn (str): Parent PRN (same as prn for top-level items)
@@ -119,10 +120,10 @@ class PortfolioActions(ItemTableActions):
             BadRequestException: If required fields are missing or invalid
             ConflictException: If portfolio with same PRN already exists
         """
-        return super().create(record_type=PortfolioItem, **kwargs)
+        return super().create(PortfolioItem, client=client, **kwargs)
 
     @classmethod
-    def update(cls, **kwargs) -> Response:
+    def update(cls, *, client: str, **kwargs) -> PortfolioItem:
         """Update an existing portfolio item using PUT semantics (full replacement).
 
         Convenience method that automatically uses PortfolioItem type.
@@ -136,7 +137,7 @@ class PortfolioActions(ItemTableActions):
                 - Any other updatable portfolio fields
 
         Returns:
-            Response: SuccessResponse with structure:
+            BaseModel: BaseModel object with structure:
                 - data (Dict): Updated portfolio item dictionary with all current values
 
         Raises:
@@ -147,10 +148,10 @@ class PortfolioActions(ItemTableActions):
             This is a full replacement operation. All updatable fields should be provided.
             Use patch() for partial updates.
         """
-        return super().update(record_type=PortfolioItem, **kwargs)
+        return super().update(PortfolioItem, client=client, **kwargs)
 
     @classmethod
-    def delete(cls, **kwargs) -> Response:
+    def delete(cls, **kwargs) -> bool:
         """Delete a portfolio item from the CMDB.
 
         Convenience method that automatically uses PortfolioItem type.
@@ -161,7 +162,7 @@ class PortfolioActions(ItemTableActions):
                 - prn (str): Portfolio PRN to delete
 
         Returns:
-            Response: SuccessResponse with structure:
+            BaseModel: BaseModel object with structure:
                 - data (Dict): Confirmation containing deleted item information
 
         Raises:
@@ -175,7 +176,7 @@ class PortfolioActions(ItemTableActions):
         return super().delete(record_type=PortfolioItem, **kwargs)
 
     @classmethod
-    def patch(cls, **kwargs) -> Response:
+    def patch(cls, *, client: str, **kwargs) -> PortfolioItem:
         """Partially update a portfolio item using PATCH semantics.
 
         Convenience method that automatically uses PortfolioItem type.
@@ -189,7 +190,7 @@ class PortfolioActions(ItemTableActions):
                 - Any other updatable portfolio fields
 
         Returns:
-            Response: SuccessResponse with structure:
+            BaseModel: BaseModel object with structure:
                 - data (Dict): Updated portfolio item dictionary with merged values
 
         Raises:
@@ -200,4 +201,4 @@ class PortfolioActions(ItemTableActions):
             This performs a partial update, merging provided fields with existing data.
             Only specified fields will be updated.
         """
-        return super().patch(record_type=PortfolioItem, **kwargs)
+        return super().patch(PortfolioItem, client=client, **kwargs)

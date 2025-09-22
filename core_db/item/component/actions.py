@@ -8,7 +8,9 @@ The ComponentActions class extends ItemTableActions to provide component-specifi
 while inheriting common item management functionality.
 """
 
-from ...response import Response
+from typing import List, Tuple
+
+from ...models import Paginator
 from ..actions import ItemTableActions
 from .models import ComponentItem
 
@@ -26,7 +28,7 @@ class ComponentActions(ItemTableActions):
     """
 
     @classmethod
-    def list(cls, **kwargs) -> Response:
+    def list(cls, *, client: str, **kwargs) -> Tuple[List[ComponentItem], Paginator]:
         """List component items with optional filtering and pagination.
 
         Args:
@@ -34,24 +36,24 @@ class ComponentActions(ItemTableActions):
                      and time-based filtering criteria.
 
         Returns:
-            Response: SuccessResponse containing list of component items and pagination metadata.
+            BaseModel: BaseModel object containing list of component items and pagination metadata.
         """
-        return super().list(record_type=ComponentItem, **kwargs)
+        return super().list(ComponentItem, client=client, **kwargs)
 
     @classmethod
-    def get(cls, **kwargs) -> Response:
+    def get(cls, *, client: str, **kwargs) -> ComponentItem:
         """Retrieve a specific component item by PRN.
 
         Args:
             **kwargs: Parameters including prn or component_prn to identify the component item.
 
         Returns:
-            Response: SuccessResponse containing the component item data.
+            BaseModel: BaseModel object containing the component item data.
         """
-        return super().get(record_type=ComponentItem, **kwargs)
+        return super().get(ComponentItem, client=client, **kwargs)
 
     @classmethod
-    def create(cls, **kwargs) -> Response:
+    def create(cls, *, client: str, **kwargs) -> ComponentItem:
         """Create a new component item in the CMDB.
 
         Args:
@@ -59,12 +61,12 @@ class ComponentActions(ItemTableActions):
                      and other component-specific fields.
 
         Returns:
-            Response: SuccessResponse containing the created component item data.
+            BaseModel: BaseModel object containing the created component item data.
         """
-        return super().create(record_type=ComponentItem, **kwargs)
+        return super().create(ComponentItem, client=client, **kwargs)
 
     @classmethod
-    def update(cls, **kwargs) -> Response:
+    def update(cls, *, client: str, **kwargs) -> ComponentItem:
         """Update an existing component item using PUT semantics.
 
         Args:
@@ -72,18 +74,19 @@ class ComponentActions(ItemTableActions):
                      the item and fields to modify.
 
         Returns:
-            Response: SuccessResponse containing the updated component item data.
+            BaseModel: BaseModel object containing the updated component item data.
         """
-        return super().update(record_type=ComponentItem, **kwargs)
+        return super().update(ComponentItem, client=client, **kwargs)
 
     @classmethod
-    def delete(cls, **kwargs) -> Response:
+    def delete(cls, *, client: str, **kwargs) -> bool:
         """Delete a component item from the CMDB.
 
         Args:
             **kwargs: Parameters including prn or component_prn to identify the component item to delete.
 
         Returns:
-            Response: SuccessResponse with confirmation of the deletion.
+            BaseModel: BaseModel object with structure:
+                - data (Dict): Deletion confirmation dictionary
         """
-        return super().delete(record_type=ComponentItem, **kwargs)
+        return super().delete(ComponentItem, client=client, **kwargs)

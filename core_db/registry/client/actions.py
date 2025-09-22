@@ -66,7 +66,7 @@ class ClientActions(RegistryAction):
             # Convert PynamoDB items to ClientFact instances and then into dicts for the response
             data = [ClientFact.from_model(item) for item in results]
 
-            paginator.cursor = getattr(results, "last_evaluated_key", None)
+            paginator.last_evaluated_key = getattr(results, "last_evaluated_key", None)
             paginator.total_count = len(data)
 
             return data, paginator

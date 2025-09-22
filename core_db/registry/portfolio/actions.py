@@ -106,7 +106,7 @@ class PortfolioActions(RegistryAction):
             # Convert PynamoDB items to simple dictionaries
             data = [PortfolioFact.from_model(item) for item in result]
 
-            paginator.cursor = getattr(result, "last_evaluated_key", None)
+            paginator.last_evaluated_key = getattr(result, "last_evaluated_key", None)
             paginator.total_count = len(data)
 
             log.info("Successfully retrieved %d portfolios for client: %s", len(data), client)

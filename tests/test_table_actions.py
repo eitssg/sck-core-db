@@ -1,11 +1,12 @@
 import os
 import pytest
 
+from pydantic import BaseModel
+
 import boto3
 
 import core_framework as util
 
-from core_db.response import Response
 from core_db.dbhelper import actions_routes
 
 from .test_table_actions_data import test_data
@@ -69,13 +70,10 @@ def test_table_actions(bootstrap_dynamo, request_data, expected_result):
 
         response = method(client=client, **data)
 
-        assert isinstance(response, Response)
+        assert isinstance(response, BaseModel)
 
-        assert response.status == expected_result["status"]
-        assert response.code == expected_result["code"]
-        assert response.data is not None
+        response_data = response.model_dump()
 
-        response_data = response.data
         expected_data = expected_result.get("data", None)
 
         assert expected_data is not None

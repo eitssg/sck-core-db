@@ -203,6 +203,6 @@ Note:
 """
 
 from .actions import AppActions
-from .models import AppModel, ItemModelRecord
+from .models import AppModel, AppItem
 
-__all__ = ["AppActions", "AppModel", "ItemModelRecord"]
+__all__ = ["AppActions", "AppModel", "AppItem"]

@@ -124,7 +124,7 @@ class ZoneActions(RegistryAction):
 
             result = [ZoneFact.from_model(item) for item in results]
 
-            paginator.cursor = getattr(results, "last_evaluated_key", None)
+            paginator.last_evaluated_key = getattr(results, "last_evaluated_key", None)
             paginator.total_count = len(result)
 
             log.info("Found %d zones for client: %s", len(result), client)
@@ -156,7 +156,7 @@ class ZoneActions(RegistryAction):
                     continue
                 data.append(ZoneFact.from_model(item))
 
-            paginator.cursor = getattr(results, "last_evaluated_key", None)
+            paginator.last_evaluated_key = getattr(results, "last_evaluated_key", None)
             paginator.total_count = len(data)
 
             log.info("Found %d zones for client: %s", len(data), client)

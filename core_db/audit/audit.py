@@ -244,7 +244,7 @@ class AuthAuditActions(TableActions):
             results = []
             for item in result:
                 results.append(AuthAuditSchemas.from_model(item))
-            paginator.cursor = getattr(result, "last_evaluated_key", None)
+            paginator.last_evaluated_key = getattr(result, "last_evaluated_key", None)
             paginator.total_count = len(results)
 
             return results, paginator
@@ -268,7 +268,7 @@ class AuthAuditActions(TableActions):
             for item in result:
                 results.append(AuthAuditSchemas.from_model(item))
 
-            paginator.cursor = getattr(result, "last_evaluated_key", None)
+            paginator.last_evaluated_key = getattr(result, "last_evaluated_key", None)
             paginator.total_count = len(results)
 
             return results, paginator
@@ -289,7 +289,7 @@ class AuthAuditActions(TableActions):
             for item in result:
                 results.append(AuthAuditSchemas.from_model(item))
 
-            paginator.cursor = getattr(result, "last_evaluated_key", None)
+            paginator.last_evaluated_key = getattr(result, "last_evaluated_key", None)
             paginator.total_count = len(results)
 
             return results, paginator
@@ -310,7 +310,7 @@ class AuthAuditActions(TableActions):
             for item in result:
                 results.append(AuthAuditSchemas.from_model(item))
 
-            paginator.cursor = getattr(result, "last_evaluated_key", None)
+            paginator.last_evaluated_key = getattr(result, "last_evaluated_key", None)
             paginator.total_count = len(results)
 
             return results, paginator

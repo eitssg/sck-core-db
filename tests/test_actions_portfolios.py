@@ -5,7 +5,6 @@ import core_framework as util
 
 from core_db.registry.portfolio.actions import PortfolioActions
 from core_db.registry.portfolio.models import PortfolioFact
-from core_db.response import SuccessResponse, NoContentResponse
 from core_db.exceptions import (
     BadRequestException,
     NotFoundException,
@@ -710,7 +709,7 @@ def test_portfolio_timestamps():
 
 
 # =============================================================================
-# Response Format Tests
+#  Format Tests
 # =============================================================================
 
 

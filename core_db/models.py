@@ -980,7 +980,7 @@ class Paginator(BaseModel):
 
     model_config = ConfigDict(from_attributes=True, validate_assignment=True)
 
-    cursor: dict | None = Field(default=None, description="Last evaluated key from AWS for pagination")
+    cursor: str | None = Field(default=None, description="Last evaluated key from AWS for pagination")
     limit: int = Field(
         default=10,
         ge=1,
@@ -1000,7 +1000,7 @@ class Paginator(BaseModel):
     def get_query_args(self) -> dict:
         args = {"limit": self.limit}
         if self.cursor is not None:
-            args["last_evaluated_key"] = self.cursor
+            args["last_evaluated_key"] = self.last_evaluated_key
         if self.sort_forward is not None:
             args["scan_index_forward"] = self.sort_forward
         if self.page_size is not None:
@@ -1013,11 +1013,22 @@ class Paginator(BaseModel):
         """
         args = {"limit": self.limit}
         if self.cursor is not None:
-            args["last_evaluated_key"] = self.cursor
+            args["last_evaluated_key"] = self.last_evaluated_key
         if self.page_size is not None:
             args["page_size"] = self.page_size
 
         return args
+
+    @property
+    def last_evaluated_key(self) -> dict | None:
+        """Return the last evaluated key (cursor)."""
+        return self._decode_cursor(self.cursor)
+
+    @last_evaluated_key.setter
+    def last_evaluated_key(self, value: dict | None) -> None:
+        """Set the last evaluated key (cursor) from a dict.  Use the 'cursor' key for the base64 string."""
+        if isinstance(value, dict):
+            self.cursor = self._encode_cursor(value)
 
     @property
     def sort(self) -> str:
@@ -1049,18 +1060,11 @@ class Paginator(BaseModel):
         """Validate latest_time to ensure it is a valid datetime or None."""
         return cls.validate_date(v)
 
-    @field_validator("cursor", mode="before")
-    def validate_cursor(cls, v: Any) -> Optional[dict]:
-        """Validate cursor to ensure it is a dictionary or None."""
-        return cls._decode_cursor(v)
-
-    @classmethod
-    def _decode_cursor(cls, cursor: str | dict) -> Optional[dict]:
+    @staticmethod
+    def _decode_cursor(cursor: str | dict) -> Optional[dict]:
         """Decode a base64 encoded cursor string to a dictionary."""
         if cursor is None:
             return None
-        if isinstance(cursor, dict):
-            return cursor
         try:
             decoded = base64.b64decode(cursor).decode(encoding="utf-8")
             # Don't use my parser.  My parser converts date string to datetime, which is not what we want here.
@@ -1068,12 +1072,12 @@ class Paginator(BaseModel):
         except (ValueError, TypeError):
             return None
 
-    @property
-    def cursor_encoded(self) -> str:
+    @staticmethod
+    def _encode_cursor(cursor: str | None) -> str:
         """Return the last evaluated key as a JSON string."""
-        if self.cursor is None:
+        if cursor is None:
             return None
-        json_str = json.dumps(self.cursor)
+        json_str = json.dumps(cursor)
         return base64.b64encode(json_str.encode(encoding="utf-8")).decode(encoding="utf-8")
 
     @classmethod
@@ -1102,7 +1106,7 @@ class Paginator(BaseModel):
             {'cursor': '{"id": "123"}', 'total_count': 50}
         """
         return {
-            "cursor": self.cursor_encoded,
+            "cursor": self.cursor,
             "page_size": self.limit,
             "total_count": self.total_count,
             "has_more_pages": self.cursor is not None,

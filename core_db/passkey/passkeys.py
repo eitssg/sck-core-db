@@ -170,7 +170,7 @@ class PassKeyActions(TableActions):
 
             data = [PassKey.from_item(item) for item in result]
 
-            paginator.cursor = getattr(result, "last_evaluated_key", None)
+            paginator.last_evaluated_key = getattr(result, "last_evaluated_key", None)
             paginator.total_count = len(data)
 
             return data, paginator
@@ -198,7 +198,7 @@ class PassKeyActions(TableActions):
 
             data = [PassKey.from_item(item) for item in result]
 
-            paginator.cursor = getattr(result, "last_evaluated_key", None)
+            paginator.last_evaluated_key = getattr(result, "last_evaluated_key", None)
             paginator.total_count = len(data)
 
             return data, paginator

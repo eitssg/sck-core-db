@@ -74,12 +74,6 @@ Examples:
     ...     portfolio="web-services"
     ... )
 
-    >>> # Response handling
-    >>> from core_db.response import SuccessResponse, NoContentResponse
-    >>> from core_db.exceptions import BadRequestException, ConflictException
-
-    >>> # Database constants
-    >>> from core_db.constants import CLIENT_KEY, PORTFOLIO_KEY, ZONE_KEY, APP_KEY
 
 Module Features:
     **Registry Management**:
@@ -150,15 +144,6 @@ Registry Entity Examples:
     }
     ```
 
-Response Types:
-    **SuccessResponse**: Successful operation with data
-    ```python
-    response = SuccessResponse(
-        data={"client": "acme", "status": "active"},
-        message="Client created successfully"
-    )
-    ```
-
     **NoContentResponse**: Successful operation without data
     ```python
     response = NoContentResponse(
@@ -209,7 +194,6 @@ Best Practices:
     - **Error Handling**: Use proper exception handling for all operations
     - **Client Isolation**: Ensure proper data separation between clients
     - **Metadata Completeness**: Provide comprehensive data for automation
-    - **Response Standardization**: Use consistent response formats
 
 Operational Considerations:
     - **Scalability**: Design for enterprise-scale multi-tenant usage

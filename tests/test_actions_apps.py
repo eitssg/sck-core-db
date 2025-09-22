@@ -1,14 +1,10 @@
-import re
 import pytest
 from unittest.mock import patch
-from pydantic import ValidationError
 
 import core_framework as util
-from test.test_reprlib import r
 
 from core_db.registry.app.actions import AppActions
 from core_db.registry.app.models import AppFact
-from core_db.response import SuccessResponse, NoContentResponse
 from core_db.exceptions import (
     BadRequestException,
     NotFoundException,
@@ -126,6 +122,8 @@ def test_app_get():
     app_facts, paginator = AppActions.list(client=client, portfolio=portfolio, app_regex=app_regex)
 
     assert len(app_facts) > 0
+    assert paginator.total_count > 0
+
     response = app_facts[0]
 
     # Keys in response.data should be PascalCase

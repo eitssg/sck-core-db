@@ -28,8 +28,11 @@ Usage Patterns:
     - core_db.item.component: Component-specific operations
 """
 
+from typing import List, Tuple
+from datetime import datetime
+
 import core_logging as log
-import core_framework as util
+
 from core_framework.time_utils import make_default_time
 
 from pynamodb.expressions.update import Action
@@ -42,16 +45,11 @@ from pynamodb.exceptions import (
     QueryError,
     ScanError,
 )
-
 from ..actions import TableActions
 from ..models import Paginator
-from ..response import (
-    Response,
-    SuccessResponse,  # http 200
-)
 
 from ..models import Paginator
-from .models import ItemModelRecord, ItemModelType, ItemModelRecordType
+from .models import ItemModelRecord, ItemModelType
 
 
 from ..exceptions import (
@@ -75,7 +73,7 @@ class ItemTableActions(TableActions):
     """
 
     @classmethod
-    def create(cls, record_type: ItemModelRecordType, **kwargs) -> Response:
+    def create(cls, record_type: ItemModelRecord, *, client: str, **kwargs) -> ItemModelRecord:
         """Create a new item in the items table.
 
         Args:
@@ -83,51 +81,56 @@ class ItemTableActions(TableActions):
             **kwargs: Item attributes including prn, name, and type-specific fields
 
         Returns:
-            Response: SuccessResponse containing the created item data
+            BaseModel: BaseModel object containing the created item data
 
         Raises:
             BadRequestException: If required fields are missing or invalid
             ConflictException: If item already exists with the same PRN
             UnknownException: If database operation fails
         """
-        client = kwargs.get("client") or util.get_client()
         if not client:
             raise BadRequestException("Client is required for item creation")
 
         try:
-            data = record_type(**kwargs)
+            data: ItemModelRecord = record_type(**kwargs)
 
             item = data.to_model(client)
             item.save(type(item).prn.does_not_exist())
 
-            data = record_type.from_model(item).model_dump(mode="json")
+            data: ItemModelRecord = record_type.from_model(item)
 
-            return SuccessResponse(data=data, message="Item created successfully")
+            return data
 
         except ValueError as e:
             raise BadRequestException(f"Invalid item data: {e}")
+
         except PutError as e:
             if "ConditionalCheckFailedException" in str(e):
                 raise ConflictException(f"Item already exists with PRN: {data.prn}")
-            else:
-                raise UnknownException("Database operation failed while creating item") from e
+
+            raise UnknownException("Database operation failed while creating item") from e
+
         except Exception as e:
             log.error("Database operation failed", error=str(e), details=kwargs)
             raise UnknownException("Database operation failed") from e
 
     @classmethod
-    def delete(cls, record_type: ItemModelRecordType, **kwargs) -> Response:
+    def delete(
+        cls, record_type: ItemModelRecord, *, client: str, parent_prn: str | None = None, prn: str | None = None, **kwargs
+    ) -> bool:
         """Delete an item from the items table.
 
         Deletes the specified item if it exists. If the item is not found,
         returns a success response rather than an error (idempotent operation).
+
+        If you specify the prn parameter, parent_prn is ignored as parent_prn is derived from prn.
 
         Args:
             record_type: The specific ItemModelRecord subclass to delete
             **kwargs: Delete parameters including prn (required)
 
         Returns:
-            Response: SuccessResponse with confirmation message
+            BaseModel: BaseModel object with confirmation message
 
         Raises:
             BadRequestException: If the PRN is missing or has invalid format
@@ -141,37 +144,51 @@ class ItemTableActions(TableActions):
         """
         log.debug("Received delete request:", details=kwargs)
 
-        client = kwargs.get("client") or util.get_client()
         if not client:
             raise BadRequestException("Client is required for item deletion")
 
-        prn = kwargs.get("prn")
-        if not prn:
-            raise BadRequestException("PRN is required for item deletion")
-
-        parent_prn = record_type.get_parent_prn(prn)
-
         try:
-            model_class: ItemModelType = record_type.model_class(client)
-            item = model_class(parent_prn=parent_prn, prn=prn)
-            item.delete(condition=model_class.prn.exists())
 
-            return SuccessResponse(message=f"Item deleted: {prn}")
+            model_class: ItemModelType = record_type.model_class(client)
+
+            if prn:
+                # Delete the specific item with the given prn
+                parent_prn = record_type.get_parent_prn(prn)
+
+                item = model_class(parent_prn=parent_prn, prn=prn)
+                item.delete(condition=model_class.prn.exists())
+
+                return True
+
+            elif parent_prn:
+                # Delete all items with the given parent_prn
+                query = model_class.query(parent_prn)
+                for item in query:
+                    item.delete()
+
+                return True
+
+            else:
+                raise BadRequestException("Either parent_prn or prn is required for item deletion")
+
         except ValueError as e:
             raise BadRequestException(f"Invalid item data: {e}")
+
         except DeleteError as e:
             if "ConditionalCheckFailedException" in str(e):
                 raise NotFoundException(f"Item not found for deletion: {prn}")
-            else:
-                raise UnknownException("Database operation failed while deleting item") from e
+
+            raise UnknownException("Database operation failed while deleting item") from e
+
         except DoesNotExist as e:
             raise NotFoundException(f"Item not found for deletion: {prn}") from e
+
         except Exception as e:
             log.error("Database operation failed", error=str(e), details=kwargs)
             raise UnknownException("Database operation failed") from e
 
     @classmethod
-    def get(cls, record_type: ItemModelRecord, **kwargs) -> Response:
+    def get(cls, record_type: ItemModelRecord, *, client: str, prn: str, **kwargs) -> ItemModelRecord:
         """Retrieve a single item from the items table by PRN.
 
         Fetches the item with the specified Primary Resource Name and returns
@@ -182,7 +199,7 @@ class ItemTableActions(TableActions):
             **kwargs: Get parameters including prn (required)
 
         Returns:
-            Response: SuccessResponse containing the item data
+            BaseModel: BaseModel object containing the item data
 
         Raises:
             BadRequestException: If the PRN is missing or has invalid format
@@ -191,20 +208,23 @@ class ItemTableActions(TableActions):
         """
         log.debug("Received get request:", details=kwargs)
 
-        client = kwargs.get("client") or util.get_client()
         if not client:
             raise BadRequestException("Client is required for item retrieval")
 
-        prn = kwargs.get("prn")
         if not prn:
             raise BadRequestException("PRN is required for item retrieval")
 
         model_class: ItemModelType = record_type.model_class(client)
-        try:
-            item = model_class.get(prn, condition=model_class.prn.exists())
-            data = record_type.from_model(item).model_dump(mode="json")
 
-            return SuccessResponse(data=data)
+        try:
+            parent_prn = record_type.get_parent_prn(prn)
+
+            item = model_class.get(hash_key=parent_prn, range_key=prn)
+
+            data: ItemModelRecord = record_type.from_model(item)
+
+            return data
+
         except ValueError as e:
             raise BadRequestException(f"Invalid item data: {e}")
         except GetError as e:
@@ -219,95 +239,62 @@ class ItemTableActions(TableActions):
             raise UnknownException("Database operation failed") from e
 
     @classmethod
-    def list(cls, record_type: ItemModelRecord, **kwargs) -> Response:
-        cleint = kwargs.get("client") or util.get_client()
-        if not cleint:
-            raise BadRequestException("Client is required for item listing")
+    def list(
+        cls, record_type: ItemModelRecord, *, client: str, parent_prn: str | None = None, **kwargs
+    ) -> Tuple[List[ItemModelRecord], Paginator]:
 
-        prn = kwargs.get("prn")
-        parent_prn = kwargs.get("parent_prn")
-        earliest_time = kwargs.get("earliest_time")
-        latest_time = kwargs.get("latest_time")
-
-        if prn and parent_prn:
-            return cls.get(record_type, **kwargs)
-
-        if prn:
-            return cls._list_by_prn(record_type, **kwargs)
-
-        if parent_prn and not earliest_time and not latest_time:
-            return cls._list_by_parent_prn(record_type, **kwargs)
-
-        if parent_prn and earliest_time and latest_time:
-            return cls._list_by_parent_prn_in_date_range(record_type, **kwargs)
-
-        raise BadRequestException("Either prn or parent_prn must be provided for listing items")
-
-    @classmethod
-    def _list_by_prn(cls, record_type: ItemModelRecord, **kwargs) -> Response:
-        """List items by their PRN."""
-        client = kwargs.get("client") or util.get_client()
         if not client:
             raise BadRequestException("Client is required for item listing")
 
-        prn = kwargs.get("prn")
-        if not prn:
-            raise BadRequestException("PRN is required for listing items by PRN")
+        if not parent_prn:
+            return cls._list_all(record_type, client=client, **kwargs)
+        else:
+            return cls._list_by_parent_prn(record_type, client=client, parent_prn=parent_prn, **kwargs)
 
-        parent_prn = record_type.get_parent_prn(prn)
+    @classmethod
+    def _list_all(
+        cls,
+        record_type: ItemModelRecord,
+        *,
+        client: str,
+        earliest_time: datetime | None = None,
+        latest_time: datetime | None = None,
+        **kwargs,
+    ) -> Tuple[List[ItemModelRecord], Paginator]:
+        """List all items."""
+
+        try:
+            paginator = Paginator(**kwargs)
+        except ValueError as e:
+            raise BadRequestException(f"Invalid item data: {e}")
+
+        scan_args = paginator.get_scan_args()
 
         model_class = record_type.model_class(client)
+
+        if earliest_time and latest_time:
+            condition = model_class.created_at.between(earliest_time, latest_time)
+        elif earliest_time:
+            condition = model_class.created_at >= earliest_time
+        elif latest_time:
+            condition = model_class.created_at <= latest_time
+        else:
+            condition = None
+
+        if condition:
+            scan_args["filter_condition"] = condition
+
         try:
-            item = model_class.get(hash_key=parent_prn, range_key=prn)
-            data = [record_type.from_model(item).model_dump(mode="json")]
 
-            return SuccessResponse(data=data)
-        except ValueError as e:
-            raise BadRequestException(f"Invalid item data: {e}")
-        except GetError as e:
-            if "ConditionalCheckFailedException" in str(e):
-                raise NotFoundException(f"Item not found for PRN: {prn}")
-            else:
-                raise UnknownException("Database operation failed while retrieving item") from e
-        except DoesNotExist as e:
-            raise NotFoundException(f"Item not found for PRN: {prn}") from e
-        except Exception as e:
-            log.error("Database operation failed", error=str(e), details=kwargs)
-            raise UnknownException("Database operation failed") from e
+            result = model_class.scan(**scan_args)
 
-    @classmethod
-    def _list_by_parent_prn(cls, record_type: ItemModelRecord, **kwargs) -> Response:
-        """List items by their parent PRN."""
-        parent_prn = kwargs.get("parent_prn")
-        if not parent_prn:
-            raise BadRequestException("Parent PRN is required for listing items by parent PRN")
+            data_list: List[ItemModelRecord] = [record_type.from_model(item) for item in result]
 
-        client = kwargs.get("client") or util.get_client()
-        if not client:
-            raise BadRequestException("Client is required for item listing")
+            paginator.last_evaluated_key = getattr(result, "last_evaluated_key", None)
+            paginator.total_count = len(data_list)
 
-        paginator = Paginator(**kwargs)
+            return data_list, paginator
 
-        model_class: ItemModelType = record_type.model_class(client)
-        try:
-            query_args = {
-                "limit": paginator.limit,
-            }
-            if paginator.cursor:
-                query_args["last_evaluated_key"] = paginator.cursor
-            if paginator.sort_forward is not None:
-                query_args["scan_index_forward"] = paginator.sort_forward
-
-            result = model_class.scan(model_class.parent_prn == parent_prn, **query_args)
-
-            data_list = [record_type.from_model(item).model_dump(mode="json") for item in result]
-
-            paginator.cursor = getattr(result, "last_evaluated_key", None)
-            paginator.total_count = getattr(result, "total", len(data_list))
-
-            return SuccessResponse(data=data_list, metadata=paginator.get_metadata())
-        except ValueError as e:
-            raise BadRequestException(f"Invalid item data: {e}")
         except ScanError as e:
             raise UnknownException("Database operation failed while scanning items") from e
         except Exception as e:
@@ -315,17 +302,16 @@ class ItemTableActions(TableActions):
             raise UnknownException("Database operation failed") from e
 
     @classmethod
-    def update(cls, record_type: ItemModelRecord, **kwargs) -> Response:
-        return cls._update(record_type, remove_none=True, **kwargs)
+    def update(cls, record_type: ItemModelRecord, *, client: str, **kwargs) -> ItemModelRecord:
+        return cls._update(record_type, remove_none=True, client=client, **kwargs)
 
     @classmethod
-    def patch(cls, record_type: ItemModelRecord, **kwargs) -> Response:
-        return cls._update(record_type, remove_none=False, **kwargs)
+    def patch(cls, record_type: ItemModelRecord, *, client: str, **kwargs) -> ItemModelRecord:
+        return cls._update(record_type, remove_none=False, client=client, **kwargs)
 
     @classmethod
-    def _update(cls, record_type: ItemModelRecord, remove_none: bool, **kwargs) -> Response:
+    def _update(cls, record_type: ItemModelRecord, *, remove_none: bool, client: str, **kwargs) -> ItemModelRecord:
 
-        client = kwargs.get("client", util.get_client())
         if not client:
             raise BadRequestException("Client is required for item update")
 
@@ -333,28 +319,34 @@ class ItemTableActions(TableActions):
         if not prn:
             raise BadRequestException("PRN is required for item update")
 
-        parent_prn = kwargs.get("parent_prn", record_type.get_parent_prn(prn))
-        if not parent_prn:
-            raise BadRequestException("Parent PRN is required for item update")
-
-        if remove_none:
-            input_data = record_type(**kwargs)
-        else:
-            input_data = record_type.model_construct(**kwargs)
+        # don't care if parent_prn is passed, we derive it from prn
+        parent_prn = record_type.get_parent_prn(prn)
+        kwargs["parent_prn"] = parent_prn
 
         try:
-            values = input_data.model_dump(by_alias=False, exclude_none=False)
+
+            exclude_fields = {"prn", "parent_prn", "created_at", "updated_at"}
+
+            # Validate input data files
+            if remove_none:
+                input_data = record_type(**kwargs)
+            else:
+                # we do this just
+                input_data = record_type.model_construct(**kwargs, validate_fields=False)
+
+            values = input_data.model_dump(by_alias=False, exclude_none=False, exclude=exclude_fields)
 
             model_class: ItemModelType = record_type.model_class(client)
 
-            attribvtes = model_class.get_attributes()
+            attributes = model_class.get_attributes()
 
             actions: list[Action] = []
             for key, value in values.items():
-                if key in ["prn", "parent_prn", "created_at", "updated_at"]:
+                if key in exclude_fields:
                     continue
-                if key in attribvtes:
-                    attr = attribvtes[key]
+
+                if key in attributes:
+                    attr = attributes[key]
                     if value is None:
                         if remove_none:
                             actions.append(attr.remove())
@@ -367,70 +359,74 @@ class ItemTableActions(TableActions):
             item.update(actions=actions, condition=model_class.prn.exists())
             item.refresh()
 
-            data: ItemModelRecordType = record_type.from_model(item).model_dump(mode="json")
+            data: ItemModelRecord = record_type.from_model(item)
 
-            return SuccessResponse(
-                data=data,
-                message="Item updated successfully",
-            )
+            return data
 
         except ValueError as e:
             raise BadRequestException(f"Invalid item data: {e}")
+
         except UpdateError as e:
             if "ConditionalCheckFailedException" in str(e):
                 raise NotFoundException(f"Item not found for update: {input_data.prn}")
-            else:
-                raise UnknownException("Database operation failed while updating item") from e
-        except DoesNotExist as e:
-            raise NotFoundException(f"Item not found for update: {input_data.prn}") from e
+
+            raise UnknownException("Database operation failed while updating item") from e
+
         except Exception as e:
             log.error("Database operation failed", error=str(e), details=kwargs)
             raise UnknownException("Database operation failed") from e
 
     @classmethod
-    def _list_by_parent_prn_in_date_range(cls, record_type: ItemModelRecordType, **kwargs):
+    def _list_by_parent_prn(
+        cls,
+        record_type: ItemModelRecord,
+        *,
+        client: str,
+        parent_prn: str,
+        earliest_time: datetime | None = None,
+        latest_time: datetime | None = None,
+        **kwargs,
+    ) -> Tuple[List[ItemModelRecord], Paginator]:
         """uses the index to list items by parent_prn and date range"""
-
-        client = kwargs.get("client") or util.get_client()
-        if not client:
-            raise BadRequestException("Client is required for item listing")
-
-        parent_prn = kwargs.get("parent_prn")
-        earliest_time = kwargs.get("earliest_time")
-        latest_time = kwargs.get("latest_time")
 
         if not parent_prn or not earliest_time or not latest_time:
             raise BadRequestException("parent_prn, earliest_time, and latest_time are required")
 
         try:
-            model_class = record_type.model_class(client)
-
             paginator = Paginator(**kwargs)
-
-            query_args = {
-                "limit": paginator.limit,
-                "index": model_class.parent_created_at_index,
-                "range_key_condition": model_class.created_at.between(earliest_time, latest_time),
-            }
-
-            result = model_class.parent_created_at_index(hash_key=parent_prn, **query_args)
-
-            data_list = [record_type.from_model(item).model_dump(mode="json") for item in result]
-
-            paginator.cursor = getattr(result, "last_evaluated_key", None)
-            paginator.total_count = getattr(result, "total", len(data_list))
-
-            return SuccessResponse(
-                data=data_list,
-                metadata=paginator.get_metadata(),
-                message=f"Items listed for parent_prn: {parent_prn} in date range",
-            )
         except ValueError as e:
-            raise BadRequestException(f"Invalid item data: {e}")
+            raise BadRequestException(f"Invalid pagination parameters: {e}")
+
+        model_class = record_type.model_class(client)
+
+        query_args = paginator.get_query_args()
+        if earliest_time and latest_time:
+            condition = model_class.created_at.between(earliest_time, latest_time)
+        elif earliest_time:
+            condition = model_class.created_at >= earliest_time
+        elif latest_time:
+            condition = model_class.created_at <= latest_time
+        else:
+            condition = None
+
+        if condition:
+            query_args["range_key_condition"] = condition
+
+        try:
+
+            result = model_class.parent_created_at_index.query(hash_key=parent_prn, **query_args)
+
+            data_list: List[ItemModelRecord] = [record_type.from_model(item) for item in result]
+
+            paginator.last_evaluated_key = getattr(result, "last_evaluated_key", None)
+            paginator.total_count = len(data_list)
+
+            return data_list, paginator
+
         except QueryError as e:
+            log.error("Database operation failed while querying items", error=str(e))
             raise UnknownException("Database operation failed while querying items") from e
-        except DoesNotExist as e:
-            raise NotFoundException(f"No items found for parent_prn: {parent_prn} in date range") from e
+
         except Exception as e:
-            log.error("Database operation failed", error=str(e), details=kwargs)
+            log.error("Database operation failed", error=str(e))
             raise UnknownException("Database operation failed") from e

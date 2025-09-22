@@ -205,7 +205,7 @@ class AppActions(RegistryAction):
 
             data = [AppFact.from_model(item) for item in result]
 
-            paginator.cursor = getattr(result, "last_evaluated_key", None)
+            paginator.last_evaluated_key = getattr(result, "last_evaluated_key", None)
             paginator.total_count = len(data)
 
             # Sort by app for consistent ordering
@@ -260,7 +260,7 @@ class AppActions(RegistryAction):
                     log.warning("Invalid regex pattern in app_regex: %s", app_fact.app_regex)
                     continue
 
-            paginator.cursor = getattr(result, "last_evaluated_key", None)
+            paginator.last_evaluated_key = getattr(result, "last_evaluated_key", None)
             paginator.total_count = len(data)
 
             log.info("Successfully filtered %d apps matching name: %s", len(data), app_regex)
@@ -295,7 +295,7 @@ class AppActions(RegistryAction):
 
             data = [AppFact.from_model(item) for item in result]
 
-            paginator.cursor = getattr(result, "last_evaluated_key", None)
+            paginator.last_evaluated_key = getattr(result, "last_evaluated_key", None)
             paginator.total_count = len(data)
 
             return data, paginator

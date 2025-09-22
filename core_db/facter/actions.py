@@ -12,7 +12,6 @@ from core_framework.constants import (
     SCOPE_BRANCH,
     SCOPE_BUILD,
     SCOPE_COMPONENT,
-    SCOPE_ZONE,
 )
 
 from core_framework.models import DeploymentDetails
@@ -206,7 +205,7 @@ class FactsActions(TableActions):
                 - zone (str, optional): Alternative parameter name for PRN.
 
         Returns:
-            Response: SuccessResponse containing the merged facts data.
+            BaseModel: BaseModel object containing the merged facts data.
                 The response.data contains the complete aggregated facts dictionary
                 with all configuration data needed for template rendering.
                 The response.metadata includes client and prn for reference.

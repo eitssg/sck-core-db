@@ -37,7 +37,8 @@ class OAuthActions(TableActions):
             **kwargs: Fields for Authorizations pydantic model (must include client and code).
 
         Returns:
-            Response: SuccessResponse with created record data.
+            BaseModel: BaseModel object with structure:
+                - data (Dict): Created authorization code record data.
 
         Raises:
             ConflictException: If the code already exists.
@@ -73,7 +74,9 @@ class OAuthActions(TableActions):
             **kwargs: Must include client.
 
         Returns:
-            Response: SuccessResponse with list data or NoContentResponse if none.
+            BaseModel: BaseModel object with structure:
+                - data (List[Dict]): List of authorization code dictionaries.
+                - metadata (Dict): Pagination information.
         """
         client = kwargs.get("client", kwargs.get("Client"))
 
@@ -102,7 +105,8 @@ class OAuthActions(TableActions):
             **kwargs: Must include client and code.
 
         Returns:
-            Response: SuccessResponse with record data.
+            BaseModel: BaseModel object with structure:
+                - data (Dict): Authorization code record data.
 
         Raises:
             NotFoundException: If the code does not exist.
@@ -137,7 +141,8 @@ class OAuthActions(TableActions):
                       fields explicitly set to None will be removed.
 
         Returns:
-            Response: SuccessResponse with updated record.
+            BaseModel: BaseModel object with structure:
+                - data (Dict): Updated authorization code record data.
         """
         return cls._update(record_type, remove_none=True, **kwargs)
 
@@ -149,7 +154,8 @@ class OAuthActions(TableActions):
             **kwargs: Must include client and code. Provided non-None fields will be set.
 
         Returns:
-            Response: SuccessResponse with updated record.
+           BaseModel: BaseModel object with structure:
+               - data (Dict): Updated authorization code record data.
         """
         return cls._update(record_type, remove_none=False, **kwargs)
 
@@ -240,7 +246,8 @@ class OAuthActions(TableActions):
             **kwargs: Must include client and code.
 
         Returns:
-            Response: SuccessResponse with a message on success.
+            BaseModel: BaseModel object with structure:
+                - data (Dict): Success message on deletion.
         """
         client = kwargs.get("client", kwargs.get("Client"))
         code = kwargs.get("code", kwargs.get("Code"))

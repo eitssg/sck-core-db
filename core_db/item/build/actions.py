@@ -8,7 +8,9 @@ The BuildActions class extends ItemTableActions to provide build-specific CRUD o
 while inheriting common item management functionality.
 """
 
-from ...response import Response
+from typing import List, Tuple
+
+from ...models import Paginator
 from ..actions import ItemTableActions
 from .models import BuildItem
 
@@ -26,7 +28,7 @@ class BuildActions(ItemTableActions):
     """
 
     @classmethod
-    def list(cls, **kwargs) -> Response:
+    def list(cls, *, client: str, **kwargs) -> Tuple[List[BuildItem], Paginator]:
         """List build items with optional filtering and pagination.
 
         Args:
@@ -34,24 +36,24 @@ class BuildActions(ItemTableActions):
                      and time-based filtering criteria.
 
         Returns:
-            Response: SuccessResponse containing list of build items and pagination metadata.
+            Tuple containing list of build items and pagination metadata.
         """
-        return super().list(record_type=BuildItem, **kwargs)
+        return super().list(BuildItem, client=client, **kwargs)
 
     @classmethod
-    def get(cls, **kwargs) -> Response:
+    def get(cls, *, client: str, **kwargs) -> BuildItem:
         """Retrieve a specific build item by PRN.
 
         Args:
             **kwargs: Parameters including prn or build_prn to identify the build item.
 
         Returns:
-            Response: SuccessResponse containing the build item data.
+            BuildItem containing the build item data.
         """
-        return super().get(record_type=BuildItem, **kwargs)
+        return super().get(BuildItem, client=client, **kwargs)
 
     @classmethod
-    def create(cls, **kwargs) -> Response:
+    def create(cls, *, client: str, **kwargs) -> BuildItem:
         """Create a new build item in the CMDB.
 
         Args:
@@ -59,12 +61,12 @@ class BuildActions(ItemTableActions):
                      and other build-specific fields.
 
         Returns:
-            Response: SuccessResponse containing the created build item data.
+            BuildItem containing the created build item data.
         """
-        return super().create(record_type=BuildItem, **kwargs)
+        return super().create(BuildItem, client=client, **kwargs)
 
     @classmethod
-    def update(cls, **kwargs) -> Response:
+    def update(cls, *, client: str, **kwargs) -> BuildItem:
         """Update an existing build item using PUT semantics.
 
         Args:
@@ -72,18 +74,18 @@ class BuildActions(ItemTableActions):
                      the item and fields to modify.
 
         Returns:
-            Response: SuccessResponse containing the updated build item data.
+            BuildItem containing the updated build item data.
         """
-        return super().update(record_type=BuildItem, **kwargs)
+        return super().update(BuildItem, client=client, **kwargs)
 
     @classmethod
-    def delete(cls, **kwargs) -> Response:
+    def delete(cls, *, client: str, **kwargs) -> bool:
         """Delete a build item from the CMDB.
 
         Args:
             **kwargs: Parameters including prn or build_prn to identify the build item to delete.
 
         Returns:
-            Response: SuccessResponse with confirmation of the deletion.
+            bool with confirmation of the deletion.
         """
-        return super().delete(record_type=BuildItem, **kwargs)
+        return super().delete(BuildItem, client=client, **kwargs)
