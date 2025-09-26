@@ -19,13 +19,13 @@ Features:
     - **Audit Trail**: Automatic creation/modification timestamp tracking
 
 Build Hierarchy:
-    ```
+    
     Portfolio (great-grandparent)
     ├── App (grandparent)
     │   ├── Branch (parent)
     │   │   ├── Build (this module)
     │   │   │   └── Component (build_prn references this)
-    ```
+    
 
 Schema Structure:
     The build schema in the core-automation-items table includes:
@@ -170,96 +170,96 @@ Validation Rules:
     - Artifacts must have valid S3 locations and checksums
 
 Build Status Lifecycle:
-    ```python
-    # Build status progression
-    build_statuses = [
-        "queued",      # Build requested and waiting to start
-        "building",    # Build in progress
-        "testing",     # Running tests and quality checks
-        "success",     # Build completed successfully
-        "failed",      # Build failed due to errors
-        "cancelled",   # Build was cancelled by user
-        "deployed",    # Build artifacts deployed to target environment
-        "archived"     # Build artifacts archived for retention
-    ]
-    ```
+    ..code: python
+        # Build status progression
+        build_statuses = [
+            "queued",      # Build requested and waiting to start
+            "building",    # Build in progress
+            "testing",     # Running tests and quality checks
+            "success",     # Build completed successfully
+            "failed",      # Build failed due to errors
+            "cancelled",   # Build was cancelled by user
+            "deployed",    # Build artifacts deployed to target environment
+            "archived"     # Build artifacts archived for retention
+        ]
+    
 
 Configuration Examples:
-    ```python
-    # Standard application build
-    app_build = {
-        "prn": "build:acme:web-services:api:main:123",
-        "name": "API Build #123",
-        "branch_prn": "branch:acme:web-services:api:main",
-        "build_number": "123",
-        "git_commit": "a1b2c3d4e5f6789012345678901234567890abcd",
-        "status": "success",
-        "build_type": "standard",
-        "triggered_by": "git-push",
-        "build_duration": 600,
-        "artifacts": [
-            {
-                "name": "api-service.zip",
-                "type": "lambda-package",
-                "location": "s3://acme-artifacts/api/123/api-service.zip"
-            }
-        ]
-    }
-
-    # Release build with versioning
-    release_build = {
-        "prn": "build:enterprise:platform:auth:release-v3.0:200",
-        "name": "Authentication Service v3.0.0",
-        "branch_prn": "branch:enterprise:platform:auth:release-v3.0",
-        "build_number": "200",
-        "git_commit": "b3c4d5e6f7890123456789012345678901abcdef",
-        "status": "success",
-        "build_type": "release",
-        "version": "3.0.0",
-        "semver": {"major": 3, "minor": 0, "patch": 0},
-        "release_notes": "Major version with breaking changes",
-        "artifacts": [
-            {
-                "name": "auth-service-3.0.0.zip",
-                "type": "release-package",
-                "location": "s3://enterprise-releases/auth/3.0.0/"
-            },
-            {
-                "name": "migration-scripts.zip",
-                "type": "database-migration",
-                "location": "s3://enterprise-releases/auth/3.0.0/migrations/"
-            }
-        ],
-        "approval_required": True,
-        "security_scan": {
-            "vulnerabilities": 0,
-            "scan_date": "2025-01-15T10:00:00Z"
+    ..code: python
+        # Standard application build
+        app_build = {
+            "prn": "build:acme:web-services:api:main:123",
+            "name": "API Build #123",
+            "branch_prn": "branch:acme:web-services:api:main",
+            "build_number": "123",
+            "git_commit": "a1b2c3d4e5f6789012345678901234567890abcd",
+            "status": "success",
+            "build_type": "standard",
+            "triggered_by": "git-push",
+            "build_duration": 600,
+            "artifacts": [
+                {
+                    "name": "api-service.zip",
+                    "type": "lambda-package",
+                    "location": "s3://acme-artifacts/api/123/api-service.zip"
+                }
+            ]
         }
-    }
 
-    # Hotfix build with priority
-    hotfix_build = {
-        "prn": "build:acme:web-services:api:hotfix-cve-2025:126",
-        "name": "Security Hotfix CVE-2025-1234",
-        "branch_prn": "branch:acme:web-services:api:hotfix-cve-2025",
-        "build_number": "126",
-        "git_commit": "d5e6f7890123456789012345678901abcdef234",
-        "status": "success",
-        "build_type": "hotfix",
-        "priority": "critical",
-        "security_patch": True,
-        "cve_numbers": ["CVE-2025-1234"],
-        "expedited": True,
-        "bypass_approval": True,
-        "artifacts": [
-            {
-                "name": "security-patch.zip",
-                "type": "hotfix-package",
-                "location": "s3://acme-security/patches/126/"
+        # Release build with versioning
+        release_build = {
+            "prn": "build:enterprise:platform:auth:release-v3.0:200",
+            "name": "Authentication Service v3.0.0",
+            "branch_prn": "branch:enterprise:platform:auth:release-v3.0",
+            "build_number": "200",
+            "git_commit": "b3c4d5e6f7890123456789012345678901abcdef",
+            "status": "success",
+            "build_type": "release",
+            "version": "3.0.0",
+            "semver": {"major": 3, "minor": 0, "patch": 0},
+            "release_notes": "Major version with breaking changes",
+            "artifacts": [
+                {
+                    "name": "auth-service-3.0.0.zip",
+                    "type": "release-package",
+                    "location": "s3://enterprise-releases/auth/3.0.0/"
+                },
+                {
+                    "name": "migration-scripts.zip",
+                    "type": "database-migration",
+                    "location": "s3://enterprise-releases/auth/3.0.0/migrations/"
+                }
+            ],
+            "approval_required": True,
+            "security_scan": {
+                "vulnerabilities": 0,
+                "scan_date": "2025-01-15T10:00:00Z"
             }
-        ]
-    }
-    ```
+        }
+
+        # Hotfix build with priority
+        hotfix_build = {
+            "prn": "build:acme:web-services:api:hotfix-cve-2025:126",
+            "name": "Security Hotfix CVE-2025-1234",
+            "branch_prn": "branch:acme:web-services:api:hotfix-cve-2025",
+            "build_number": "126",
+            "git_commit": "d5e6f7890123456789012345678901abcdef234",
+            "status": "success",
+            "build_type": "hotfix",
+            "priority": "critical",
+            "security_patch": True,
+            "cve_numbers": ["CVE-2025-1234"],
+            "expedited": True,
+            "bypass_approval": True,
+            "artifacts": [
+                {
+                    "name": "security-patch.zip",
+                    "type": "hotfix-package",
+                    "location": "s3://acme-security/patches/126/"
+                }
+            ]
+        }
+    
 
 Build Types and Strategies:
     **Standard Builds**: Regular CI builds triggered by Git commits
@@ -273,24 +273,24 @@ Build Types and Strategies:
     **Nightly Builds**: Scheduled builds for continuous integration
 
 Artifact Management:
-    ```python
-    # Artifact types and locations
-    artifact_types = {
-        "lambda-package": "Zipped Lambda function code",
-        "container-image": "Docker container image",
-        "cloudformation": "Infrastructure as Code templates",
-        "static-assets": "Web assets, documentation, etc.",
-        "database-migration": "Database schema changes",
-        "configuration": "Environment-specific configuration"
-    }
+    ..code: python
+        # Artifact types and locations
+        artifact_types = {
+            "lambda-package": "Zipped Lambda function code",
+            "container-image": "Docker container image",
+            "cloudformation": "Infrastructure as Code templates",
+            "static-assets": "Web assets, documentation, etc.",
+            "database-migration": "Database schema changes",
+            "configuration": "Environment-specific configuration"
+        }
 
-    # Artifact storage patterns
-    artifact_locations = {
-        "s3": "s3://bucket/path/to/artifact",
-        "ecr": "123456789012.dkr.ecr.region.amazonaws.com/repo:tag",
-        "codecommit": "codecommit://repo-name/path/to/file"
-    }
-    ```
+        # Artifact storage patterns
+        artifact_locations = {
+            "s3": "s3://bucket/path/to/artifact",
+            "ecr": "123456789012.dkr.ecr.region.amazonaws.com/repo:tag",
+            "codecommit": "codecommit://repo-name/path/to/file"
+        }
+    
 
 Related Modules:
     - core_db.item.branch: Parent branch items that builds reference

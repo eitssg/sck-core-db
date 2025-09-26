@@ -67,6 +67,7 @@ def get_client_facts(client: str) -> dict | None:
             - BucketName: str - Artifacts storage bucket
             - Scope: str - Resource naming prefix
             - Tags: dict - Default client-level resource tags
+
             Returns None if the client is not found in the registry.
 
     Raises:
@@ -133,6 +134,7 @@ def get_portfolio_facts(client: str, portfolio: str) -> dict | None:
             - Tags: dict - Portfolio-level resource tags
             - Metadata: dict - Technical configuration (deployment model, monitoring, etc.)
             - Attributes: dict - Software attributes (version, licensing, SLAs, compliance)
+
             Returns None if the portfolio is not found in the registry.
 
     Raises:
@@ -212,6 +214,7 @@ def get_zone_facts(client: str, zone: str) -> dict | None:
               - SecurityAliases: dict - CIDR blocks for network access control
               - SecurityGroupAliases: dict - Security group identifier mappings
               - Proxy settings and DNS configurations
+
             Returns None if the zone is not found in the registry.
 
     Raises:
@@ -366,6 +369,7 @@ def get_app_facts(deployment_details: DeploymentDetails) -> list[dict] | None:
             - ImageAliases: dict - Container/AMI mappings by component
             - Tags: dict - Application-level resource tags
             - Metadata: dict - Deployment configuration (scaling, networking, security)
+
             Returns None if no matching applications are found.
 
     Raises:

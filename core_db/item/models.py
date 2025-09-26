@@ -12,8 +12,6 @@ from pynamodb.attributes import UnicodeAttribute, UTCDateTimeAttribute
 
 from pydantic import Field
 
-from core_framework.time_utils import make_default_time
-
 from ..models import DatabaseTable, DatabaseRecord
 
 

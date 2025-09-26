@@ -336,11 +336,13 @@ class AuthAuditActions(TableActions):
             raise UnknownException("Audit record delete failed") from e
 
     @classmethod
-    def update(cls, *, client: str, record: AuthAuditSchemas) -> Optional[AuthAuditSchemas]:
+    def update(cls, *, client: str, record: AuthAuditSchemas, **kwargs) -> Optional[AuthAuditSchemas]:
 
         model_cls = AuthAuditModelFactory.get_model(client)
 
         try:
+            if not record:
+                record = AuthAuditSchemas.model_validate(kwargs)
 
             item = record.to_model(client)
             item.save(conditions=model_cls.pk.exists() & model_cls.sk.exists())

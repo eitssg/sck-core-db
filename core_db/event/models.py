@@ -1,13 +1,12 @@
 """Defines the data model and attributes stored in DynamoDB using the pynamdb interface."""
 
-from typing import Type, Union, Dict, Any, Optional, Self
+from typing import Type, Union, Dict, Any, Optional
 from datetime import datetime, timezone
 import dateutil
 
 from pydantic import Field, field_validator, model_validator
 
 from pynamodb.attributes import UnicodeAttribute, UTCDateTimeAttribute, MapAttribute
-from pynamodb.expressions.update import Action
 
 
 import core_logging as log
@@ -21,13 +20,7 @@ from core_framework.constants import (
 )
 from core_framework.time_utils import make_default_time
 
-from ..models import DatabaseTable, TableFactory, DatabaseRecord, Paginator
-from ..exceptions import (
-    BadRequestException,
-    ConflictException,
-    UnknownException,
-    NotFoundException,
-)
+from ..models import DatabaseTable, TableFactory, DatabaseRecord
 
 
 def convert_level_name(value: Union[int, str]) -> str:

@@ -72,114 +72,110 @@ Examples:
     >>> print(app_facts["Approvers"][0]["Email"])  # "approver@acme.com"
 
 Fact Structure Examples:
-    The aggregated facts include comprehensive configuration data:
+    The aggregated facts include comprehensive configuration data::
 
-    ```python
-    # Basic identification and AWS configuration
-    facts = {
-        "Client": "acme",
-        "Zone": "acme-web-production-zone",
-        "AccountName": "ACME Production Account",
-        "AwsAccountId": "738499099231",
-        "Environment": "production",
-        "Region": "usw2",
-        "AwsRegion": "us-west-2",
-        "AzCount": 3,
-        "ResourceNamespace": "core"
-    }
+        # Basic identification and AWS configuration
+        facts = {
+            "Client": "acme",
+            "Zone": "acme-web-production-zone",
+            "AccountName": "ACME Production Account",
+            "AwsAccountId": "738499099231",
+            "Environment": "production",
+            "Region": "usw2",
+            "AwsRegion": "us-west-2",
+            "AzCount": 3,
+            "ResourceNamespace": "core"
+        }
 
-    # KMS configuration for encryption
-    facts["Kms"] = {
-        "AwsAccountId": "624172648832",
-        "DelegateAwsAccountIds": ["738499099231"],
-        "KmsKeyArn": "arn:aws:kms:us-west-2:624172648832:key/12345",
-        "KmsKey": "alias/acme-production"
-    }
+        # KMS configuration for encryption
+        facts["Kms"] = {
+            "AwsAccountId": "624172648832",
+            "DelegateAwsAccountIds": ["738499099231"],
+            "KmsKeyArn": "arn:aws:kms:us-west-2:624172648832:key/12345",
+            "KmsKey": "alias/acme-production"
+        }
 
-    # Network configuration
-    facts["VpcAliases"] = {
-        "public": "Vpc1",
-        "private": "Vpc1"
-    }
-    facts["SubnetAliases"] = {
-        "public": "PublicSubnet",
-        "app": "PrivateSubnet",
-        "private": "PrivateSubnet"
-    }
+        # Network configuration
+        facts["VpcAliases"] = {
+            "public": "Vpc1",
+            "private": "Vpc1"
+        }
+        facts["SubnetAliases"] = {
+            "public": "PublicSubnet",
+            "app": "PrivateSubnet",
+            "private": "PrivateSubnet"
+        }
 
-    # Security configuration
-    facts["SecurityAliases"] = {
-        "public-internet": [
-            {"Type": "cidr", "Value": "0.0.0.0/0", "Description": "Internet"}
-        ],
-        "intranet": [
-            {"Type": "cidr", "Value": "10.0.0.0/8", "Description": "Corporate network"}
+        # Security configuration
+        facts["SecurityAliases"] = {
+            "public-internet": [
+                {"Type": "cidr", "Value": "0.0.0.0/0", "Description": "Internet"}
+            ],
+            "intranet": [
+                {"Type": "cidr", "Value": "10.0.0.0/8", "Description": "Corporate network"}
+            ]
+        }
+
+        # AMI configuration
+        facts["ImageAliases"] = {
+            "amazon-linux-2": "ami-0e2e44c03b85f58b3",
+            "amazon-linux-2-CIS": "ami-0a11473dc50b85280"
+        }
+
+        # Tags for resource tagging
+        facts["Tags"] = {
+            "AppGroup": "WebServices",
+            "CostCenter": "COST123",
+            "Environment": "production"
+        }
+
+        # Contact information
+        facts["Owner"] = {
+            "Email": "owner@acme.com",
+            "Name": "System Owner"
+        }
+        facts["Contacts"] = [
+            {
+                "Email": "contact@acme.com",
+                "Name": "Technical Contact",
+                "Enabled": True
+            }
         ]
-    }
 
-    # AMI configuration
-    facts["ImageAliases"] = {
-        "amazon-linux-2": "ami-0e2e44c03b85f58b3",
-        "amazon-linux-2-CIS": "ami-0a11473dc50b85280"
-    }
-
-    # Tags for resource tagging
-    facts["Tags"] = {
-        "AppGroup": "WebServices",
-        "CostCenter": "COST123",
-        "Environment": "production"
-    }
-
-    # Contact information
-    facts["Owner"] = {
-        "Email": "owner@acme.com",
-        "Name": "System Owner"
-    }
-    facts["Contacts"] = [
-        {
-            "Email": "contact@acme.com",
-            "Name": "Technical Contact",
-            "Enabled": True
-        }
-    ]
-
-    # Approval workflow
-    facts["Approvers"] = [
-        {
-            "Sequence": 1,
-            "Email": "approver@acme.com",
-            "Name": "Lead Developer",
-            "Enabled": True,
-            "DependsOn": []
-        }
-    ]
-    ```
+        # Approval workflow
+        facts["Approvers"] = [
+            {
+                "Sequence": 1,
+                "Email": "approver@acme.com",
+                "Name": "Lead Developer",
+                "Enabled": True,
+                "DependsOn": []
+            }
+        ]
 
 CloudFormation Integration:
-    Facts are used as Jinja2 template context for CloudFormation generation:
+    Facts are used as Jinja2 template context for CloudFormation generation::
 
-    ```yaml
-    # In CloudFormation template (YAML)
-    Resources:
-      MyVPC:
-        Type: AWS::EC2::VPC
-        Properties:
-          CidrBlock: 10.0.0.0/16
-          Tags:
-            - Key: AppGroup
-              Value: "{{ Tags.AppGroup }}"
-            - Key: CostCenter
-              Value: "{{ Tags.CostCenter }}"
+        # In CloudFormation template (YAML)
+        Resources:
+          MyVPC:
+            Type: AWS::EC2::VPC
+            Properties:
+              CidrBlock: 10.0.0.0/16
+              Tags:
+                - Key: AppGroup
+                  Value: "{{ Tags.AppGroup }}"
+                - Key: CostCenter
+                  Value: "{{ Tags.CostCenter }}"
 
-      MyLambda:
-        Type: AWS::Lambda::Function
-        Properties:
-          KmsKeyArn: "{{ Kms.KmsKeyArn }}"
-          Environment:
-            Variables:
-              AWS_ACCOUNT_ID: "{{ AwsAccountId }}"
-              ENVIRONMENT: "{{ Environment }}"
-    ```
+          MyLambda:
+            Type: AWS::Lambda::Function
+            Properties:
+              KmsKeyArn: "{{ Kms.KmsKeyArn }}"
+              Environment:
+                Variables:
+                  AWS_ACCOUNT_ID: "{{ AwsAccountId }}"
+                  ENVIRONMENT: "{{ Environment }}"
 
 Usage Patterns:
     **Deployment Context**: Use get_facts() for complete deployment parameter aggregation

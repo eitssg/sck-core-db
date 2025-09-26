@@ -19,13 +19,13 @@ Features:
     - **Audit Trail**: Automatic creation/modification timestamp tracking
 
 Branch Hierarchy:
-    ```
+    
     Portfolio (grandparent)
     ├── App (parent)
     │   ├── Branch (this module)
     │   │   ├── Build (branch_prn references this)
     │   │   │   └── Component (build_prn references build)
-    ```
+    
 
 Schema Structure:
     The branch schema in the core-automation-items table includes:
@@ -138,71 +138,71 @@ Validation Rules:
     - Auto deploy flag must be boolean
 
 Configuration Examples:
-    ```python
-    # Production main branch
-    main_branch = {
-        "prn": "branch:acme:web-services:api:main",
-        "name": "Production Main",
-        "app_prn": "app:acme:web-services:api",
-        "git_branch": "main",
-        "environment": "production",
-        "region_alias": "us-west-2",
-        "auto_deploy": True,
-        "status": "active",
-        "protection_rules": {
-            "require_pull_request": True,
-            "require_approvals": 2,
-            "dismiss_stale_reviews": True
+    ..code: python
+        # Production main branch
+        main_branch = {
+            "prn": "branch:acme:web-services:api:main",
+            "name": "Production Main",
+            "app_prn": "app:acme:web-services:api",
+            "git_branch": "main",
+            "environment": "production",
+            "region_alias": "us-west-2",
+            "auto_deploy": True,
+            "status": "active",
+            "protection_rules": {
+                "require_pull_request": True,
+                "require_approvals": 2,
+                "dismiss_stale_reviews": True
+            }
         }
-    }
 
-    # Development branch
-    dev_branch = {
-        "prn": "branch:acme:web-services:api:develop",
-        "name": "Development Branch",
-        "app_prn": "app:acme:web-services:api",
-        "git_branch": "develop",
-        "environment": "development",
-        "region_alias": "us-east-1",
-        "auto_deploy": True,
-        "status": "active",
-        "protection_rules": {
-            "require_pull_request": False,
-            "auto_merge": True
+        # Development branch
+        dev_branch = {
+            "prn": "branch:acme:web-services:api:develop",
+            "name": "Development Branch",
+            "app_prn": "app:acme:web-services:api",
+            "git_branch": "develop",
+            "environment": "development",
+            "region_alias": "us-east-1",
+            "auto_deploy": True,
+            "status": "active",
+            "protection_rules": {
+                "require_pull_request": False,
+                "auto_merge": True
+            }
         }
-    }
 
-    # Feature branch
-    feature_branch = {
-        "prn": "branch:enterprise:platform:auth:feature-oauth2",
-        "name": "OAuth2 Integration Feature",
-        "app_prn": "app:enterprise:platform:auth",
-        "git_branch": "feature/oauth2-integration",
-        "environment": "development",
-        "region_alias": "us-east-1",
-        "auto_deploy": False,
-        "status": "active",
-        "temporary": True,
-        "expires_at": "2025-03-01T00:00:00Z"
-    }
-
-    # Release branch
-    release_branch = {
-        "prn": "branch:acme:web-services:api:release-v2.1",
-        "name": "Release v2.1",
-        "app_prn": "app:acme:web-services:api",
-        "git_branch": "release/v2.1",
-        "environment": "staging",
-        "region_alias": "us-west-2",
-        "auto_deploy": False,
-        "status": "active",
-        "release_config": {
-            "version": "2.1.0",
-            "release_notes": "Major feature update",
-            "rollback_branch": "main"
+        # Feature branch
+        feature_branch = {
+            "prn": "branch:enterprise:platform:auth:feature-oauth2",
+            "name": "OAuth2 Integration Feature",
+            "app_prn": "app:enterprise:platform:auth",
+            "git_branch": "feature/oauth2-integration",
+            "environment": "development",
+            "region_alias": "us-east-1",
+            "auto_deploy": False,
+            "status": "active",
+            "temporary": True,
+            "expires_at": "2025-03-01T00:00:00Z"
         }
-    }
-    ```
+
+        # Release branch
+        release_branch = {
+            "prn": "branch:acme:web-services:api:release-v2.1",
+            "name": "Release v2.1",
+            "app_prn": "app:acme:web-services:api",
+            "git_branch": "release/v2.1",
+            "environment": "staging",
+            "region_alias": "us-west-2",
+            "auto_deploy": False,
+            "status": "active",
+            "release_config": {
+                "version": "2.1.0",
+                "release_notes": "Major feature update",
+                "rollback_branch": "main"
+            }
+        }
+    
 
 Branch Types and Strategies:
     **Main/Master Branch**: Production deployment target with strict protection rules
@@ -216,26 +216,26 @@ Branch Types and Strategies:
     **Hotfix Branches**: Emergency fix branches that bypass normal development flow
 
 Environment Mapping:
-    ```python
-    # Environment to region mapping
-    environment_mapping = {
-        "development": {
-            "region_alias": "us-east-1",
-            "auto_deploy": True,
-            "protection_level": "low"
-        },
-        "staging": {
-            "region_alias": "us-west-2",
-            "auto_deploy": False,
-            "protection_level": "medium"
-        },
-        "production": {
-            "region_alias": "us-west-2",
-            "auto_deploy": True,
-            "protection_level": "high"
+    ..code: python
+        # Environment to region mapping
+        environment_mapping = {
+            "development": {
+                "region_alias": "us-east-1",
+                "auto_deploy": True,
+                "protection_level": "low"
+            },
+            "staging": {
+                "region_alias": "us-west-2",
+                "auto_deploy": False,
+                "protection_level": "medium"
+            },
+            "production": {
+                "region_alias": "us-west-2",
+                "auto_deploy": True,
+                "protection_level": "high"
+            }
         }
-    }
-    ```
+    
 
 Related Modules:
     - core_db.item.app: Parent app items that branches reference

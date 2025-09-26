@@ -119,6 +119,7 @@ class EventActions(TableActions):
         Args:
             client (str): Client identifier for table isolation
             **kwargs: Event identifying attributes including:
+
                 - prn (str, required): Pipeline Reference Number for the event.
                 - timestamp (str, optional): Specific timestamp to retrieve a single event.
                   If not provided, retrieves the latest event for the PRN.
@@ -181,6 +182,7 @@ class EventActions(TableActions):
 
         Args:
             **kwargs: Event identifying attributes including:
+
                 - prn (str, required): Pipeline Reference Number for the event(s).
                 - timestamp (str, optional): Specific timestamp for single event deletion.
                   If not provided, ALL events for the PRN will be deleted.
@@ -194,7 +196,7 @@ class EventActions(TableActions):
             NotFoundException: If no events found for the specified PRN.
             UnknownException: If database operation fails.
 
-        Warning:
+        .. warning::
             Deleting events removes audit trail information. This operation should
             be used carefully and is primarily intended for testing and cleanup
             scenarios rather than normal operational use.
@@ -329,6 +331,7 @@ class EventActions(TableActions):
 
         Args:
             **kwargs: Filtering and pagination options including:
+
                 - prn (str, optional): Pipeline Reference Number. If not provided, scans all events.
                 - earliest_time (str, optional): ISO8601 timestamp for start of time range.
                 - latest_time (str, optional): ISO8601 timestamp for end of time range.

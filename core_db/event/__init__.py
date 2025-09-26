@@ -1,33 +1,27 @@
-"""Event module for core-automation-events DynamoDB table management.
+"""Event tracking and audit trail management.
 
-This module provides comprehensive event management functionality for tracking deployment
-activities, status changes, and audit trails across the Simple Cloud Kit ecosystem.
-Events serve as the primary audit mechanism for all deployment operations.
+Provides event logging for deployment activities, status changes, and audit trails
+using the core-automation-events DynamoDB table.
 
-Key Components:
-    - **EventActions**: CRUD operations for event records with filtering and querying
-    - **EventModel**: PynamoDB model for DynamoDB event table operations
-    - **EventModelFactory**: Client-specific event model creation and table management
-    - **Event validation**: Business rules and constraints for event data integrity
-
-Features:
-    - **Audit Trail**: Complete tracking of all deployment operations and status changes
-    - **Client Isolation**: Each client has their own event table namespace
-    - **Real-time Logging**: Immediate event creation for status updates and operations
-    - **Filtering & Querying**: Advanced event filtering by PRN, status, time ranges
-    - **Automatic Timestamps**: Precise timing information for all events
+Key Classes:
+    - **EventActions**: CRUD operations with filtering and querying
+    - **EventModel**: PynamoDB model for event records
+    - **EventModelFactory**: Client-specific event model creation
 
 Event Types:
-    Events are created for various deployment activities:
-    - **Status Changes**: Build success/failure, deployment completion, component updates
-    - **CRUD Operations**: Item creation, updates, deletions across all entity types
-    - **System Events**: Table creation, configuration changes, maintenance operations
-    - **Error Events**: Exception tracking, validation failures, system errors
+    - Status changes (build success/failure, deployments)
+    - CRUD operations (item creation, updates, deletions)
+    - System events (configuration changes, maintenance)
+    - Error events (exceptions, validation failures)
 
-Schema Structure:
-    The event schema in the core-automation-events table includes:
-    - **event_id**: Primary key (UUID) for unique event identification
-    - **prn**: Pipeline Reference Number for the related item
+Example:
+    >>> from core_db.event import EventActions
+    >>> event = EventActions.create(
+    ...     prn="portfolio:acme:web",
+    ...     event_type="create",
+    ...     status="success",
+    ...     message="Portfolio created successfully"
+    ... )
     - **timestamp**: Precise event occurrence time (sortable)
     - **status**: Event status (success, failure, in_progress, etc.)
     - **message**: Human-readable event description
@@ -103,23 +97,22 @@ Table Information:
     - **Billing Mode**: PAY_PER_REQUEST
     - **Client Isolation**: Each client has separate event table
 
-Common Query Patterns:
-    ```python
-    # Get all events for a build
-    build_events = EventActions.list_by_prn("build:acme:api:main:123")
+Common Query Patterns::
 
-    # Get recent failures across all portfolios
-    failures = EventActions.list_by_status("acme", "failure", limit=100)
+        # Get all events for a build
+        build_events = EventActions.list_by_prn("build:acme:api:main:123")
 
-    # Get events for entire portfolio hierarchy
-    portfolio_events = EventActions.list_by_prn_prefix("portfolio:acme:web")
+        # Get recent failures across all portfolios
+        failures = EventActions.list_by_status("acme", "failure", limit=100)
 
-    # Get deployment events in time range
-    from datetime import datetime
-    start = datetime(2025, 1, 1)
-    end = datetime(2025, 1, 31)
-    deployments = EventActions.list_by_timerange("acme", start, end)
-    ```
+        # Get events for entire portfolio hierarchy
+        portfolio_events = EventActions.list_by_prn_prefix("portfolio:acme:web")
+
+        # Get deployment events in time range
+        from datetime import datetime
+        start = datetime(2025, 1, 1)
+        end = datetime(2025, 1, 31)
+        deployments = EventActions.list_by_timerange("acme", start, end)
 
 Integration with Other Modules:
     Events are automatically created by:
@@ -129,32 +122,31 @@ Integration with Other Modules:
     - **Deployment Operations**: Build processes, component deployments, status changes
 
 Event Metadata Examples:
-    Different event types include specific metadata:
-    ```python
-    # Build events
-    metadata = {
-        "commit_sha": "abc123",
-        "branch": "main",
-        "duration": "2m30s",
-        "tests_passed": 45,
-        "coverage": "92%"
-    }
+    Different event types include specific metadata::
 
-    # Deployment events
-    metadata = {
-        "environment": "production",
-        "region": "us-west-2",
-        "version": "1.2.3",
-        "rollback_version": "1.2.2"
-    }
+        # Build events
+        metadata = {
+            "commit_sha": "abc123",
+            "branch": "main",
+            "duration": "2m30s",
+            "tests_passed": 45,
+            "coverage": "92%"
+        }
 
-    # Error events
-    metadata = {
-        "error_type": "ValidationError",
-        "error_code": "INVALID_PRN",
-        "stack_trace": "Full exception trace..."
-    }
-    ```
+        # Deployment events
+        metadata = {
+            "environment": "production",
+            "region": "us-west-2",
+            "version": "1.2.3",
+            "rollback_version": "1.2.2"
+        }
+
+        # Error events
+        metadata = {
+            "error_type": "ValidationError",
+            "error_code": "INVALID_PRN",
+            "stack_trace": "Full exception trace..."
+        }
 
 Validation Rules:
     - Event ID must be valid UUID format

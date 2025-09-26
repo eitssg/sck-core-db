@@ -1,34 +1,22 @@
-"""The Item module provides CRUD interface to the core-automation-items DynamoDB table.
+"""Item management for deployment hierarchies.
 
-This module serves as the main entry point for managing hierarchical deployment items
-in the DynamoDB items table. It provides a unified interface for creating, reading,
-updating, and deleting deployment hierarchy items including portfolios, apps, branches,
-builds, and components.
+Provides CRUD operations for the core-automation-items DynamoDB table, managing
+portfolios, apps, branches, builds, and components in a hierarchical structure.
 
-Key Components:
-    - **ItemModel**: PynamoDB model for DynamoDB table operations
-    - **ItemActions**: High-level CRUD actions with validation and business logic
+Key Classes:
+    - **ItemActions**: High-level CRUD operations with validation
+    - **ItemModel**: PynamoDB model for DynamoDB operations
+    - **PortfolioModel**, **AppModel**, **BranchModel**, **BuildModel**, **ComponentModel**: Typed models
 
-Features:
-    - **Hierarchical Data Management**: Support for nested deployment hierarchy
-    - **Client Isolation**: Each client has their own items table namespace
-    - **Type-Safe Operations**: Strongly typed CRUD operations with validation
-    - **Audit Trail**: Automatic creation/modification timestamp tracking
-    - **Flexible Querying**: Support for complex queries across item hierarchies
+Hierarchy::
 
-Deployment Hierarchy:
-    ```
-    Portfolio (top-level)
-    ├── App (portfolio children)
-    │   ├── Branch (app children)
-    │   │   ├── Build (branch children)
-    │   │   │   └── Component (build children - leaf nodes)
-    ```
+    Portfolio → App → Branch → Build → Component
 
-Schema Structure:
-    The core-automation-items table uses a flexible schema with:
-    - **prn**: Primary key with format "type:client:portfolio:app:branch:build:component"
-    - **item_type**: Type discriminator (portfolio, app, branch, build, component)
+Example:
+    >>> from core_db.item import ItemActions
+    >>> portfolio = ItemActions.create_portfolio(
+    ...     client="acme", portfolio="web", description="Web services"
+    ... )
     - **name**: Human-readable display name
     - **parent_prn**: Reference to parent item (except portfolios)
     - **status**: Current item status (active, inactive, archived)
@@ -146,86 +134,82 @@ Table Information:
     - **Billing Mode**: PAY_PER_REQUEST
     - **Client Isolation**: Each client has separate table
 
-PRN (Primary Resource Name) Format:
-    ```python
-    # PRN format by item type
-    prn_formats = {
-        "portfolio": "portfolio:client:portfolio_name",
-        "app": "app:client:portfolio:app_name",
-        "branch": "branch:client:portfolio:app:branch_name",
-        "build": "build:client:portfolio:app:branch:build_number",
-        "component": "component:client:portfolio:app:branch:build:component_name"
-    }
-    ```
+PRN (Primary Resource Name) Format::
 
-Item Types and Validation:
-    ```python
-    # Supported item types with validation rules
-    item_types = {
-        "portfolio": {
-            "required_fields": ["name", "owner"],
-            "optional_fields": ["description", "cost_center", "contacts"],
-            "parent_required": False
-        },
-        "app": {
-            "required_fields": ["name", "parent_prn"],
-            "optional_fields": ["repository", "default_branch", "zone"],
-            "parent_required": True,
-            "parent_type": "portfolio"
-        },
-        "branch": {
-            "required_fields": ["name", "parent_prn", "git_branch"],
-            "optional_fields": ["environment", "auto_deploy"],
-            "parent_required": True,
-            "parent_type": "app"
-        },
-        "build": {
-            "required_fields": ["name", "parent_prn", "build_number"],
-            "optional_fields": ["git_commit", "artifacts", "test_results"],
-            "parent_required": True,
-            "parent_type": "branch"
-        },
-        "component": {
-            "required_fields": ["name", "parent_prn", "component_type"],
-            "optional_fields": ["artifact_location", "aws_resources"],
-            "parent_required": True,
-            "parent_type": "build"
+        # PRN format by item type
+        prn_formats = {
+            "portfolio": "portfolio:client:portfolio_name",
+            "app": "app:client:portfolio:app_name",
+            "branch": "branch:client:portfolio:app:branch_name",
+            "build": "build:client:portfolio:app:branch:build_number",
+            "component": "component:client:portfolio:app:branch:build:component_name"
         }
-    }
-    ```
 
-Common Query Patterns:
-    ```python
-    # Query all portfolios for a client
-    portfolios = ItemActions.query_by_type("acme", "portfolio")
+Item Types and Validation::
 
-    # Query all apps in a portfolio
-    apps = ItemActions.query_children("portfolio:acme:web-services")
+        # Supported item types with validation rules
+        item_types = {
+            "portfolio": {
+                "required_fields": ["name", "owner"],
+                "optional_fields": ["description", "cost_center", "contacts"],
+                "parent_required": False
+            },
+            "app": {
+                "required_fields": ["name", "parent_prn"],
+                "optional_fields": ["repository", "default_branch", "zone"],
+                "parent_required": True,
+                "parent_type": "portfolio"
+            },
+            "branch": {
+                "required_fields": ["name", "parent_prn", "git_branch"],
+                "optional_fields": ["environment", "auto_deploy"],
+                "parent_required": True,
+                "parent_type": "app"
+            },
+            "build": {
+                "required_fields": ["name", "parent_prn", "build_number"],
+                "optional_fields": ["git_commit", "artifacts", "test_results"],
+                "parent_required": True,
+                "parent_type": "branch"
+            },
+            "component": {
+                "required_fields": ["name", "parent_prn", "component_type"],
+                "optional_fields": ["artifact_location", "aws_resources"],
+                "parent_required": True,
+                "parent_type": "build"
+            }
+        }
 
-    # Query all components in a build
-    components = ItemActions.query_children("build:acme:web-services:api:main:123")
+Common Query Patterns::
 
-    # Get deployment hierarchy for an app
-    app_hierarchy = ItemActions.get_hierarchy("app:acme:web-services:api")
+        # Query all portfolios for a client
+        portfolios = ItemActions.query_by_type("acme", "portfolio")
 
-    # Query items by status across all types
-    active_items = ItemActions.query_by_status("acme", "active")
-    ```
+        # Query all apps in a portfolio
+        apps = ItemActions.query_children("portfolio:acme:web-services")
 
-Integration with Specialized Modules:
-    ```python
-    # This module provides the base functionality
-    # Specialized modules provide type-specific operations:
+        # Query all components in a build
+        components = ItemActions.query_children("build:acme:web-services:api:main:123")
 
-    from core_db.item.portfolio import PortfolioActions  # Portfolio-specific
-    from core_db.item.app import AppActions              # App-specific
-    from core_db.item.branch import BranchActions        # Branch-specific
-    from core_db.item.build import BuildActions          # Build-specific
-    from core_db.item.component import ComponentActions  # Component-specific
+        # Get deployment hierarchy for an app
+        app_hierarchy = ItemActions.get_hierarchy("app:acme:web-services:api")
 
-    # Use specialized modules for type-specific operations
-    # Use this module for generic item operations
-    ```
+        # Query items by status across all types
+        active_items = ItemActions.query_by_status("acme", "active")
+
+Integration with Specialized Modules::
+
+        # This module provides the base functionality
+        # Specialized modules provide type-specific operations:
+
+        from core_db.item.portfolio import PortfolioActions  # Portfolio-specific
+        from core_db.item.app import AppActions              # App-specific
+        from core_db.item.branch import BranchActions        # Branch-specific
+        from core_db.item.build import BuildActions          # Build-specific
+        from core_db.item.component import ComponentActions  # Component-specific
+
+        # Use specialized modules for type-specific operations
+        # Use this module for generic item operations
 
 Related Modules:
     - core_db.item.portfolio: Portfolio-specific operations and validation
