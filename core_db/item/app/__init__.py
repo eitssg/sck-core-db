@@ -19,13 +19,13 @@ Features:
     - **Audit Trail**: Automatic creation/modification timestamp tracking
 
 App Hierarchy:
-    
+
     Portfolio (parent)
     ├── App (this module)
     │   ├── Branch (app_prn references this)
     │   │   ├── Build (branch_prn references branch)
     │   │   │   └── Component (build_prn references build)
-    
+
 
 Schema Structure:
     The app schema in the core-automation-items table includes:
@@ -173,7 +173,7 @@ Configuration Examples:
                 "security_scan": True
             }
         }
-    
+
 
 Related Modules:
     - core_db.item.portfolio: Parent portfolio items that apps reference

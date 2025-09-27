@@ -13,13 +13,13 @@ Key Components:
 Architecture Overview::
 
     Client → Portfolio → Zone → Application
-    
+
     Multi-tenant DynamoDB tables with client-specific namespaces for isolation.
 
 Example:
     >>> import core_db
     >>> from core_db.item import ItemActions
-    >>> 
+    >>>
     >>> # Create deployment item
     >>> portfolio = ItemActions.create_portfolio(
     ...     client="acme",
@@ -71,7 +71,7 @@ Registry Entity Examples::
     }
 
     **NoContentResponse**: Successful operation without data::
-    
+
         response = NoContentResponse(
             data={"message": "Entity not found"},
             message="No content available"
@@ -79,15 +79,15 @@ Registry Entity Examples::
 
 Exception Types:
     **BadRequestException**: Invalid request parameters::
-    
+
         raise BadRequestException("Client name is required")
 
     **ConflictException**: Entity already exists::
-    
+
         raise ConflictException("Client already exists: acme")
 
     **NotFoundException**: Entity not found::
-    
+
         raise NotFoundException("Client not found: acme")
 
     **UnknownException**: Unexpected database errors::

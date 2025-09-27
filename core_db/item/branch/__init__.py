@@ -19,13 +19,13 @@ Features:
     - **Audit Trail**: Automatic creation/modification timestamp tracking
 
 Branch Hierarchy:
-    
+
     Portfolio (grandparent)
     ├── App (parent)
     │   ├── Branch (this module)
     │   │   ├── Build (branch_prn references this)
     │   │   │   └── Component (build_prn references build)
-    
+
 
 Schema Structure:
     The branch schema in the core-automation-items table includes:
@@ -202,7 +202,7 @@ Configuration Examples:
                 "rollback_branch": "main"
             }
         }
-    
+
 
 Branch Types and Strategies:
     **Main/Master Branch**: Production deployment target with strict protection rules
@@ -235,7 +235,7 @@ Environment Mapping:
                 "protection_level": "high"
             }
         }
-    
+
 
 Related Modules:
     - core_db.item.app: Parent app items that branches reference

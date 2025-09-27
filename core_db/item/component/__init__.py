@@ -20,13 +20,13 @@ Features:
     - **Audit Trail**: Automatic creation/modification timestamp tracking
 
 Component Hierarchy:
-    
+
     Portfolio (great-great-grandparent)
     ├── App (great-grandparent)
     │   ├── Branch (grandparent)
     │   │   ├── Build (parent)
     │   │   │   └── Component (this module - leaf node)
-    
+
 
 Schema Structure:
     The component schema in the core-automation-items table includes:
@@ -223,7 +223,7 @@ Component Types:
             "static-website": "S3 static website hosting",
             "batch-job": "AWS Batch job definition"
         }
-    
+
 
 Deployment Status Lifecycle:
     ..code: python
@@ -237,7 +237,7 @@ Deployment Status Lifecycle:
             "archived",    # Component archived/deprecated
             "maintenance"  # Component in maintenance mode
         ]
-    
+
 
 Configuration Examples:
     ..code: python
@@ -348,7 +348,7 @@ Configuration Examples:
                 }
             ]
         }
-    
+
 
 Health Check Configuration:
     ..code: python
@@ -375,7 +375,7 @@ Health Check Configuration:
                 "timeout": 10
             }
         }
-    
+
 
 Related Modules:
     - core_db.item.build: Parent build items that components reference
