@@ -102,7 +102,7 @@ class PortfolioFactsModel(DatabaseTable):
     app_count = NumberAttribute(default=0, attr_name="AppCount")
 
     def __repr__(self) -> str:
-        return f"<PortfolioFactsModel(client={self.client},portfolio={self.portfolio})>"
+        return f"<PortfolioFactsModel(portfolio={self.portfolio})>"
 
 
 PortfolioFactsType = Type[PortfolioFactsModel]

@@ -4,7 +4,7 @@ This will be subclassed by portfolio, app, branch, build, component models to im
 specific field extensions.
 """
 
-from typing import Dict, Any, Optional, Type
+from typing import Dict, Any, Optional, Type, TypeVar
 
 from pynamodb.attributes import MapAttribute
 from pynamodb.indexes import GlobalSecondaryIndex, AllProjection
@@ -133,7 +133,7 @@ class ItemModel(DatabaseTable):
         return f"<Item(prn={self.prn},type={self.item_type},name={self.name})>"
 
 
-ItemModelType = Type[ItemModel]
+ItemModelType = TypeVar("ItemModelType", bound=ItemModel)
 
 
 class ItemModelRecord(DatabaseRecord):
@@ -196,23 +196,41 @@ class ItemModelRecord(DatabaseRecord):
         return prn[0 : prn.rindex(":")] if ":" in prn else prn
 
     @classmethod
-    def model_class(cls, client: str) -> ItemModelType:
-        """You need to override this"""
+    def model_class(cls, client: str) -> type[ItemModel]:
+        """You need to override this.  This is  to return the full class of the PynamoDB model."""
         raise NotImplementedError(
             f"You must implement the model_class method in {cls.__name__} to return the PynamoDB model class."
         )
 
     @classmethod
     def to_model(cls, client: str) -> ItemModel:
-        """You need to override this"""
+        """You need to override this. This is to return an instance of the item ItemModel or its subclasses"""
         raise NotImplementedError(
             f"You must implement the to_model method in {cls.__name__} to convert the record to a PynamoDB model instance."
         )
 
-    def from_model(self, model: ItemModel) -> "ItemModelRecord":
-        """You need to override this"""
+    @classmethod
+    def from_model(cls: "Type[ItemModelRecordType]", model: ItemModel) -> "ItemModelRecordType":  # type: ignore[name-defined]
+        """Convert a PynamoDB model instance to a typed ItemModelRecord subclass.
+
+        Subclasses MUST implement this to perform the conversion from the low-level
+        PynamoDB *table model* (`ItemModel` or subclass) to the corresponding Pydantic
+        record type. Declared as a classmethod so callers can use:
+
+            record_type.from_model(pynamo_instance)
+
+        This satisfies linters / type checkers when `record_type` is annotated as
+        `Type[ItemModelRecordType]` in the table action methods.
+
+        Args:
+            model: PynamoDB model instance retrieved from or saved to DynamoDB.
+
+        Returns:
+            ItemModelRecordType: A concrete instance of the subclass representing the
+            database item.
+        """
         raise NotImplementedError(
-            f"You must implement the from_model method in {self.__class__.__name__} to convert a PynamoDB model instance to a record."
+            f"You must implement the from_model method in {cls.__name__} to convert a PynamoDB model instance to a record."
         )
 
     def model_dump(self, **kwargs) -> Dict[str, Any]:
@@ -240,4 +258,4 @@ class ItemModelRecord(DatabaseRecord):
         return f"<ItemRecord(prn={self.prn},type={self.item_type},name={self.name})>"
 
 
-ItemModelRecordType = Type[ItemModelRecord]
+ItemModelRecordType = TypeVar("ItemModelRecordType", bound=ItemModelRecord)

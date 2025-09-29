@@ -188,7 +188,7 @@ class PortfolioItem(ItemModelRecord):
         return values
 
     @classmethod
-    def model_class(cls, client: str = None) -> PortfolioModelType:
+    def model_class(cls, client: str) -> PortfolioModelType:
         """Get the PynamoDB model class for this Pydantic model.
 
         Args:
@@ -197,8 +197,6 @@ class PortfolioItem(ItemModelRecord):
         Returns:
             PortfolioModelType: Client-specific PynamoDB PortfolioModel class
         """
-        if client is None:
-            client = util.get_client()
         return PortfolioModelFactory.get_model(client)
 
     @classmethod
@@ -211,16 +209,7 @@ class PortfolioItem(ItemModelRecord):
         Returns:
             PortfolioItem: Pydantic PortfolioItem instance
         """
-        return cls(
-            parent_prn=model.parent_prn,
-            prn=model.prn,
-            name=model.name,
-            item_type=model.item_type,
-            contact_email=model.contact_email,
-            metadata=model.metadata.as_dict() if model.metadata else None,
-            created_at=model.created_at,
-            updated_at=model.updated_at,
-        )
+        return cls(**model.to_simple_dict())
 
     def to_model(self, client: str) -> PortfolioModel:
         """Convert this Pydantic PortfolioItem to a PynamoDB model instance.
@@ -232,16 +221,7 @@ class PortfolioItem(ItemModelRecord):
             PortfolioModel: PynamoDB model instance with data from this PortfolioItem
         """
         model_class = self.model_class(client)
-        return model_class(
-            parent_prn=self.parent_prn,
-            prn=self.prn,
-            name=self.name,
-            item_type=self.item_type,
-            contact_email=self.contact_email,
-            metadata=self.metadata,
-            created_at=self.created_at,
-            updated_at=self.updated_at,
-        )
+        return model_class(**self.model_dump(by_alias=False, exclude_none=True))
 
     def __repr__(self) -> str:
         """Return a string representation of the PortfolioItem instance.

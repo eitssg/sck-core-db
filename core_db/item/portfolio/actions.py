@@ -60,7 +60,7 @@ class PortfolioActions(ItemTableActions):
         return super().list(PortfolioItem, client=client, **kwargs)
 
     @classmethod
-    def get(cls, **kwargs) -> PortfolioItem:
+    def get(cls, *, client: str, **kwargs) -> PortfolioItem:
         """Retrieve a specific portfolio item by PRN.
 
         Convenience method that automatically uses PortfolioItem type.
@@ -86,7 +86,7 @@ class PortfolioActions(ItemTableActions):
             NotFoundException: If the portfolio item does not exist
             BadRequestException: If required parameters are missing
         """
-        return super().get(record_type=PortfolioItem, **kwargs)
+        return super().get(PortfolioItem, client=client, **kwargs)
 
     @classmethod
     def create(cls, *, client: str, **kwargs) -> PortfolioItem:
@@ -151,7 +151,7 @@ class PortfolioActions(ItemTableActions):
         return super().update(PortfolioItem, client=client, **kwargs)
 
     @classmethod
-    def delete(cls, **kwargs) -> bool:
+    def delete(cls, *, client: str, **kwargs) -> bool:
         """Delete a portfolio item from the CMDB.
 
         Convenience method that automatically uses PortfolioItem type.
@@ -173,7 +173,7 @@ class PortfolioActions(ItemTableActions):
             Deleting a portfolio may affect child items (apps, branches, builds, components).
             Ensure proper cleanup of dependent resources before deletion.
         """
-        return super().delete(record_type=PortfolioItem, **kwargs)
+        return super().delete(PortfolioItem, client=client, **kwargs)
 
     @classmethod
     def patch(cls, *, client: str, **kwargs) -> PortfolioItem:

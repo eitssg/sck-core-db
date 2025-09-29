@@ -1,7 +1,6 @@
 from typing import Type, List, Tuple
 from datetime import datetime
 
-from pydantic.type_adapter import P
 from pynamodb.attributes import (
     UnicodeAttribute,
     UTCDateTimeAttribute,
@@ -237,7 +236,7 @@ class PassKeyActions(TableActions):
 
             return PassKey.from_item(item)
 
-        except PutError:
+        except PutError as e:
             if "ConditionalCheckFailedException" in str(e):
                 raise ConflictException("PassKey already exists")
 

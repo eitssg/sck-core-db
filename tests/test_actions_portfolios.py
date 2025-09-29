@@ -1,4 +1,3 @@
-from pydantic.type_adapter import P
 import pytest
 from unittest.mock import patch
 import core_framework as util

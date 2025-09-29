@@ -238,7 +238,7 @@ class BuildItem(ItemModelRecord):
         return values
 
     @classmethod
-    def model_class(cls, client: str = None) -> BuildModelType:
+    def model_class(cls, client: str) -> BuildModelType:
         """Get the PynamoDB model class for this Pydantic model.
 
         Args:

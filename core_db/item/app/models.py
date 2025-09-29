@@ -186,7 +186,7 @@ class AppItem(ItemModelRecord):
         return values
 
     @classmethod
-    def model_class(cls, client: str = None) -> AppModelType:
+    def model_class(cls, client: str) -> AppModelType:
         """Get the PynamoDB model class for this Pydantic model.
 
         Args:

@@ -304,7 +304,7 @@ class ComponentItem(ItemModelRecord):
             ComponentModel: PynamoDB model instance with data from this ComponentItem
         """
         model_class = self.model_class(client)
-        return model_class(**self.model_dump(by_alias=True, exclude_unset=True))
+        return model_class(**self.model_dump(by_alias=False, exclude_none=True))
 
     def __repr__(self) -> str:
         """Return a string representation of the ComponentItem instance.

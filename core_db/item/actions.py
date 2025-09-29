@@ -28,7 +28,7 @@ Usage Patterns:
     - core_db.item.component: Component-specific operations
 """
 
-from typing import List, Tuple
+from typing import List, Tuple, Type
 from datetime import datetime
 
 import core_logging as log
@@ -46,10 +46,9 @@ from pynamodb.exceptions import (
     ScanError,
 )
 from ..actions import TableActions
-from ..models import Paginator
 
 from ..models import Paginator
-from .models import ItemModelRecord, ItemModelType
+from .models import ItemModel, ItemModelRecordType
 
 
 from ..exceptions import (
@@ -73,7 +72,7 @@ class ItemTableActions(TableActions):
     """
 
     @classmethod
-    def create(cls, record_type: ItemModelRecord, *, client: str, **kwargs) -> ItemModelRecord:
+    def create(cls, record_type: Type[ItemModelRecordType], *, client: str, **kwargs) -> ItemModelRecordType:
         """Create a new item in the items table.
 
         Args:
@@ -92,21 +91,20 @@ class ItemTableActions(TableActions):
             raise BadRequestException("Client is required for item creation")
 
         try:
-            data: ItemModelRecord = record_type(**kwargs)
 
-            item = data.to_model(client)
+            item: ItemModel = record_type.to_model(client)
             item.save(type(item).prn.does_not_exist())
 
-            data: ItemModelRecord = record_type.from_model(item)
+            record: ItemModelRecordType = record_type.from_model(item)  # type: ignore[call-arg]
 
-            return data
+            return record
 
         except ValueError as e:
             raise BadRequestException(f"Invalid item data: {e}")
 
         except PutError as e:
             if "ConditionalCheckFailedException" in str(e):
-                raise ConflictException(f"Item already exists with PRN: {data.prn}")
+                raise ConflictException(f"Item already exists with PRN: {kwargs.get('prn')}")
 
             raise UnknownException("Database operation failed while creating item") from e
 
@@ -116,7 +114,7 @@ class ItemTableActions(TableActions):
 
     @classmethod
     def delete(
-        cls, record_type: ItemModelRecord, *, client: str, parent_prn: str | None = None, prn: str | None = None, **kwargs
+        cls, record_type: Type[ItemModelRecordType], *, client: str, parent_prn: str | None = None, prn: str | None = None, **kwargs
     ) -> bool:
         """Delete an item from the items table.
 
@@ -149,7 +147,7 @@ class ItemTableActions(TableActions):
 
         try:
 
-            model_class: ItemModelType = record_type.model_class(client)
+            model_class = record_type.model_class(client)
 
             if prn:
                 # Delete the specific item with the given prn
@@ -188,7 +186,7 @@ class ItemTableActions(TableActions):
             raise UnknownException("Database operation failed") from e
 
     @classmethod
-    def get(cls, record_type: ItemModelRecord, *, client: str, prn: str, **kwargs) -> ItemModelRecord:
+    def get(cls, record_type: Type[ItemModelRecordType], *, client: str, prn: str, **kwargs) -> ItemModelRecordType:
         """Retrieve a single item from the items table by PRN.
 
         Fetches the item with the specified Primary Resource Name and returns
@@ -214,14 +212,14 @@ class ItemTableActions(TableActions):
         if not prn:
             raise BadRequestException("PRN is required for item retrieval")
 
-        model_class: ItemModelType = record_type.model_class(client)
+        model_class = record_type.model_class(client)
 
         try:
             parent_prn = record_type.get_parent_prn(prn)
 
             item = model_class.get(hash_key=parent_prn, range_key=prn)
 
-            data: ItemModelRecord = record_type.from_model(item)
+            data: ItemModelRecordType = record_type.from_model(item)  # type: ignore[call-arg]
 
             return data
 
@@ -240,8 +238,8 @@ class ItemTableActions(TableActions):
 
     @classmethod
     def list(
-        cls, record_type: ItemModelRecord, *, client: str, parent_prn: str | None = None, **kwargs
-    ) -> Tuple[List[ItemModelRecord], Paginator]:
+        cls, record_type: Type[ItemModelRecordType], *, client: str, parent_prn: str | None = None, **kwargs
+    ) -> Tuple[List[ItemModelRecordType], Paginator]:
 
         if not client:
             raise BadRequestException("Client is required for item listing")
@@ -254,13 +252,13 @@ class ItemTableActions(TableActions):
     @classmethod
     def _list_all(
         cls,
-        record_type: ItemModelRecord,
+        record_type: Type[ItemModelRecordType],
         *,
         client: str,
         earliest_time: datetime | None = None,
         latest_time: datetime | None = None,
         **kwargs,
-    ) -> Tuple[List[ItemModelRecord], Paginator]:
+    ) -> Tuple[List[ItemModelRecordType], Paginator]:
         """List all items."""
 
         try:
@@ -281,14 +279,14 @@ class ItemTableActions(TableActions):
         else:
             condition = None
 
-        if condition:
+        if condition is not None:
             scan_args["filter_condition"] = condition
 
         try:
 
             result = model_class.scan(**scan_args)
 
-            data_list: List[ItemModelRecord] = [record_type.from_model(item) for item in result]
+            data_list: List[ItemModelRecordType] = [record_type.from_model(item) for item in result]  # type: ignore[call-arg]
 
             paginator.last_evaluated_key = getattr(result, "last_evaluated_key", None)
             paginator.total_count = len(data_list)
@@ -302,15 +300,15 @@ class ItemTableActions(TableActions):
             raise UnknownException("Database operation failed") from e
 
     @classmethod
-    def update(cls, record_type: ItemModelRecord, *, client: str, **kwargs) -> ItemModelRecord:
+    def update(cls, record_type: Type[ItemModelRecordType], *, client: str, **kwargs) -> ItemModelRecordType:
         return cls._update(record_type, remove_none=True, client=client, **kwargs)
 
     @classmethod
-    def patch(cls, record_type: ItemModelRecord, *, client: str, **kwargs) -> ItemModelRecord:
+    def patch(cls, record_type: Type[ItemModelRecordType], *, client: str, **kwargs) -> ItemModelRecordType:
         return cls._update(record_type, remove_none=False, client=client, **kwargs)
 
     @classmethod
-    def _update(cls, record_type: ItemModelRecord, *, remove_none: bool, client: str, **kwargs) -> ItemModelRecord:
+    def _update(cls, record_type: Type[ItemModelRecordType], *, remove_none: bool, client: str, **kwargs) -> ItemModelRecordType:
 
         if not client:
             raise BadRequestException("Client is required for item update")
@@ -336,7 +334,7 @@ class ItemTableActions(TableActions):
 
             values = input_data.model_dump(by_alias=False, exclude_none=False, exclude=exclude_fields)
 
-            model_class: ItemModelType = record_type.model_class(client)
+            model_class = record_type.model_class(client)
 
             attributes = model_class.get_attributes()
 
@@ -359,7 +357,7 @@ class ItemTableActions(TableActions):
             item.update(actions=actions, condition=model_class.prn.exists())
             item.refresh()
 
-            data: ItemModelRecord = record_type.from_model(item)
+            data: ItemModelRecordType = record_type.from_model(item)  # type: ignore[call-arg]
 
             return data
 
@@ -379,14 +377,14 @@ class ItemTableActions(TableActions):
     @classmethod
     def _list_by_parent_prn(
         cls,
-        record_type: ItemModelRecord,
+        record_type: Type[ItemModelRecordType],
         *,
         client: str,
         parent_prn: str,
         earliest_time: datetime | None = None,
         latest_time: datetime | None = None,
         **kwargs,
-    ) -> Tuple[List[ItemModelRecord], Paginator]:
+    ) -> Tuple[List[ItemModelRecordType], Paginator]:
         """uses the index to list items by parent_prn and date range"""
 
         if not parent_prn or not earliest_time or not latest_time:
@@ -409,14 +407,14 @@ class ItemTableActions(TableActions):
         else:
             condition = None
 
-        if condition:
+        if condition is not None:
             query_args["range_key_condition"] = condition
 
         try:
 
             result = model_class.parent_created_at_index.query(hash_key=parent_prn, **query_args)
 
-            data_list: List[ItemModelRecord] = [record_type.from_model(item) for item in result]
+            data_list: List[ItemModelRecordType] = [record_type.from_model(item) for item in result]  # type: ignore[call-arg]
 
             paginator.last_evaluated_key = getattr(result, "last_evaluated_key", None)
             paginator.total_count = len(data_list)

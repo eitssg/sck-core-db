@@ -38,7 +38,7 @@ from core_framework.time_utils import make_default_time
 from ..actions import TableActions
 from ..models import Paginator
 
-from .models import EventItem
+from .models import Any, EventItem
 
 
 from ..exceptions import (
@@ -322,7 +322,7 @@ class EventActions(TableActions):
         return True
 
     @classmethod
-    def list(cls, *, client: str, prn: str | None = None, **kwargs) -> Tuple[List[EventItem] | Paginator]:
+    def list(cls, *, client: str, prn: str | None = None, **kwargs) -> Tuple[List[EventItem], Paginator]:
         """List events with optional PRN filtering and time range constraints.
 
         Retrieves events from the database with support for PRN filtering, time-based filtering,
@@ -375,7 +375,7 @@ class EventActions(TableActions):
             raise UnknownException(f"Unexpected error during event retrieval: {str(e)}") from e
 
     @classmethod
-    def _list_by_prn(cls, *, client: str, prn: str, **kwargs) -> Tuple[List[EventItem] | Paginator]:
+    def _list_by_prn(cls, *, client: str, prn: str, **kwargs) -> tuple[List[EventItem], Paginator]:
         """List events filtered by Pipeline Reference Number (PRN).
 
         Uses the Query operation to efficiently retrieve events associated with
@@ -426,7 +426,7 @@ class EventActions(TableActions):
             results = model_class.query(prn, **query_kwargs)
 
             # Convert results to EventItem instances
-            data = [EventItem.from_model(item) for item in results]
+            data: List[EventItem] = [EventItem.from_model(item) for item in results]
 
             # Update paginator with results metadata
             paginator.last_evaluated_key = getattr(results, "last_evaluated_key", None)
@@ -444,7 +444,7 @@ class EventActions(TableActions):
             raise UnknownException(f"Unexpected error querying events for PRN {prn}") from e
 
     @classmethod
-    def _list_all_events(cls, **kwargs) -> Tuple[List[EventItem] | Paginator]:
+    def _list_all_events(cls, **kwargs) -> Tuple[List[EventItem], Paginator]:  # noqa: C901
         """Scan all events for client with pagination."""
         client = kwargs.get("client") or util.get_client()
         if not client:
@@ -466,7 +466,7 @@ class EventActions(TableActions):
             filter_conditions.append(model_class.timestamp <= paginator.latest_time)
 
         # Build scan kwargs
-        scan_kwargs = {
+        scan_kwargs: dict[str, Any] = {
             "limit": paginator.limit,
             "page_size": paginator.limit,
         }
@@ -482,7 +482,7 @@ class EventActions(TableActions):
 
         # Add pagination cursor if available decoded automatically
         if paginator.cursor:
-            scan_kwargs["last_evaluated_key"] = paginator.cursor
+            scan_kwargs["last_evaluated_key"] = paginator.last_evaluated_key
 
         # Execute scan
         results = model_class.scan(**scan_kwargs)
@@ -503,7 +503,7 @@ class EventActions(TableActions):
         return data, paginator
 
     @classmethod
-    def _update(cls, remove_none: bool, **kwargs) -> EventItem:
+    def _update(cls, remove_none: bool, **kwargs) -> EventItem:  # noqa: C901
         """Update an existing event in the database with Action statements.
 
         Creates PynamoDB Action statements for efficient updates. By default,
@@ -580,4 +580,4 @@ class EventActions(TableActions):
         except DoesNotExist:
             raise NotFoundException(f"Event not found: prn={update_data.prn}, timestamp={update_data.timestamp}")
         except Exception as e:
-            raise UnknownException(f"Failed to update event: {str(e)}", exception=e) from e
+            raise UnknownException(f"Failed to update event: {str(e)}") from e

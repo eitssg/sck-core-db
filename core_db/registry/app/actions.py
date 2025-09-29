@@ -379,7 +379,7 @@ class AppActions(RegistryAction):
                     auto_gen = True
                     app = generate_app_slug(
                         name=name,
-                        client=client or util.get_client(),
+                        client=client,
                         portfolio=portfolio,
                     )
                     kwargs["app"] = app
@@ -445,7 +445,7 @@ class AppActions(RegistryAction):
                 )
                 raise UnknownException(f"Unexpected error creating app: {str(e)}") from e
 
-        raise ConflictException(f"Cannot create app due to app conflict: {str(e)}") from e
+        raise ConflictException(f"Cannot create app due to app conflict")
 
     @classmethod
     def update(cls, *, client: str, record: AppFact | None = None, **kwargs) -> AppFact:

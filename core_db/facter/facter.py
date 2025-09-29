@@ -8,10 +8,7 @@ dynamic, scalable configuration management for cloud deployments.
 """
 
 from collections import ChainMap
-from http import client
-from math import e
 import os
-from pydoc import cli
 import re
 import core_framework as util
 import core_logging as log
@@ -103,7 +100,7 @@ def get_client_facts(client: str) -> dict | None:
 
         return ClientFact.from_model(item).model_dump(by_alias=True)
 
-    except GetError as e:
+    except GetError:
         log.error(f"Client not found: {client}")
         return None
     except Exception as e:
@@ -181,7 +178,7 @@ def get_portfolio_facts(client: str, portfolio: str) -> dict | None:
 
         return PortfolioFact.from_model(item).model_dump(by_alias=True)
 
-    except GetError as e:
+    except GetError:
         log.error(f"Portfolio not found: {client} / {portfolio}")
         return None
 
@@ -265,7 +262,7 @@ def get_zone_facts(client: str, zone: str) -> dict | None:
 
         return ZoneFact.from_model(item).model_dump(by_alias=True)
 
-    except GetError as e:
+    except GetError:
         log.error(f"Zone not found: {client} / {zone}")
         return None
     except Exception as e:
@@ -951,7 +948,7 @@ def get_facts(deployment_details: DeploymentDetails) -> dict:  # noqa: C901
 
     compiler_facts = get_compiler_facts(deployment_details)
 
-    log.debug(f"Compiler facts:", details=compiler_facts)
+    log.debug("Compiler facts:", details=compiler_facts)
 
     owner = format_contact(portfolio_facts.get("Owner", {}))
 
@@ -994,14 +991,14 @@ def get_facts(deployment_details: DeploymentDetails) -> dict:  # noqa: C901
     # Lastly, we merge in the storage volume facts
     facts = util.merge.deep_merge_in_place(facts, compiler_facts, merge_lists=True)
 
-    log.debug(f"Merged facts before cleanup:", details=facts)
+    log.debug("Merged facts before cleanup:", details=facts)
 
     return facts
 
 
 def _get_client_facts(deployment_details: DeploymentDetails) -> dict:
 
-    log.debug(f"Getting facts for client: %s", deployment_details.client)
+    log.debug("Getting facts for client: %s", deployment_details.client)
 
     # Get the dictionary of client facts dictionary for this deployment
     client = deployment_details.client
@@ -1010,14 +1007,14 @@ def _get_client_facts(deployment_details: DeploymentDetails) -> dict:
         log.info(f"No client facts found for {client}. Contact DevOps to register this client.")
         return {"Client": client, "ClientStatus": "UNREGISTERED"}
 
-    log.debug(f"Client facts:", details=client_facts)
+    log.debug("Client facts:", details=client_facts)
 
     return client_facts
 
 
 def _get_portfolio_facts(deployment_details: DeploymentDetails) -> dict:
     # Get the portfolio facts dictionary for this deployment
-    log.debug(f"Getting portfolio facts for portfolio: %s", deployment_details.portfolio)
+    log.debug("Getting portfolio facts for portfolio: %s", deployment_details.portfolio)
 
     portfolio = deployment_details.portfolio
     client = deployment_details.client
@@ -1030,7 +1027,7 @@ def _get_portfolio_facts(deployment_details: DeploymentDetails) -> dict:
             "PortfolioStatus": "UNREGISTERED",
         }
 
-    log.debug(f"Portfolio facts:", details=portfolio_facts)
+    log.debug("Portfolio facts:", details=portfolio_facts)
 
     return portfolio_facts
 
@@ -1038,7 +1035,7 @@ def _get_portfolio_facts(deployment_details: DeploymentDetails) -> dict:
 def _get_app_facts(deployment_details: DeploymentDetails) -> dict:
     # Get the app facts dictionary for this deployment
     log.debug(
-        f"Getting app facts for client:portfolio:app: %s:%s:%s",
+        "Getting app facts for client:portfolio:app: %s:%s:%s",
         deployment_details.client,
         deployment_details.portfolio,
         deployment_details.app,
@@ -1061,7 +1058,7 @@ def _get_app_facts(deployment_details: DeploymentDetails) -> dict:
 def _get_zone_facts(deployment_details: DeploymentDetails, app_facts: dict) -> dict:
 
     client = deployment_details.client
-    log.debug(f"Getting zone facts for client: %s", client)
+    log.debug("Getting zone facts for client: %s", client)
 
     identity = deployment_details.get_identity()
 
@@ -1073,7 +1070,7 @@ def _get_zone_facts(deployment_details: DeploymentDetails, app_facts: dict) -> d
     # Get the zone facts dictionary for this deployment and environment
     zone_facts = get_zone_facts(client, zone)
 
-    log.debug(f"Zone facts:", details=zone_facts)
+    log.debug("Zone facts:", details=zone_facts)
 
     if not zone_facts:
         log.info(f"No zone facts found for {client}:{zone}. Contact DevOps to register this zone.")
@@ -1088,7 +1085,7 @@ def _get_region_facts(deployment_details: DeploymentDetails, app_facts: dict, zo
     zone = app_facts.get(ZONE_KEY, None)
     app = app_facts.get("Name", None)
 
-    log.debug(f"Getting region facts for client:zone, app: %s:%s, %s", client, zone, app)
+    log.debug("Getting region facts for client:zone, app: %s:%s, %s", client, zone, app)
 
     identity = deployment_details.get_identity()
 
@@ -1114,13 +1111,13 @@ def _get_account_facts(deployment_details: DeploymentDetails, zone_facts: dict) 
     client = deployment_details.client
     zone = zone_facts.get("Zone", None)
 
-    log.debug(f"Getting account facts for client:zone %s:%s", client, zone)
+    log.debug("Getting account facts for client:zone %s:%s", client, zone)
 
     account_facts = dict(zone_facts.get(FACTS_ACCOUNT, {}))
     if not account_facts:
         log.info(f"No account facts found for {client}:{zone}. Contact DevOps to register this account.")
         return {"AccountStatus": "UNREGISTERED"}
 
-    log.debug(f"Account facts:", details=account_facts)
+    log.debug("Account facts:", details=account_facts)
 
     return account_facts

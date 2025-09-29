@@ -313,7 +313,7 @@ class EventItem(DatabaseRecord):
 
         prn = values.get("prn")
         if not prn:
-            raise ValueError(f"prn not specified in event")
+            raise ValueError("prn not specified in event")
 
         values["item_type"] = EventItem.get_item_type(prn)
 

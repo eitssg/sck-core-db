@@ -1,5 +1,3 @@
-from pydoc import cli
-from pydantic.type_adapter import P
 import pytest
 
 from core_db.event import EventItem

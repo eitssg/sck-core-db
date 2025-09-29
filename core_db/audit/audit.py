@@ -186,7 +186,7 @@ class AuthAuditSchemas(DatabaseRecord):
 class AuthAuditActions(TableActions):
 
     @classmethod
-    def get(*, client: str, pk: str, sk: str) -> Optional[AuthAuditSchemas]:
+    def get(cls, *, client: str, pk: str, sk: str) -> Optional[AuthAuditSchemas]:
 
         try:
             model_cls = AuthAuditModelFactory.get_model(client)
@@ -276,7 +276,7 @@ class AuthAuditActions(TableActions):
             raise UnknownException(str(e)) from e
 
     @classmethod
-    def query_by_request_id(cls, *, client: str, request_id: str) -> list[AuthAuditSchemas]:
+    def query_by_request_id(cls, *, client: str, request_id: str) -> Tuple[list[AuthAuditSchemas], Paginator]:
         model_cls = AuthAuditModelFactory.get_model(client)
 
         try:
@@ -345,7 +345,7 @@ class AuthAuditActions(TableActions):
                 record = AuthAuditSchemas.model_validate(kwargs)
 
             item = record.to_model(client)
-            item.save(conditions=model_cls.pk.exists() & model_cls.sk.exists())
+            item.save(condition=model_cls.pk.exists() & model_cls.sk.exists())
 
             return record
 

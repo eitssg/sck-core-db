@@ -104,8 +104,7 @@ class ClientFactsModel(DatabaseTable):
             self.security_account,
             self.network_account,
         }
-        # Remove None values and check if more than one unique account
-        accounts.discard(None)
+        accounts.discard(None)  # type: ignore
 
         return len(accounts) > 1
 
@@ -341,7 +340,7 @@ class ClientFact(DatabaseRecord):
         if bucket_type not in bucket_mapping:
             raise ValueError(f"Unknown bucket type: {bucket_type}. Valid types: {list(bucket_mapping.keys())}")
 
-        return bucket_mapping[bucket_type]
+        return bucket_mapping[bucket_type] or ""
 
     def is_multi_account(self) -> bool:
         accounts = {
