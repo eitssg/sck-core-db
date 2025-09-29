@@ -19,6 +19,9 @@ Features:
 """
 
 from typing import List, Tuple
+from datetime import datetime
+from dateutil.parser import parse as parse_date
+
 from pynamodb.expressions.update import Action
 from pynamodb.exceptions import (
     DoesNotExist,
@@ -62,7 +65,7 @@ class EventActions(TableActions):
     """
 
     @classmethod
-    def create(cls, *, client: str, **kwargs) -> EventItem:
+    def create(cls, *, client: str, record: EventItem | None = None, **kwargs) -> EventItem:
         """Create a new event in the event table.
 
         Creates a new audit event with the provided attributes. Automatically generates
@@ -92,7 +95,10 @@ class EventActions(TableActions):
             raise BadRequestException("Client identifier is required for event creation.")
 
         try:
-            event_data = EventItem(**kwargs)
+            if record is not None:
+                event_data = record
+            else:
+                event_data = EventItem.model_validate(kwargs)
         except Exception as e:
             log.error("Failed to construct EventItem", details=str(e))
             raise BadRequestException("Invalid event data provided.") from e
@@ -110,7 +116,7 @@ class EventActions(TableActions):
             raise UnknownException("An unexpected error occurred while creating the event.") from e
 
     @classmethod
-    def get(cls, *, client: str, **kwargs) -> EventItem:
+    def get(cls, *, client: str, prn: str, timestamp: str | datetime, **kwargs) -> EventItem:
         """Retrieve an event from the event table.
 
         Fetches a single event by its PRN and timestamp. If only PRN is provided,
@@ -133,8 +139,6 @@ class EventActions(TableActions):
             NotFoundException: If no events found for the specified PRN or timestamp.
             UnknownException: If database operation fails.
         """
-        prn = kwargs.get("prn")
-        timestamp = kwargs.get("timestamp")
 
         if not client:
             raise BadRequestException("Client identifier is required for event retrieval.")
@@ -148,8 +152,13 @@ class EventActions(TableActions):
         try:
             model_class = EventItem.model_class(client)
 
+            if isinstance(timestamp, datetime):
+                dtm = timestamp
+            else:
+                dtm = parse_date(timestamp)
+
             # Retrieve specific event by PRN and timestamp
-            item = model_class.get(prn, timestamp)
+            item = model_class.get(prn, dtm)
 
             return EventItem.from_model(item)
 
@@ -165,8 +174,8 @@ class EventActions(TableActions):
             raise UnknownException(f"Unexpected error during retrieval: {str(e)}") from e
 
     @classmethod
-    def update(cls, *, client: str, **kwargs) -> EventItem:
-        return cls._update(remove_none=True, client=client, **kwargs)
+    def update(cls, *, client: str, record: EventItem | None = None, **kwargs) -> EventItem:
+        return cls._update(remove_none=True, client=client, record=record, **kwargs)
 
     @classmethod
     def patch(cls, *, client: str, **kwargs) -> EventItem:
@@ -503,7 +512,7 @@ class EventActions(TableActions):
         return data, paginator
 
     @classmethod
-    def _update(cls, remove_none: bool, **kwargs) -> EventItem:  # noqa: C901
+    def _update(cls, remove_none: bool, client: str, record: EventItem | None = None, **kwargs) -> EventItem:  # noqa: C901
         """Update an existing event in the database with Action statements.
 
         Creates PynamoDB Action statements for efficient updates. By default,
@@ -521,13 +530,15 @@ class EventActions(TableActions):
             NotFoundException: If event doesn't exist
             UnknownException: If database operation fails
         """
-        client = kwargs.get("client") or util.get_client()
         if not client:
             raise BadRequestException("Client identifier is required for event update.")
 
         if remove_none:
             try:
-                update_data = EventItem(**kwargs)
+                if record is not None:
+                    update_data = record
+                else:
+                    update_data = EventItem.model_validate(kwargs)
             except Exception as e:
                 log.error("Failed to construct EventItem for update", details=str(e))
                 raise BadRequestException("Invalid event data provided for update.") from e

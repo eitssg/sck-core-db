@@ -1,8 +1,6 @@
 from typing import List
 from datetime import datetime
 
-import pytest
-
 from core_framework.status import (
     INIT,
     DEPLOY_REQUESTED,
@@ -20,19 +18,19 @@ from core_framework.status import (
     TEARDOWN_IN_PROGRESS,
     TEARDOWN_COMPLETE,
     TEARDOWN_FAILED,
-    STATUS_LIST,
 )
-from pydantic.v1.json import isoformat
+
+import core_framework as util
 
 from core_db.event import EventActions, EventItem
 from core_db.models import Paginator
 
-from .bootstrap import *
+from .bootstrap import *  # noqa: F403, F401
 
-client = util.get_client()
+client = util.get_client() or "core"
 
 # Fixed: All PRNs are the same, only timestamps differ
-data = [
+data: list[dict] = [
     {
         "prn": "prn:portfolio:app:branch:build:1.2.0",
         "timestamp": "2024-01-15T14:30:45.123456Z",
@@ -240,11 +238,11 @@ def test_create_all_events_and_test_pagination(bootstrap_dynamo):
             assert response.message == event_data["message"], f"Record {i}: Message mismatch"
 
             created_events.append(response)
-            print(f"✅ Created event {i+1}/25: {event_data['prn']} - {event_data['event_type']}")
+            print(f"✅ Created event {i + 1}/25: {event_data['prn']} - {event_data['event_type']}")
 
         except Exception as e:
-            failed_events.append({"index": i, "event_data": event_data, "error": str(e)})
-            print(f"❌ Failed to create event {i+1}/25: {event_data['prn']} - Error: {str(e)}")
+            failed_events.append(EventItem(**{"index": i, "event_data": event_data, "error": str(e)}))
+            print(f"❌ Failed to create event {i + 1}/25: {event_data['prn']} - Error: {str(e)}")
 
     # Assert all events were created successfully
     assert len(failed_events) == 0, f"Failed to create {len(failed_events)} events: {failed_events}"
@@ -253,14 +251,14 @@ def test_create_all_events_and_test_pagination(bootstrap_dynamo):
     print(f"\n🎉 Successfully created all {len(created_events)} events!")
 
     # Step 2: Test pagination with EventActions.list()
-    print(f"\n📄 Testing pagination with EventActions.list()...")
+    print("\n📄 Testing pagination with EventActions.list()...")
 
     # First page: Get first 5 events for the PRN
-    print(f"🔍 First page: Getting first 5 events with PRN filter...")
+    print("🔍 First page: Getting first 5 events with PRN filter...")
 
     prn = "prn:portfolio:app:branch:build:1.2.0"
 
-    paginator: Paginator = None
+    paginator: Paginator | None = None
 
     # Fixed: Use correct parameter signature for EventActions.list()
     first_page_events, paginator = EventActions.list(client=client, prn=prn, limit=5)
@@ -283,7 +281,7 @@ def test_create_all_events_and_test_pagination(bootstrap_dynamo):
     assert cursor_value is not None, "Cursor should be populated since we have more than 5 records"
 
     print(f"🔗 Cursor found: {cursor_value[:50]}... (truncated)")
-    print(f"📄 Testing second page with cursor...")
+    print("📄 Testing second page with cursor...")
 
     second_page_events, paginator = EventActions.list(client=client, prn=prn, cursor=cursor_value, limit=5)
     assert isinstance(second_page_events, list), "Second page: Response data should be a list"
@@ -306,19 +304,19 @@ def test_create_all_events_and_test_pagination(bootstrap_dynamo):
     overlapping_timestamps = first_page_timestamps.intersection(second_page_timestamps)
     assert len(overlapping_timestamps) == 0, f"Found duplicate timestamps between pages: {overlapping_timestamps}"
 
-    print(f"✅ No duplicate events between first and second page")
+    print("✅ No duplicate events between first and second page")
 
     # Step 4: Validate that the first event on second page is the 6th record (index 5)
     # Since events are ordered by timestamp, the 6th event should be data[5]
     expected_sixth_event = created_events[5]  # Index 5 = 6th record
     actual_sixth_event = second_page_events[0]  # First event on second page
 
-    print(f"🕒 Expected 6th event (data[5]):")
+    print("🕒 Expected 6th event (data[5]):")
     print(f"   Timestamp: {expected_sixth_event.timestamp}")
     print(f"   Status: {expected_sixth_event.event_type}")
     print(f"   Message: {expected_sixth_event.message}")
 
-    print(f"🕒 Actual first event on second page:")
+    print("🕒 Actual first event on second page:")
     print(f"   Timestamp: {actual_sixth_event.timestamp}")
     print(f"   Status: {actual_sixth_event.event_type}")
     print(f"   Message: {actual_sixth_event.message}")
@@ -327,17 +325,17 @@ def test_create_all_events_and_test_pagination(bootstrap_dynamo):
     assert actual_sixth_event.event_type == expected_sixth_event.event_type, "Status should match 6th record"
     assert actual_sixth_event.message == expected_sixth_event.message, "Message should match 6th record"
 
-    print(f"✅ Verified: First event on second page is the 6th record from test data!")
+    print("✅ Verified: First event on second page is the 6th record from test data!")
 
     print(f"📈 Second page metadata: {paginator.get_metadata()}")
 
-    print(f"✅ Pagination test completed successfully!")
+    print("✅ Pagination test completed successfully!")
 
 
 def test_create_single_event_basic():
     """Test creating a single event record for basic functionality."""
 
-    event_data = {
+    event_data: dict = {
         "prn": "prn:test:single:event:build:1.0.0",
         "timestamp": "2024-01-15T12:00:00.000000Z",
         "event_type": INIT,
@@ -351,14 +349,14 @@ def test_create_single_event_basic():
     assert response.event_type == event_data["event_type"]
     assert response.message == event_data["message"]
 
-    print(f"✅ Single event creation test passed")
+    print("✅ Single event creation test passed")
 
 
 def test_list_events_basic():
     """Test basic EventActions.list() functionality."""
 
     # Create a test event first
-    event_data = {
+    event_data: dict = {
         "prn": "prn:test:list:basic:build:1.0.0",
         "timestamp": "2024-01-15T12:00:00Z",
         "event_type": INIT,
@@ -392,7 +390,7 @@ def test_list_events_basic():
     assert found_event.event_type == event_data["event_type"]
     assert found_event.message == event_data["message"]
 
-    print(f"✅ Basic list test passed")
+    print("✅ Basic list test passed")
 
 
 def test_list_events_with_date_range():
@@ -412,4 +410,4 @@ def test_list_events_with_date_range():
     assert isinstance(list_response, list)
     assert len(list_response) == 3, "Should have only the three events in the date range"
 
-    print(f"✅ Date range list test passed")
+    print("✅ Date range list test passed")

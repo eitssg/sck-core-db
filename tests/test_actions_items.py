@@ -1,4 +1,4 @@
-import pytest
+import core_framework as util
 
 from core_db.event import EventItem
 from core_db.item.portfolio import PortfolioActions, PortfolioItem
@@ -9,10 +9,10 @@ from core_db.item.component import ComponentActions, ComponentItem
 
 from .bootstrap import *
 
-client = util.get_client()
+client = util.get_client() or "core"
 
 """Create a portfolio item - foundation for all other tests."""
-portfolio_data = {
+portfolio_data: dict = {
     "name": "test-portfolio",
     "contact_email": "test@example.com",
     "metadata": {
@@ -20,7 +20,7 @@ portfolio_data = {
         "description": "Test portfolio for integration tests",
     },
 }
-app_data = {
+app_data: dict = {
     "portfolio": "test-portfolio",
     "name": "test-app",
     "contact_email": "app-team@example.com",
@@ -30,7 +30,7 @@ app_data = {
         "tags": {"language": "python", "framework": "fastapi"},
     },
 }
-branch_data = {
+branch_data: dict = {
     "portfolio": "test-portfolio",
     "app": "test-app",
     "name": "main",
@@ -41,7 +41,7 @@ branch_data = {
     },
 }
 
-build_data = {
+build_data: dict = {
     "portfolio": "test-portfolio",
     "app": "test-app",
     "branch": "main",
@@ -54,7 +54,7 @@ build_data = {
     },
 }
 
-component_data = {
+component_data: dict = {
     "portfolio": "test-portfolio",
     "app": "test-app",
     "branch": "main",
@@ -71,7 +71,7 @@ component_data = {
 }
 
 # Global test data to maintain state across dependent tests
-test_data = {
+test_data: dict = {
     "portfolio": portfolio_data,
     "app": app_data,
     "branch": branch_data,
@@ -91,6 +91,9 @@ def test_portfolio_items_create(bootstrap_dynamo):
     assert isinstance(response, PortfolioItem)
     assert response.name == portfolio_data["name"]
     assert response.contact_email == portfolio_data["contact_email"]
+    assert response.metadata is not None
+    assert "tags" in response.metadata
+    assert "environment" in response.metadata["tags"]
     assert response.metadata["tags"]["environment"] == "test"
 
     # Store for dependent tests

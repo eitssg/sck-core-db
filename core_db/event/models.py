@@ -283,14 +283,14 @@ class EventItem(DatabaseRecord):
         description='The status for the event "ok", "error", "running", etc.',
     )
     message: Optional[str] = Field(
-        None,
         alias="Message",
         description="Event message details",
+        default=None,
     )
     details: Optional[Dict[str, Any]] = Field(
-        None,
         alias="Details",
         description="Additional detailed information about the event",
+        default=None,
     )
 
     @model_validator(mode="before")
