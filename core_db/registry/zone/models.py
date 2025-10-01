@@ -40,6 +40,7 @@ class KmsFacts(EnhancedMapAttribute):
         delegate_aws_account_ids: List of AWS Account IDs that can use the KMS Key
         allow_sns: Whether SNS is allowed to use the KMS Key.
     """
+
     aws_account_id = UnicodeAttribute(null=False, attr_name="AwsAccountId")
     kms_key_arn = UnicodeAttribute(null=True, attr_name="KmsKeyArn")
     kms_key = UnicodeAttribute(null=True, attr_name="KmsKey")
@@ -130,6 +131,7 @@ class ZoneFactsModel(DatabaseTable):
         region_facts: Region details mapped by AWS region name.
         tags: Global tags for deployment resources.
     """
+
     class Meta(DatabaseTable.Meta):
 
         pass
@@ -169,7 +171,7 @@ class ZoneFactsFactory:
 
 
 class SecurityAliasFactsItem(BaseModel):
-    
+
     model_config = ConfigDict(populate_by_name=True)
 
     type: str = Field(
