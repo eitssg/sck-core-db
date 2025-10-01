@@ -72,7 +72,9 @@ class ItemTableActions(TableActions):
     """
 
     @classmethod
-    def create(cls, record_type: Type[ItemModelRecordType], *, client: str, **kwargs) -> ItemModelRecordType:
+    def create(
+        cls, record_type: Type[ItemModelRecordType], *, client: str, record: ItemModelRecordType | None = None, **kwargs
+    ) -> ItemModelRecordType:
         """Create a new item in the items table.
 
         Args:
@@ -91,11 +93,11 @@ class ItemTableActions(TableActions):
             raise BadRequestException("Client is required for item creation")
 
         try:
+            if record is None:
+                record = record_type(**kwargs)
 
-            item: ItemModel = record_type.to_model(client)
+            item: ItemModel = record.to_model(client)
             item.save(type(item).prn.does_not_exist())
-
-            record: ItemModelRecordType = record_type.from_model(item)  # type: ignore[call-arg]
 
             return record
 

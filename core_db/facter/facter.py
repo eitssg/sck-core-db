@@ -31,7 +31,7 @@ from core_framework.constants import (
 )
 
 from core_framework.models import DeploymentDetails
-from pynamodb.exceptions import GetError, QueryError, ScanError
+from pynamodb.exceptions import GetError, QueryError, ScanError, DoesNotExist
 
 from ..constants import REGION, ENVIRONMENT, ZONE_KEY
 
@@ -178,6 +178,9 @@ def get_portfolio_facts(client: str, portfolio: str) -> dict | None:
 
         return PortfolioFact.from_model(item).model_dump(by_alias=True)
 
+    except DoesNotExist:
+        log.error(f"Portfolio not found: {client} / {portfolio}")
+        return None
     except GetError:
         log.error(f"Portfolio not found: {client} / {portfolio}")
         return None
@@ -443,7 +446,7 @@ def get_app_facts(deployment_details: DeploymentDetails) -> list[dict] | None:
 
         if not data:
             log.warning(f"No app facts found for client: {client}, portfolio: {portfolio}, app: {app}")
-            return None
+            return []
 
         return data
 
@@ -1052,7 +1055,7 @@ def _get_app_facts(deployment_details: DeploymentDetails) -> dict:
         log.info(f"Multiple app facts found for {identity}. Abort!!!")
         raise ValueError(f"Multiple app facts found for {identity}. Please refine your deployment details.")
 
-    return app_facts_list[0]
+    return app_facts_list[0] if app_facts_list else {}
 
 
 def _get_zone_facts(deployment_details: DeploymentDetails, app_facts: dict) -> dict:

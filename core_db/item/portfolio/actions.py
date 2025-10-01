@@ -8,7 +8,9 @@ The PortfolioActions class extends ItemTableActions to provide portfolio-specifi
 while inheriting common item management functionality.
 """
 
-from typing import Type
+from typing import List, Tuple, Type
+
+from core_db.models import Paginator
 
 from ..actions import ItemTableActions
 from .models import PortfolioItem
@@ -26,7 +28,7 @@ class PortfolioActions(ItemTableActions):
     """
 
     @classmethod
-    def list(cls, *, client: str, **kwargs):
+    def list(cls, *, client: str, **kwargs) -> Tuple[List[PortfolioItem], Paginator]:
         """List portfolio items with optional filtering and pagination.
 
         Convenience method that automatically uses PortfolioItem type.

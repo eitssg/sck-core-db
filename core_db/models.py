@@ -399,29 +399,7 @@ class EnhancedInit:
     """
 
     def __init__(self, *args, **kwargs):
-        """Initialize with support for both snake_case and PascalCase field names.
 
-        Enables round-trip compatibility with DynamoDB data and to_simple_dict() output.
-        This allows loading data directly from DynamoDB command line dumps or API responses.
-        Handles nested MapAttribute, ListAttribute, and DictAttribute objects with custom __init__ methods.
-
-        Args:
-            *args: Positional arguments for PynamoDB Model.__init__
-            **kwargs: Keyword arguments with either snake_case or PascalCase (attr_name) keys
-
-        Examples:
-            >>> # Standard initialization
-            >>> item = MyModel(field1="value1", field2="value2")
-
-            >>> # PascalCase initialization (from DynamoDB)
-            >>> item = MyModel(Field1="value1", Field2="value2")
-
-            >>> # Nested object initialization
-            >>> item = MyModel(
-            ...     NestedData={"SubField": "value"},
-            ...     ListData=[{"Item": "test"}]
-            ... )
-        """
         # Create a mapping of attr_name -> snake_case attribute name
         attr_name_map = {}
 

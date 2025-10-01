@@ -7,7 +7,7 @@ from core_db.item.branch import BranchActions, BranchItem
 from core_db.item.build import BuildActions, BuildItem
 from core_db.item.component import ComponentActions, ComponentItem
 
-from .bootstrap import *
+from .bootstrap import *  # noqa: F401
 
 client = util.get_client() or "core"
 

@@ -19,6 +19,12 @@ from ..models import RegistryFact
 
 
 class SecurityAliasFacts(EnhancedMapAttribute):
+    """
+    Attributes:
+        type: The type of alias (e.g., 'CIDR', 'SG', etc.).
+        value: The value associated with the alias.
+        description: A description of the alias.
+    """
 
     type = UnicodeAttribute(null=False, attr_name="Type")
     value = UnicodeAttribute(null=False, attr_name="Value")
@@ -26,7 +32,14 @@ class SecurityAliasFacts(EnhancedMapAttribute):
 
 
 class KmsFacts(EnhancedMapAttribute):
-
+    """
+    Attributes:
+        aws_account_id: AWS Account ID where KMS Keys are managed/centralized.
+        kms_key_arn: The ARN of the KMS Key for this Zone.
+        kms_key: The KMS Key ID for this Zone.
+        delegate_aws_account_ids: List of AWS Account IDs that can use the KMS Key
+        allow_sns: Whether SNS is allowed to use the KMS Key.
+    """
     aws_account_id = UnicodeAttribute(null=False, attr_name="AwsAccountId")
     kms_key_arn = UnicodeAttribute(null=True, attr_name="KmsKeyArn")
     kms_key = UnicodeAttribute(null=True, attr_name="KmsKey")
@@ -35,6 +48,19 @@ class KmsFacts(EnhancedMapAttribute):
 
 
 class AccountFacts(EnhancedMapAttribute):
+    """
+    Attributes:
+        organizational_unit: The Organizational Unit name.
+        aws_account_id: The AWS Account ID.
+        account_name: The name of the account.
+        environment: The environment (e.g., 'prod', 'dev').
+        kms: KMS Key details.
+        resource_namespace: Namespace for resources.
+        network_name: Name of the network.
+        vpc_aliases: VPC aliases created by network pipelines.
+        subnet_aliases: Subnet aliases created by network pipelines.
+        tags: Tags to merge into facts for this deployment.
+    """
 
     organizational_unit = UnicodeAttribute(null=True, attr_name="OrganizationalUnit")
     aws_account_id = UnicodeAttribute(null=False, attr_name="AwsAccountId")
@@ -49,6 +75,13 @@ class AccountFacts(EnhancedMapAttribute):
 
 
 class ProxyFacts(EnhancedMapAttribute):
+    """
+    Attributes:
+        host: Proxy host (e.g., 'proxy.acme.com').
+        port: Proxy port (e.g., '8080').
+        url: Proxy URL (e.g., 'http://proxy.acme.com:8080').
+        no_proxy: No-proxy list (e.g., '*.acme.com,10/8,192.168/16').
+    """
 
     host = UnicodeAttribute(null=True, attr_name="Host")
     port = UnicodeAttribute(null=True, attr_name="Port")
@@ -57,6 +90,22 @@ class ProxyFacts(EnhancedMapAttribute):
 
 
 class RegionFacts(EnhancedMapAttribute):
+    """
+    Attributes:
+        aws_region: The AWS region code (e.g., 'us-west-2').
+        az_count: Number of Availability Zones in the region.
+        image_aliases: Aliases for AMIs created by image pipelines.
+        min_successful_instances_percent: Minimum percent of successful instances for deployment.
+        security_aliases: Security aliases published by the security team.
+        security_group_aliases: Security group aliases.
+        proxy: List of proxy endpoint details.
+        proxy_host: Proxy host.
+        proxy_port: Proxy port.
+        proxy_url: Proxy URL.
+        no_proxy: No-proxy list.
+        name_servers: List of nameservers for the region.
+        tags: Tags for deployment resources.
+    """
 
     aws_region = UnicodeAttribute(null=False, attr_name="AwsRegion")
     az_count = NumberAttribute(null=True, attr_name="AzCount")
@@ -74,7 +123,13 @@ class RegionFacts(EnhancedMapAttribute):
 
 
 class ZoneFactsModel(DatabaseTable):
-
+    """
+    Attributes:
+        zone: Zone identifier (unique zone name within client namespace).
+        account_facts: AWS Account details for the zone.
+        region_facts: Region details mapped by AWS region name.
+        tags: Global tags for deployment resources.
+    """
     class Meta(DatabaseTable.Meta):
 
         pass
@@ -114,7 +169,7 @@ class ZoneFactsFactory:
 
 
 class SecurityAliasFactsItem(BaseModel):
-
+    
     model_config = ConfigDict(populate_by_name=True)
 
     type: str = Field(
