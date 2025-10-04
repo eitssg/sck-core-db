@@ -66,6 +66,19 @@ class ComponentActions(ItemTableActions):
         return super().create(ComponentItem, client=client, **kwargs)
 
     @classmethod
+    def patch(cls, *, client: str, **kwargs) -> ComponentItem:
+        """Update an existing component item using PATCH semantics.
+
+        Args:
+            **kwargs: Component item attributes to update, including prn to identify
+                     the item and fields to modify.
+
+        Returns:
+            BaseModel: BaseModel object containing the updated component item data.
+        """
+        return super().patch(ComponentItem, client=client, **kwargs)
+
+    @classmethod
     def update(cls, *, client: str, **kwargs) -> ComponentItem:
         """Update an existing component item using PUT semantics.
 

@@ -69,6 +69,20 @@ class BranchActions(ItemTableActions):
         return super().create(BranchItem, client=client, **kwargs)
 
     @classmethod
+    def patch(cls, *, client: str, **kwargs) -> BranchItem:
+        """Update an existing branch item using PATCH semantics.
+
+        Args:
+            **kwargs: Branch item attributes to update, including prn to identify
+                     the item and fields to modify.
+
+        Returns:
+            BaseModel: BaseModel object with structure:
+                - data (Dict): Updated branch item dictionary
+        """
+        return super().patch(BranchItem, client=client, **kwargs)
+
+    @classmethod
     def update(cls, *, client: str, **kwargs) -> BranchItem:
         """Update an existing branch item using PUT semantics.
 

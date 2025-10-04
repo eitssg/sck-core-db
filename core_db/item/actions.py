@@ -331,7 +331,7 @@ class ItemTableActions(TableActions):
             if remove_none:
                 input_data = record_type(**kwargs)
             else:
-                # we do this just
+                # we do this just to filter out unknown fields
                 input_data = record_type.model_construct(**kwargs, validate_fields=False)
 
             values = input_data.model_dump(by_alias=False, exclude_none=False, exclude=exclude_fields)

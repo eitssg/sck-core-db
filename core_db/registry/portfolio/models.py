@@ -142,17 +142,17 @@ class ContactFactsItem(BaseModel):
         description="Name of the contact",
     )
     email: Optional[str] = Field(
-        None,
+        default=None,
         alias="Email",
         description="Email address of the contact",
     )
     attributes: Optional[Dict[str, str]] = Field(
-        None,
+        default=None,
         alias="Attributes",
         description="Additional attributes for the contact",
     )
     enabled: bool = Field(
-        True,
+        default=True,
         alias="Enabled",
         description="Is the contact enabled",
     )
@@ -173,27 +173,27 @@ class ApproverFactsItem(BaseModel):
         description="Name of the approver",
     )
     email: Optional[str] = Field(
-        None,
+        default=None,
         alias="Email",
         description="Email address of the approver",
     )
     roles: Optional[List[str]] = Field(
-        None,
+        default=None,
         alias="Roles",
         description="List of roles for the approver",
     )
     attributes: Optional[Dict[str, str]] = Field(
-        None,
+        default=None,
         alias="Attributes",
         description="Additional attributes for the approver",
     )
     depends_on: Optional[List[int]] = Field(
-        None,
+        default=None,
         alias="DependsOn",
         description="List of sequence numbers of approvers that this approver depends on",
     )
     enabled: bool = Field(
-        True,
+        default=True,
         alias="Enabled",
         description="Is the approver enabled",
     )
@@ -209,17 +209,17 @@ class OwnerFactsItem(BaseModel):
         description="Name of the owner",
     )
     email: Optional[str] = Field(
-        None,
+        default=None,
         alias="Email",
         description="Email address of the owner",
     )
     phone: Optional[str] = Field(
-        None,
+        default=None,
         alias="Phone",
         description="Phone number of the owner",
     )
     attributes: Optional[Dict[str, str]] = Field(
-        None,
+        default=None,
         alias="Attributes",
         description="Additional attributes for the owner",
     )
@@ -240,17 +240,17 @@ class ProjectFactsItem(BaseModel):
         description="Code of the project",
     )
     repository: Optional[str] = Field(
-        None,
+        default=None,
         alias="Repository",
         description="Git repository of the project",
     )
     description: Optional[str] = Field(
-        None,
+        default=None,
         alias="Description",
         description="Description of the project",
     )
     attributes: Optional[Dict[str, str]] = Field(
-        None,
+        default=None,
         alias="Attributes",
         description="Additional attributes for the project",
     )
@@ -271,12 +271,12 @@ class LinkFactsItem(BaseModel):
         description="Destination URL",
     )
     kind: Optional[str] = Field(
-        None,
+        default=None,
         alias="Kind",
         description="Type classification (runbook, dashboard, docs)",
     )
     attributes: Optional[Dict[str, str]] = Field(
-        None,
+        default=None,
         alias="Attributes",
         description="Free-form attributes for the link",
     )
@@ -295,120 +295,120 @@ class PortfolioFact(DatabaseRecord):
         description="Portfolio identifier (unique portfolio name within client namespace)",
     )
     name: Optional[str] = Field(
-        None,
+        default=None,
         alias="Name",
         description="Optional descriptive name for the portfolio",
     )
 
     # Portfolio Configuration Fields
     contacts: Optional[List[ContactFactsItem]] = Field(
-        None,
+        default=None,
         alias="Contacts",
         description="List of contact details for the portfolio",
     )
     approvers: Optional[List[ApproverFactsItem]] = Field(
-        None,
+        default=None,
         alias="Approvers",
         description="List of approver details for approval workflows",
     )
     project: Optional[ProjectFactsItem] = Field(
-        None,
+        default=None,
         alias="Project",
         description="Primary project details for the portfolio",
     )
     domain: Optional[str] = Field(
-        None,
+        default=None,
         alias="Domain",
         description="Domain name or identifier for the portfolio",
     )
     bizapp: Optional[ProjectFactsItem] = Field(
-        None,
+        default=None,
         alias="Bizapp",
         description="Business application details, alternative to project",
     )
     owner: Optional[OwnerFactsItem] = Field(
-        None,
+        default=None,
         alias="Owner",
         description="Owner details for the portfolio",
     )
 
     # Extended identity/presentation
     icon_url: Optional[str] = Field(
-        None,
+        default=None,
         alias="IconUrl",
         description="URL to portfolio icon (SVG/PNG)",
     )
     category: Optional[str] = Field(
-        None,
+        default=None,
         alias="Category",
         description="Portfolio category (Platform, Internal, etc.)",
     )
     labels: Optional[List[str]] = Field(
-        None,
+        default=None,
         alias="Labels",
         description="Free-form labels for faceting",
     )
     portfolio_version: Optional[str] = Field(
-        None,
+        default=None,
         alias="PortfolioVersion",
         description="Version tag for the portfolio",
     )
     lifecycle_status: Optional[str] = Field(
-        None,
+        default=None,
         alias="LifecycleStatus",
         description="Lifecycle status (Active, Sunset, etc.)",
     )
 
     # Extended ownership
     business_owner: Optional[OwnerFactsItem] = Field(
-        None,
+        default=None,
         alias="BusinessOwner",
         description="Business owner details",
     )
     technical_owner: Optional[OwnerFactsItem] = Field(
-        None,
+        default=None,
         alias="TechnicalOwner",
         description="Technical owner details",
     )
 
     # Metadata Fields
     tags: Optional[Dict[str, str]] = Field(
-        None,
+        default=None,
         alias="Tags",
         description="Tags for deployment resources",
     )
     metadata: Optional[Dict[str, str]] = Field(
-        None,
+        default=None,
         alias="Metadata",
         description="Additional metadata for the portfolio",
     )
     attributes: Optional[Dict[str, str]] = Field(
-        None,
+        default=None,
         alias="Attributes",
         description="Custom attributes for the portfolio",
     )
     compliance: Optional[Dict[str, Any]] = Field(
-        None,
+        default=None,
         alias="Compliance",
         description="Compliance flags/levels for the portfolio",
     )
     identifiers: Optional[Dict[str, Any]] = Field(
-        None,
+        default=None,
         alias="Identifiers",
         description="External identifiers (Jira, CMDB, etc.)",
     )
     links: Optional[List[LinkFactsItem]] = Field(
-        None,
+        default=None,
         alias="Links",
         description="External links: runbooks, dashboards, docs",
     )
     dependencies: Optional[List[str]] = Field(
-        None,
+        default=None,
         alias="Dependencies",
         description="Other portfolios this one depends on",
     )
     app_count: int = Field(
-        0,
+        default=0,
         alias="AppCount",
         description="Number of applications in this portfolio",
     )

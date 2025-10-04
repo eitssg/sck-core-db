@@ -159,6 +159,34 @@ class AppActions(ItemTableActions):
         return super().update(AppItem, client=client, **kwargs)
 
     @classmethod
+    def patch(cls, *, client: str, **kwargs) -> AppItem:
+        """Partially update an app item using PATCH semantics.
+
+        Convenience method that automatically uses AppItem type.
+
+        Args:
+            **kwargs: App item attributes to modify including:
+                - client (str): Client identifier for table isolation
+                - prn (str): App PRN to update
+                - contact_email (str, optional): New contact email
+                - metadata (dict, optional): Metadata fields to merge/update
+                - Any other updatable app fields
+
+        Returns:
+            BaseModel: BaseModel object with structure:
+                - data (Dict): Updated app item dictionary with merged values
+
+        Raises:
+            NotFoundException: If the app item does not exist
+            BadRequestException: If required parameters are missing
+
+        Note:
+            This performs a partial update, merging provided fields with existing data.
+            Only specified fields will be updated.
+        """
+        return super().patch(AppItem, client=client, **kwargs)
+
+    @classmethod
     def delete(cls, *, client: str, **kwargs) -> bool:
         """Delete an app item from the CMDB.
 

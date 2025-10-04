@@ -92,12 +92,12 @@ class AppFact(DatabaseRecord):
         description="Human-readable name of the app (required)",
     )
     environment: Optional[str] = Field(
-        None,
+        default=None,
         alias="Environment",
         description="Environment where the app is deployed (e.g., 'production', 'staging')",
     )
     account: Optional[str] = Field(
-        None,
+        default=None,
         alias="Account",
         description="AWS account number where the app is deployed",
     )
@@ -112,33 +112,33 @@ class AppFact(DatabaseRecord):
         description="AWS region where the app is deployed",
     )
     repository: Optional[str] = Field(
-        None,
+        default=None,
         alias="Repository",
         description="Git repository URL for the app source code",
     )
     enforce_validation: Optional[str] = Field(
-        None,
+        default=None,
         alias="EnforceValidation",
         description="Flag to enforce validation rules for the app",
     )
     # Complex Configuration Fields
     image_aliases: Optional[Dict[str, str]] = Field(
-        None,
+        default=None,
         alias="ImageAliases",
         description="Image aliases to reduce bake time for deployments",
     )
     tags: Optional[Dict[str, str]] = Field(
-        None,
+        default=None,
         alias="Tags",
         description="Tags to apply to AWS resources created for this app",
     )
     labels: Optional[List[str]] = Field(
-        None,
+        default=None,
         alias="Labels",
         description="Labels to apply to AWS resources created for this app",
     )
     metadata: Optional[Dict[str, str]] = Field(
-        None,
+        default=None,
         alias="Metadata",
         description="Additional metadata for the app configuration",
     )

@@ -367,7 +367,21 @@ Note:
     scalable, and cost-effective multi-environment operations.
 """
 
-from .models import ZoneFact, ZoneFactsFactory, ZoneFactsModel, AccountFacts, RegionFacts, KmsFacts, SecurityAliasFacts, ProxyFacts
+from .models import (
+    ZoneFact,
+    ZoneFactsFactory,
+    ZoneFactsModel,
+    AccountFacts,
+    RegionFacts,
+    KmsFacts,
+    SecurityAliasFacts,
+    ProxyFacts,
+    AccountFactsItem,
+    RegionFactsItem,
+    ProxyFactsItem,
+    KmsFactsItem,
+    SecurityAliasFactsItem,
+)
 from .actions import ZoneActions
 
 __all__ = [
@@ -380,4 +394,9 @@ __all__ = [
     "KmsFacts",
     "SecurityAliasFacts",
     "ProxyFacts",
+    "AccountFactsItem",
+    "RegionFactsItem",
+    "KmsFactsItem",
+    "SecurityAliasFactsItem",
+    "ProxyFactsItem",
 ]

@@ -70,8 +70,8 @@ class AccountFacts(EnhancedMapAttribute):
     kms = KmsFacts(null=True, attr_name="Kms")
     resource_namespace = UnicodeAttribute(null=True, attr_name="ResourceNamespace")
     network_name = UnicodeAttribute(null=True, attr_name="NetworkName")
-    vpc_aliases = ListAttribute(of=UnicodeAttribute, null=True, attr_name="VpcAliases")
-    subnet_aliases = ListAttribute(of=UnicodeAttribute, null=True, attr_name="SubnetAliases")
+    vpc_aliases = MapAttribute(null=True, attr_name="VpcAliases")
+    subnet_aliases = MapAttribute(null=True, attr_name="SubnetAliases")
     tags = MapAttribute(null=True, attr_name="Tags")
 
 
@@ -85,7 +85,7 @@ class ProxyFacts(EnhancedMapAttribute):
     """
 
     host = UnicodeAttribute(null=True, attr_name="Host")
-    port = UnicodeAttribute(null=True, attr_name="Port")
+    port = NumberAttribute(null=True, attr_name="Port")
     url = UnicodeAttribute(null=True, attr_name="Url")
     no_proxy = UnicodeAttribute(null=True, attr_name="NoProxy")
 
@@ -185,7 +185,7 @@ class SecurityAliasFactsItem(BaseModel):
         description="The value associated with the alias",
     )
     description: Optional[str] = Field(
-        None,
+        default=None,
         alias="Description",
         description="A description of the alias",
     )
@@ -201,12 +201,12 @@ class KmsFactsItem(BaseModel):
         description="AWS Account ID where KMS Keys are managed/centralized",
     )
     kms_key_arn: Optional[str] = Field(
-        None,
+        default=None,
         alias="KmsKeyArn",
         description="The ARN of the KMS Key for this Zone",
     )
     kms_key: Optional[str] = Field(
-        None,
+        default=None,
         alias="KmsKey",
         description="The KMS Key ID for this Zone",
     )
@@ -216,7 +216,7 @@ class KmsFactsItem(BaseModel):
         description="List of AWS Account IDs that can use the KMS Key",
     )
     allow_sns: Optional[bool] = Field(
-        None,
+        default=None,
         alias="AllowSNS",
         description="Whether SNS is allowed to use the KMS Key",
     )
@@ -227,22 +227,22 @@ class ProxyFactsItem(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
     host: Optional[str] = Field(
-        None,
+        default=None,
         alias="Host",
         description="Proxy host (e.g., 'proxy.acme.com')",
     )
-    port: Optional[str] = Field(
-        None,
+    port: Optional[int] = Field(
+        default=None,
         alias="Port",
         description="Proxy port (e.g., '8080')",
     )
     url: Optional[str] = Field(
-        None,
+        default=None,
         alias="Url",
         description="Proxy URL (e.g., 'http://proxy.acme.com:8080')",
     )
     no_proxy: Optional[str] = Field(
-        None,
+        default=None,
         alias="NoProxy",
         description="No-proxy list (e.g., '*.acme.com,10/8,192.168/16')",
     )
@@ -253,7 +253,7 @@ class AccountFactsItem(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
     organizational_unit: Optional[str] = Field(
-        None,
+        default=None,
         alias="OrganizationalUnit",
         description="The Organizational Unit name",
     )
@@ -263,42 +263,42 @@ class AccountFactsItem(BaseModel):
         description="The AWS Account ID",
     )
     account_name: Optional[str] = Field(
-        None,
+        default=None,
         alias="AccountName",
         description="The name of the account",
     )
     environment: Optional[str] = Field(
-        None,
+        default=None,
         alias="Environment",
         description="The environment (e.g., 'prod', 'dev')",
     )
     kms: Optional[KmsFactsItem] = Field(
-        None,
+        default=None,
         alias="Kms",
         description="KMS Key details",
     )
     resource_namespace: Optional[str] = Field(
-        None,
+        default=None,
         alias="ResourceNamespace",
         description="Namespace for resources",
     )
     network_name: Optional[str] = Field(
-        None,
+        default=None,
         alias="NetworkName",
         description="Name of the network",
     )
-    vpc_aliases: Optional[List[str]] = Field(
-        None,
+    vpc_aliases: Optional[dict] = Field(
+        default=None,
         alias="VpcAliases",
         description="VPC aliases created by network pipelines",
     )
-    subnet_aliases: Optional[List[str]] = Field(
-        None,
+    subnet_aliases: Optional[dict] = Field(
+        default=None,
         alias="SubnetAliases",
         description="Subnet aliases created by network pipelines",
     )
     tags: Optional[Dict[str, Any]] = Field(
-        None,
+        default=None,
         alias="Tags",
         description="Tags to merge into facts for this deployment",
     )
@@ -314,62 +314,62 @@ class RegionFactsItem(BaseModel):
         description="The AWS region code (e.g., 'us-west-2')",
     )
     az_count: Optional[int] = Field(
-        None,
+        default=None,
         alias="AzCount",
         description="Number of Availability Zones in the region",
     )
     image_aliases: Optional[Dict[str, str]] = Field(
-        None,
+        default=None,
         alias="ImageAliases",
         description="Aliases for AMIs created by image pipelines",
     )
     min_successful_instances_percent: Optional[int] = Field(
-        None,
+        default=None,
         alias="MinSuccessfulInstancesPercent",
         description="Minimum percent of successful instances for deployment",
     )
     security_aliases: Optional[Dict[str, List[SecurityAliasFactsItem]]] = Field(
-        None,
+        default=None,
         alias="SecurityAliases",
         description="Security aliases published by the security team",
     )
     security_group_aliases: Optional[Dict[str, str]] = Field(
-        None,
+        default=None,
         alias="SecurityGroupAliases",
         description="Security group aliases",
     )
     proxy: Optional[List[ProxyFactsItem]] = Field(
-        None,
+        default=None,
         alias="Proxy",
         description="List of proxy endpoint details",
     )
     proxy_host: Optional[str] = Field(
-        None,
+        default=None,
         alias="ProxyHost",
         description="Proxy host",
     )
     proxy_port: Optional[int] = Field(
-        None,
+        default=None,
         alias="ProxyPort",
         description="Proxy port",
     )
     proxy_url: Optional[str] = Field(
-        None,
+        default=None,
         alias="ProxyUrl",
         description="Proxy URL",
     )
     no_proxy: Optional[str] = Field(
-        None,
+        default=None,
         alias="NoProxy",
         description="No-proxy list",
     )
     name_servers: Optional[List[str]] = Field(
-        None,
+        default=None,
         alias="NameServers",
         description="List of nameservers for the region",
     )
     tags: Optional[Dict[str, Any]] = Field(
-        None,
+        default=None,
         alias="Tags",
         description="Tags for deployment resources",
     )
@@ -400,7 +400,7 @@ class ZoneFact(RegistryFact):
         description="Region details mapped by AWS region name",
     )
     tags: Optional[Dict[str, Any]] = Field(
-        None,
+        default=None,
         alias="Tags",
         description="Global tags for deployment resources",
     )

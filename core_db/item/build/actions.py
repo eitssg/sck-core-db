@@ -79,6 +79,19 @@ class BuildActions(ItemTableActions):
         return super().update(BuildItem, client=client, **kwargs)
 
     @classmethod
+    def patch(cls, *, client: str, **kwargs) -> BuildItem:
+        """Update an existing build item using PATCH semantics.
+
+        Args:
+            **kwargs: Build item attributes to update, including prn to identify
+                     the item and fields to modify.
+
+        Returns:
+            BuildItem containing the updated build item data.
+        """
+        return super().patch(BuildItem, client=client, **kwargs)
+
+    @classmethod
     def delete(cls, *, client: str, **kwargs) -> bool:
         """Delete a build item from the CMDB.
 

@@ -3,8 +3,6 @@ import pytest
 
 from pydantic import BaseModel
 
-import boto3
-
 import core_framework as util
 
 from core_db.dbhelper import actions_routes
@@ -96,7 +94,7 @@ def test_table_actions(bootstrap_dynamo, request_data, expected_result):
     except AssertionError as e:
         logging.error(f"AssertionError: {e}")
         # Output all the details of the error
-        errors = e.errors if hasattr(e, "errors") else []
+        errors = getattr(e, "errors", [])
         for error in errors:
             logging.error(f"Error: {error}")
         assert False, f"AssertionError: {e}"

@@ -1,5 +1,8 @@
 # Copilot Instructions (Submodule: sck-core-db)
 
+## Plan → Approval → Execute (Mandatory)
+Follow the root repository workflow: present a numbered plan for any non-trivial action and wait for approval before executing. Trivial explanatory answers may proceed without plan. Explicit user override to "skip plan" is honored; otherwise, wait.
+
 - Tech: Python package (DB helpers).
 - Precedence: Local first; then root at `../../.github/...`.
 - Conventions: Follow `../sck-core-ui/docs/backend-code-style.md` for shared patterns.

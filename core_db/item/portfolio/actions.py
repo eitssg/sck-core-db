@@ -153,6 +153,34 @@ class PortfolioActions(ItemTableActions):
         return super().update(PortfolioItem, client=client, **kwargs)
 
     @classmethod
+    def patch(cls, *, client: str, **kwargs) -> PortfolioItem:
+        """Partially update a portfolio item using PATCH semantics.
+
+        Convenience method that automatically uses PortfolioItem type.
+
+        Args:
+            **kwargs: Portfolio item attributes to modify including:
+                - client (str): Client identifier for table isolation
+                - prn (str): Portfolio PRN to update
+                - contact_email (str, optional): New contact email
+                - metadata (dict, optional): Metadata fields to merge/update
+                - Any other updatable portfolio fields
+
+        Returns:
+            BaseModel: BaseModel object with structure:
+                - data (Dict): Updated portfolio item dictionary with merged values
+
+        Raises:
+            NotFoundException: If the portfolio item does not exist
+            BadRequestException: If required parameters are missing
+
+        Note:
+            This performs a partial update, merging provided fields with existing data.
+            Only specified fields will be updated.
+        """
+        return super().patch(PortfolioItem, client=client, **kwargs)
+
+    @classmethod
     def delete(cls, *, client: str, **kwargs) -> bool:
         """Delete a portfolio item from the CMDB.
 

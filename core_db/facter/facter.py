@@ -1,10 +1,40 @@
-"""The Facter module provides a comprehensive facts database for deployment contexts.
+"""Comprehensive fact aggregation for deployment contexts.
 
-This module retrieves and merges facts from multiple sources (client, portfolio, app, zone)
-stored in DynamoDB to create complete Jinja2 template contexts for CloudFormation generation.
+This module retrieves and merges configuration "facts" from multiple registry
+domains (client, portfolio, application, zone, region, account) stored in
+DynamoDB and synthesizes them into a single dictionary consumed by Jinja2
+template rendering and deployment orchestration.
 
-The facts system replaces the deprecated YAML-based configuration files and provides
-dynamic, scalable configuration management for cloud deployments.
+Key Responsibilities:
+        * Provide strongly structured fact dictionaries (PascalCase keys) that feed
+            the compilation pipeline (see ``core_component.handler`` / preprocessor).
+        * Derive environment & region alias fallbacks from branch naming
+            conventions when not explicitly defined in app facts.
+        * Generate storage / artefact path facts used for build output upload.
+        * Normalize and merge resource tags from all hierarchy levels (client →
+            zone → region → portfolio → app) with runtime overrides (environment,
+            region alias, owner, contacts).
+
+Data Sources:
+        * ClientFact, PortfolioFact, AppFact, ZoneFact models (PynamoDB backed).
+        * DeploymentDetails (runtime invocation context).
+        * Derived environment & region alias (branch parsing heuristics).
+
+Error Handling Strategy:
+        * Retrieval helpers return ``None`` (or minimal UNREGISTERED stubs for
+            internal helpers) when facts are absent; public ``get_facts`` escalates
+            to ``ValueError`` only for strictly required domains when composing the
+            final dictionary.
+        * PynamoDB errors are logged with context and converted to safe fallbacks.
+
+Extension Points:
+        * Additional hierarchical sources (e.g., TeamFact) can be merged by
+            extending ``get_facts`` before the final deep merge phase.
+        * Custom tag injection can be performed by altering the ChainMap ordering
+            or adding post‑merge transformations.
+
+All public and internal helpers below use Google/Napoleon docstrings for Sphinx
+generation and IDE assistance.
 """
 
 from collections import ChainMap
@@ -596,40 +626,29 @@ def format_contact(contact: dict) -> str:
 
 
 def get_store_url(bucket_name: str, bucket_region: str) -> str:
-    """Generate storage URL for artifact buckets based on deployment environment.
+    """Return a canonical bucket storage URL for the current execution mode.
 
-    Creates appropriate storage URLs for both cloud (S3) and local development
-    environments. The URL format depends on the configured storage backend.
+    In S3 mode (``util.is_use_s3()`` true) this returns an ``s3://`` style
+    URL; in local mode it returns a filesystem path rooted at the configured
+    storage volume. No network calls are performed; the value is a purely
+    derived convenience string used in facts and logging.
 
     Args:
-        bucket_name (str): The storage bucket name (e.g., "acme-artifacts").
-        bucket_region (str): The AWS region for the bucket (e.g., "us-east-1").
+        bucket_name (str): Logical artefact bucket name.
+        bucket_region (str): AWS region (forwarded to ``util.get_storage_volume`` for
+            potential region-specific local volume selection).
 
     Returns:
-        str: The complete storage URL:
-            - S3 environments: "s3://bucket-name"
-            - Local environments: "/path/to/bucket-name" (Unix) or "C:\\path\\to\\bucket-name" (Windows)
+        str: ``s3://{bucket_name}`` in S3 mode or ``<volume>/<bucket_name>`` in local mode.
 
-    Examples:
-        >>> # S3 storage URL (production/cloud environments)
-        >>> url = get_store_url("my-bucket", "us-east-1")
-        >>> print(url)  # "s3://my-bucket"
+    Example:
+        >>> get_store_url("acme-artifacts", "us-east-1")  # doctest: +ELLIPSIS
+        's3://acme-artifacts'
 
-        >>> # Local storage URL (development environments)
-        >>> # On Unix/Linux/macOS:
-        >>> url = get_store_url("local-bucket", "us-west-2")
-        >>> print(url)  # "/tmp/artifacts/local-bucket" (or similar local path)
-        >>>
-        >>> # On Windows:
-        >>> url = get_store_url("local-bucket", "us-west-2")
-        >>> print(url)  # "C:\\temp\\artifacts\\local-bucket" (or similar local path)
-
-        >>> # Real-world usage with client artifacts
-        >>> client = "ACME001"
-        >>> bucket = f"{client.lower()}-artifacts"
-        >>> region = "us-west-2"
-        >>> store_url = get_store_url(bucket, region)
-        >>> print(store_url)  # "s3://acme001-artifacts" (in cloud)
+    Contract:
+        * Always returns a string (never ``None``).
+        * Does not verify bucket existence.
+        * Path separator normalized based on storage backend.
     """
     store = util.get_storage_volume(bucket_region)
     sep = "/" if util.is_use_s3() else os.path.sep
@@ -758,163 +777,49 @@ def get_compiler_facts(dd: DeploymentDetails) -> dict:
 
 
 def get_facts(deployment_details: DeploymentDetails) -> dict:  # noqa: C901
-    """Generate comprehensive deployment facts for CloudFormation template rendering.
+    """Assemble a merged deployment fact map for template rendering & orchestration.
 
-    Aggregates and merges facts from multiple sources (client, portfolio, app, zone)
-    to create a complete Jinja2 template context dictionary. The facts provide all
-    necessary configuration for infrastructure provisioning, resource tagging,
-    security settings, and operational parameters.
+    High-level process:
+        1. Retrieve hierarchical registry facts (client → portfolio → app → zone → region → account)
+        2. Derive environment / region alias from branch if not specified in app facts
+        3. Build compiler (artefact & files) storage facts
+        4. Merge dictionaries in precedence order (account/region < portfolio < app < deployment < compiler)
+        5. Inject normalized & aggregated resource tags (top‑down override + runtime owner/contact enrichment)
 
-    This is the primary entry point for fact retrieval and should be used by
-    template compilers, deployment orchestrators, and configuration generators.
+    Merge Order (later overrides earlier):
+        account_facts, region_facts → portfolio_facts → app_facts → deployment_details → compiler_facts
 
     Args:
-        deployment_details (DeploymentDetails): Complete deployment context containing:
-            - client (str): Client identifier
-            - portfolio (str): Portfolio identifier
-            - app (str): Application name
-            - branch (str, optional): Git branch
-            - build (str, optional): Build version
-            - environment (str, optional): Override environment
-            - data_center (str, optional): Override region
+        deployment_details (DeploymentDetails): Deployment context. Required fields vary by scope but
+            full (client, portfolio, app) identity is needed for application/zone resolution.
 
     Returns:
-        dict: Comprehensive facts dictionary with PascalCase keys containing:
-
-            Core Identity:
-            - Client: str - Client identifier
-            - Portfolio: str - Portfolio name
-            - App: str - Application name
-            - Branch: str - Git branch
-            - Build: str - Build version
-            - Environment: str - Deployment environment
-            - DataCenter: str - Target region
-
-            AWS Infrastructure:
-            - AwsAccountId: str - Target AWS account
-            - AwsRegion: str - Primary AWS region
-            - OrganizationalUnit: str - AWS Organization OU
-            - ResourceNamespace: str - Resource naming prefix
-
-            Networking & Security:
-            - VpcAliases: list[str] - VPC identifier mappings
-            - SubnetAliases: list[str] - Subnet identifier mappings
-            - SecurityAliases: dict - CIDR blocks and access controls
-            - SecurityGroupAliases: dict - Security group mappings
-            - ProxyHost/ProxyPort: str/int - Corporate proxy settings
-            - NameServers: list[str] - DNS server configurations
-
-            KMS & Encryption:
-            - Kms: dict - KMS key configuration and delegation
-
-            Application Configuration:
-            - Zone: str - Target deployment zone
-            - Repository: str - Source code repository
-            - ImageAliases: dict - Container/AMI mappings
-            - Metadata: dict - Deployment parameters and scaling
-
-            Organizational:
-            - Owner: dict - Portfolio owner contact information
-            - Contacts: list[dict] - Team contact directory
-            - Approvers: list[dict] - Approval workflow configuration
-
-            Resource Management:
-            - Tags: dict - Merged resource tags from all levels
-            - ArtifactKeyPrefix: str - Artifact storage path
-            - BuildFilesPrefix: str - Build files storage path
-            - SharedFilesPrefix: str - Shared resources path
+        dict: PascalCase key fact mapping including (non-exhaustive categories):
+            Identity: Client, Portfolio, App, Branch, Build, Environment, Region, Zone
+            Infrastructure: AwsAccountId, AwsRegion, ResourceNamespace, OrganizationalUnit
+            Networking/Security: VpcAliases, SubnetAliases, SecurityAliases, SecurityGroupAliases, ProxyHost, NameServers
+            Artefacts & Files: ArtifactKeyPrefix, ArtifactKeyBuildPrefix, BuildFilesPrefix, SharedFilesPrefix, FilesBucketName
+            Application: Repository, ImageAliases, Metadata, Kms
+            Organizational: Owner, Contacts, Approvers, Tags
 
     Raises:
-        ValueError: If any required facts are missing or invalid:
-            - Client facts not found
-            - Portfolio facts not found
-            - App facts not found or multiple matches
-            - Zone facts not found
-            - Account facts missing in zone
-            - Region not enabled in zone
+        ValueError: If mandatory upstream facts are missing or ambiguous (e.g. multiple app facts).
 
-    Examples:
-        >>> # Standard deployment context
-        >>> dd = DeploymentDetails(
-        ...     client="ACME001",
-        ...     portfolio="acme-enterprise-platform",
-        ...     app="acme-platform-core",
-        ...     branch="main",
-        ...     build="1.2.0"
-        ... )
+    Notes:
+        * All returned values are merged shallow/deep with list merging enabled.
+        * Tag precedence: client < zone < region < portfolio < app < runtime injections.
+        * The return value is always a dict (never ``None``); missing domains contribute UNREGISTERED stubs.
+
+    Example:
+        >>> dd = DeploymentDetails(client="acme", portfolio="core", app="api", branch="main", build="1")
         >>> facts = get_facts(dd)
-        >>>
-        >>> # Access core identification
-        >>> print(facts["Client"])       # "ACME001"
-        >>> print(facts["Portfolio"])    # "acme-enterprise-platform"
-        >>> print(facts["App"])         # "acme-platform-core"
-        >>> print(facts["Environment"]) # "production" (derived from main branch)
-        >>>
-        >>> # Access AWS infrastructure
-        >>> print(facts["AwsAccountId"])  # "123456789012"
-        >>> print(facts["AwsRegion"])     # "us-east-1"
-        >>> print(facts["Zone"])         # "prod-east-primary"
-        >>>
-        >>> # Access networking configuration
-        >>> vpc_aliases = facts["VpcAliases"]
-        >>> print(vpc_aliases[0])        # "vpc-prod-main"
-        >>>
-        >>> security_groups = facts["SecurityGroupAliases"]
-        >>> print(security_groups["WebTierSg"])  # "sg-web-prod-east-12345"
-        >>>
-        >>> # Access image mappings
-        >>> images = facts["ImageAliases"]
-        >>> print(images["ApiGateway"])  # "ami-0c02fb55956c7d316"
-        >>> print(images["Ubuntu22"])   # "ami-0c02fb55956c7d316"
-        >>>
-        >>> # Access security configuration
-        >>> kms = facts["Kms"]
-        >>> print(kms["KmsKeyArn"])      # "arn:aws:kms:us-east-1:123456789012:key/..."
-        >>>
-        >>> # Access merged resource tags
-        >>> tags = facts["Tags"]
-        >>> print(tags["Environment"])  # "production"
-        >>> print(tags["Team"])         # "platform-engineering"
-        >>> print(tags["CostCenter"])   # "CC-IT-001"
-        >>>
-        >>> # Access organizational contacts
-        >>> owner = facts["Owner"]
-        >>> print(f"{owner['Name']} <{owner['Email']}>")  # "Sarah Johnson <sarah@acme.com>"
-        >>>
-        >>> contacts = facts["Contacts"]
-        >>> print(f"Team size: {len(contacts)}")  # 4
-        >>>
-        >>> # Access artifact storage paths
-        >>> print(facts["ArtifactKeyPrefix"])    # "artifacts/acme001/acme-enterprise-platform/acme-platform-core/main/1.2.0"
-        >>> print(facts["BuildFilesPrefix"])     # "files/acme001/acme-enterprise-platform/acme-platform-core/main/1.2.0"
+        >>> sorted(set(["Client", "App"]).issubset(facts.keys()))
+        True
 
-        >>> # Environment derivation from branch
-        >>> dd_dev = DeploymentDetails(
-        ...     client="ACME001",
-        ...     portfolio="acme-enterprise-platform",
-        ...     app="acme-platform-core",
-        ...     branch="dev-usw2"
-        ... )
-        >>> facts = get_facts(dd_dev)
-        >>> print(facts["Environment"])  # "dev" (derived from branch)
-        >>> print(facts["Region"])       # "usw2" (derived from branch)
-
-        >>> # Error handling examples
-        >>> try:
-        ...     dd_invalid = DeploymentDetails(client="nonexistent")
-        ...     get_facts(dd_invalid)
-        ... except ValueError as e:
-        ...     print(f"Error: {e}")  # "Client facts not found for nonexistent"
-        >>>
-        >>> try:
-        ...     dd_no_app = DeploymentDetails(
-        ...         client="ACME001",
-        ...         portfolio="acme-enterprise-platform",
-        ...         app="nonexistent-app"
-        ...     )
-        ...     get_facts(dd_no_app)
-        ... except ValueError as e:
-        ...     print(f"Error: {e}")  # "App facts not found for prn:acme-enterprise-platform:nonexistent-app:*:*"
+    Contract:
+        * Output is side‑effect free except for logging.
+        * No network calls after individual registry fetches complete.
+        * Keys are stable PascalCase; additions are backwards compatible.
     """
     client_facts = _get_client_facts(deployment_details)
 
@@ -982,6 +887,9 @@ def get_facts(deployment_details: DeploymentDetails) -> dict:  # noqa: C901
     # Merge account facts and region-specific facts into the facts
     facts = util.merge.deep_merge(account_facts, region_facts, merge_lists=True)
 
+    # Get all the zone details next
+    facts = util.merge.deep_merge_in_place(facts, zone_facts, merge_lists=True)
+
     # Next, merge the portfolio facts into the facts
     facts = util.merge.deep_merge_in_place(facts, portfolio_facts, merge_lists=True)
 
@@ -991,8 +899,11 @@ def get_facts(deployment_details: DeploymentDetails) -> dict:  # noqa: C901
     # Finally, we merge in the deployment details facts
     facts = util.merge.deep_merge_in_place(facts, deployment_facts, merge_lists=True)
 
-    # Lastly, we merge in the storage volume facts
+    # Next, we merge in the storage volume facts
     facts = util.merge.deep_merge_in_place(facts, compiler_facts, merge_lists=True)
+
+    # Next, we merge the client facts into the facts
+    facts = util.merge.deep_merge_in_place(facts, client_facts, merge_lists=True)
 
     log.debug("Merged facts before cleanup:", details=facts)
 
@@ -1000,6 +911,20 @@ def get_facts(deployment_details: DeploymentDetails) -> dict:  # noqa: C901
 
 
 def _get_client_facts(deployment_details: DeploymentDetails) -> dict:
+    """Internal helper to retrieve client-level facts.
+
+    Wraps :func:`get_client_facts` adding UNREGISTERED stub handling so the
+    downstream merge logic can rely on required identity keys always being
+    present (at least minimally).
+
+    Args:
+        deployment_details (DeploymentDetails): Deployment context providing
+            the ``client`` identifier.
+
+    Returns:
+        dict: Raw client fact dictionary (PascalCase keys) or an
+        ``UNREGISTERED`` stub containing ``Client`` and ``ClientStatus``.
+    """
 
     log.debug("Getting facts for client: %s", deployment_details.client)
 
@@ -1008,7 +933,7 @@ def _get_client_facts(deployment_details: DeploymentDetails) -> dict:
     client_facts = get_client_facts(client)
     if not client_facts:
         log.info(f"No client facts found for {client}. Contact DevOps to register this client.")
-        return {"Client": client, "ClientStatus": "UNREGISTERED"}
+        return ClientFact(Client=client, ClientStatus="UNREGISTERED", OrganizationEmail="help@core.net").model_dump(by_alias=True)
 
     log.debug("Client facts:", details=client_facts)
 
@@ -1016,6 +941,19 @@ def _get_client_facts(deployment_details: DeploymentDetails) -> dict:
 
 
 def _get_portfolio_facts(deployment_details: DeploymentDetails) -> dict:
+    """Internal helper to retrieve portfolio-level facts.
+
+    Adds UNREGISTERED stub handling to ensure merge safety when a portfolio
+    has not yet been registered in the fact registry.
+
+    Args:
+        deployment_details (DeploymentDetails): Deployment context with
+            ``client`` and ``portfolio`` identifiers.
+
+    Returns:
+        dict: Portfolio fact dictionary or an ``UNREGISTERED`` stub with
+        ``PortfolioStatus``.
+    """
     # Get the portfolio facts dictionary for this deployment
     log.debug("Getting portfolio facts for portfolio: %s", deployment_details.portfolio)
 
@@ -1036,6 +974,22 @@ def _get_portfolio_facts(deployment_details: DeploymentDetails) -> dict:
 
 
 def _get_app_facts(deployment_details: DeploymentDetails) -> dict:
+    """Internal helper to retrieve single application fact record.
+
+    Enforces uniqueness of app registration (raises ``ValueError`` if more
+    than one matching fact exists) and returns an empty dict if absent so
+    subsequent logic can proceed with zone/region discovery guarded by scope.
+
+    Args:
+        deployment_details (DeploymentDetails): Deployment context specifying
+            client / portfolio / app identity.
+
+    Returns:
+        dict: Application fact mapping or empty dict when not registered.
+
+    Raises:
+        ValueError: If multiple app fact records match the identity.
+    """
     # Get the app facts dictionary for this deployment
     log.debug(
         "Getting app facts for client:portfolio:app: %s:%s:%s",
@@ -1059,6 +1013,21 @@ def _get_app_facts(deployment_details: DeploymentDetails) -> dict:
 
 
 def _get_zone_facts(deployment_details: DeploymentDetails, app_facts: dict) -> dict:
+    """Internal helper to retrieve zone facts for the application.
+
+    Resolves the zone identifier from ``app_facts``; if absent returns an
+    ``UNREGISTERED`` stub. Provides consistent structure for downstream region
+    and account fact extraction.
+
+    Args:
+        deployment_details (DeploymentDetails): Deployment context (client used
+            for model resolution).
+        app_facts (dict): Application fact dictionary possibly containing the
+            zone key.
+
+    Returns:
+        dict: Zone fact mapping or stub with ``ZoneStatus`` when missing.
+    """
 
     client = deployment_details.client
     log.debug("Getting zone facts for client: %s", client)
@@ -1083,6 +1052,20 @@ def _get_zone_facts(deployment_details: DeploymentDetails, app_facts: dict) -> d
 
 
 def _get_region_facts(deployment_details: DeploymentDetails, app_facts: dict, zone_facts: dict) -> dict:
+    """Internal helper to resolve region-specific facts within a zone.
+
+    Chooses the region alias from ``app_facts`` or defaults, then extracts the
+    corresponding region entry from the zone fact structure. Provides an
+    ``UNREGISTERED`` stub if the region is not configured.
+
+    Args:
+        deployment_details (DeploymentDetails): Deployment context for logging.
+        app_facts (dict): Application facts (may include region alias).
+        zone_facts (dict): Zone facts mapping containing region collections.
+
+    Returns:
+        dict: Region fact mapping or stub with ``RegionStatus`` when missing.
+    """
 
     client = deployment_details.client
     zone = app_facts.get(ZONE_KEY, None)
@@ -1110,6 +1093,19 @@ def _get_region_facts(deployment_details: DeploymentDetails, app_facts: dict, zo
 
 
 def _get_account_facts(deployment_details: DeploymentDetails, zone_facts: dict) -> dict:
+    """Internal helper to extract account-level facts from zone facts.
+
+    Provides an ``UNREGISTERED`` stub when account configuration is missing so
+    that subsequent deep merges maintain expected keys without raising.
+
+    Args:
+        deployment_details (DeploymentDetails): Deployment context (client +
+            for logging + identity hints).
+        zone_facts (dict): Zone fact mapping potentially containing account facts.
+
+    Returns:
+        dict: Account fact mapping or stub with ``AccountStatus`` when absent.
+    """
 
     client = deployment_details.client
     zone = zone_facts.get("Zone", None)
