@@ -15,7 +15,7 @@ from core_db.exceptions import (
 
 from .bootstrap import *
 
-client = util.get_client()
+client = util.get_client() or "core"
 
 zone_facts = [
     # Production Zone
@@ -35,12 +35,15 @@ zone_facts = [
             },
             "resource_namespace": "acme-prod",
             "network_name": "production-network",
-            "vpc_aliases": ["vpc-prod-main", "vpc-prod-backup"],
-            "subnet_aliases": [
-                "subnet-prod-public",
-                "subnet-prod-private",
-                "subnet-prod-database",
-            ],
+            "vpc_aliases": {
+                "vpc-prod-main": {"cidr": "192.168.1.0/24"},
+                "vpc-prod-backup": {"cidr": "192.168.2.0/24"},
+            },
+            "subnet_aliases": {
+                "subnet-prod-public": {"cidr": "192.168.1.0/24"},
+                "subnet-prod-private": {"cidr": "192.168.2.0/24"},
+                "subnet-prod-database": {"cidr": "192.168.3.0/24"},
+            },
             "tags": {
                 "Environment": "production",
                 "Owner": "platform-team",
@@ -89,7 +92,7 @@ zone_facts = [
                 "proxy": [
                     {
                         "host": "proxy.acme.com",
-                        "port": "8080",
+                        "port": 8080,
                         "url": "http://proxy.acme.com:8080",
                         "no_proxy": "*.acme.com,10.0.0.0/8,169.254.169.254",
                     }
@@ -157,8 +160,14 @@ zone_facts = [
             },
             "resource_namespace": "acme-uat",
             "network_name": "uat-network",
-            "vpc_aliases": ["vpc-uat-main", "vpc-uat-test"],
-            "subnet_aliases": ["subnet-uat-public", "subnet-uat-private"],
+            "vpc_aliases": {
+                "vpc-uat-main": {"cidr": "192.168.1.0/24"},
+                "vpc-uat-test": {"cidr": "192.168.2.0/24"},
+            },
+            "subnet_aliases": {
+                "subnet-uat-public": {"cidr": "192.168.1.0/24"},
+                "subnet-uat-private": {"cidr": "192.168.2.0/24"},
+            },
             "tags": {
                 "Environment": "uat",
                 "Owner": "qa-team",
@@ -239,8 +248,11 @@ zone_facts = [
             },
             "resource_namespace": "acme-dev",
             "network_name": "dev-network",
-            "vpc_aliases": ["vpc-dev-main"],
-            "subnet_aliases": ["subnet-dev-public", "subnet-dev-private"],
+            "vpc_aliases": {"vpc-dev-main": {"cidr": "192.168.1.0/24"}},
+            "subnet_aliases": {
+                "subnet-dev-public": {"cidr": "192.168.1.0/24"},
+                "subnet-dev-private": {"cidr": "192.168.2.0/24"},
+            },
             "tags": {
                 "Environment": "development",
                 "Owner": "dev-team",
@@ -480,7 +492,7 @@ def test_zone_complex_structure_validation():
 
     proxy = proxy_list[0]
     assert proxy.host == "proxy.acme.com"
-    assert proxy.port == "8080"
+    assert proxy.port == 8080
 
     # Test simple proxy fields
     assert us_east_region.proxy_host == "proxy.acme.com"
@@ -522,13 +534,13 @@ def test_zone_account_facts_validation():
 
     # Test VPC and subnet aliases
     vpc_aliases = account_facts.vpc_aliases
-    assert isinstance(vpc_aliases, list)
+    assert isinstance(vpc_aliases, dict)
     assert "vpc-uat-main" in vpc_aliases
     assert "vpc-uat-test" in vpc_aliases
 
     assert account_facts.subnet_aliases is not None
     subnet_aliases = account_facts.subnet_aliases
-    assert isinstance(subnet_aliases, list)
+    assert isinstance(subnet_aliases, dict)
     assert "subnet-uat-public" in subnet_aliases
     assert "subnet-uat-private" in subnet_aliases
 
@@ -588,7 +600,9 @@ def test_zone_update_full():
             "environment": "staging",  # Changed from development
             "resource_namespace": "acme-dev-updated",
             "network_name": "updated-dev-network",
-            "vpc_aliases": ["vpc-dev-updated"],
+            "vpc_aliases": {
+                "vpc-dev-updated": {"cidr": "192.168.1.0/24"},
+            },
             "tags": {
                 "Environment": "staging",
                 "Owner": "updated-dev-team",

@@ -823,7 +823,7 @@ def get_facts(deployment_details: DeploymentDetails) -> dict:  # noqa: C901
     """
     client_facts = _get_client_facts(deployment_details)
 
-    scope = deployment_details.get_scope()
+    scope = deployment_details.scope
 
     if scope in [SCOPE_PORTFOLIO, SCOPE_APP, SCOPE_BRANCH, SCOPE_BUILD]:
         portfolio_facts = _get_portfolio_facts(deployment_details)
