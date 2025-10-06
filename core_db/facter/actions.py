@@ -12,7 +12,6 @@ from core_framework.constants import (
     SCOPE_BRANCH,
     SCOPE_BUILD,
     SCOPE_COMPONENT,
-    SCOPE_ZONE,
 )
 
 from core_framework.models import DeploymentDetails
@@ -64,9 +63,7 @@ class FactsActions(TableActions):
     """
 
     @classmethod
-    def validate_prn_scope(
-        cls, prn: str | None
-    ) -> Tuple[str | None, str | None, str | None, str | None, str | None]:
+    def validate_prn_scope(cls, prn: str | None) -> Tuple[str | None, str | None, str | None, str | None, str | None]:
         """Validate PRN format and extract scope components.
 
         Validates the provided PRN against the expected format for its scope
@@ -208,7 +205,7 @@ class FactsActions(TableActions):
                 - zone (str, optional): Alternative parameter name for PRN.
 
         Returns:
-            Response: SuccessResponse containing the merged facts data.
+            BaseModel: BaseModel object containing the merged facts data.
                 The response.data contains the complete aggregated facts dictionary
                 with all configuration data needed for template rendering.
                 The response.metadata includes client and prn for reference.
@@ -301,9 +298,7 @@ class FactsActions(TableActions):
             raise BadRequestException("Client is required to retrieve Facts")
 
         if not portfolio or not app:
-            raise BadRequestException(
-                "Client, portfolio, and app are required in the PRN to retrieve Facts"
-            )
+            raise BadRequestException("Client, portfolio, and app are required in the PRN to retrieve Facts")
 
         deployment_details = DeploymentDetails(
             Client=client,

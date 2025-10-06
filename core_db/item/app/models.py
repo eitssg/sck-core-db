@@ -133,9 +133,7 @@ class AppItem(ItemModelRecord):
         alias="ContactEmail",
         description="Contact email for the app team or maintainer responsible for this application",
     )
-    portfolio_prn: str = Field(
-        ..., alias="PortfolioPrn", description="Portfolio PRN that this app belongs to"
-    )
+    portfolio_prn: str = Field(..., alias="PortfolioPrn", description="Portfolio PRN that this app belongs to")
 
     @model_validator(mode="before")
     def model_validate_before(cls, ov: Dict[str, Any]) -> Dict[str, Any]:
@@ -188,7 +186,7 @@ class AppItem(ItemModelRecord):
         return values
 
     @classmethod
-    def model_class(cls, client: str = None) -> AppModelType:
+    def model_class(cls, client: str) -> AppModelType:
         """Get the PynamoDB model class for this Pydantic model.
 
         Args:
@@ -231,6 +229,4 @@ class AppItem(ItemModelRecord):
         Returns:
             str: String representation of the app item
         """
-        return (
-            f"<AppItem(prn={self.prn},name={self.name},contact={self.contact_email})>"
-        )
+        return f"<AppItem(prn={self.prn},name={self.name},contact={self.contact_email})>"

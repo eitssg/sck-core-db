@@ -1,7 +1,6 @@
 from typing import Type, List, Tuple
 from datetime import datetime
 
-from pydantic.type_adapter import P
 from pynamodb.attributes import (
     UnicodeAttribute,
     UTCDateTimeAttribute,
@@ -170,7 +169,7 @@ class PassKeyActions(TableActions):
 
             data = [PassKey.from_item(item) for item in result]
 
-            paginator.cursor = getattr(result, "last_evaluated_key", None)
+            paginator.last_evaluated_key = getattr(result, "last_evaluated_key", None)
             paginator.total_count = len(data)
 
             return data, paginator
@@ -198,7 +197,7 @@ class PassKeyActions(TableActions):
 
             data = [PassKey.from_item(item) for item in result]
 
-            paginator.cursor = getattr(result, "last_evaluated_key", None)
+            paginator.last_evaluated_key = getattr(result, "last_evaluated_key", None)
             paginator.total_count = len(data)
 
             return data, paginator
@@ -237,7 +236,7 @@ class PassKeyActions(TableActions):
 
             return PassKey.from_item(item)
 
-        except PutError:
+        except PutError as e:
             if "ConditionalCheckFailedException" in str(e):
                 raise ConflictException("PassKey already exists")
 

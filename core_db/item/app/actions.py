@@ -8,8 +8,11 @@ The AppActions class extends ItemTableActions to provide app-specific CRUD opera
 while inheriting common item management functionality.
 """
 
-from ...response import Response
+from typing import Tuple, List
+
+from ...models import Paginator
 from ..actions import ItemTableActions
+
 from .models import AppItem
 
 
@@ -26,7 +29,7 @@ class AppActions(ItemTableActions):
     """
 
     @classmethod
-    def list(cls, **kwargs) -> Response:
+    def list(cls, *, client: str, **kwargs) -> Tuple[List[AppItem], Paginator]:
         """List app items with optional filtering and pagination.
 
         Convenience method that automatically uses AppItem type.
@@ -43,7 +46,7 @@ class AppActions(ItemTableActions):
                 - sort_forward (bool, optional): Sort order (default: True)
 
         Returns:
-            Response: SuccessResponse with structure:
+            BaseModel: BaseModel object with structure:
                 - data (List[Dict]): List of app item dictionaries, each containing:
                     - prn (str): App PRN
                     - parent_prn (str): Portfolio PRN
@@ -58,10 +61,10 @@ class AppActions(ItemTableActions):
                     - cursor (str): Cursor token for next page (if more results exist)
                     - total_count (int): Total number of items returned in this page
         """
-        return super().list(record_type=AppItem, **kwargs)
+        return super().list(AppItem, client=client, **kwargs)
 
     @classmethod
-    def get(cls, **kwargs) -> Response:
+    def get(cls, *, client: str, **kwargs) -> AppItem:
         """Retrieve a specific app item by PRN.
 
         Convenience method that automatically uses AppItem type.
@@ -72,7 +75,7 @@ class AppActions(ItemTableActions):
                 - prn (str): App PRN to retrieve (e.g., "prn:ecommerce-platform:user-service")
 
         Returns:
-            Response: SuccessResponse with structure:
+            BaseModel: BaseModel object with structure:
                 - data (Dict): Single app item dictionary containing:
                     - prn (str): App PRN
                     - parent_prn (str): Portfolio PRN
@@ -88,10 +91,10 @@ class AppActions(ItemTableActions):
             NotFoundException: If the app item does not exist
             BadRequestException: If required parameters are missing
         """
-        return super().get(record_type=AppItem, **kwargs)
+        return super().get(AppItem, client=client, **kwargs)
 
     @classmethod
-    def create(cls, **kwargs) -> Response:
+    def create(cls, *, client: str, **kwargs) -> AppItem:
         """Create a new app item in the CMDB.
 
         Convenience method that automatically uses AppItem type.
@@ -109,7 +112,7 @@ class AppActions(ItemTableActions):
                     - Any other custom metadata fields
 
         Returns:
-            Response: SuccessResponse with structure:
+            BaseModel: BaseModel object with structure:
                 - data (Dict): Created app item dictionary containing:
                     - prn (str): Generated app PRN (e.g., "prn:portfolio:app-name")
                     - parent_prn (str): Portfolio PRN this app belongs to
@@ -125,10 +128,10 @@ class AppActions(ItemTableActions):
             BadRequestException: If required fields are missing or invalid
             ConflictException: If app with same PRN already exists
         """
-        return super().create(record_type=AppItem, **kwargs)
+        return super().create(AppItem, client=client, **kwargs)
 
     @classmethod
-    def update(cls, **kwargs) -> Response:
+    def update(cls, *, client: str, **kwargs) -> AppItem:
         """Update an existing app item using PUT semantics (full replacement).
 
         Convenience method that automatically uses AppItem type.
@@ -142,7 +145,7 @@ class AppActions(ItemTableActions):
                 - Any other updatable app fields
 
         Returns:
-            Response: SuccessResponse with structure:
+            BaseModel: BaseModel object with structure:
                 - data (Dict): Updated app item dictionary with all current values
 
         Raises:
@@ -153,35 +156,10 @@ class AppActions(ItemTableActions):
             This is a full replacement operation. All updatable fields should be provided.
             Use patch() for partial updates.
         """
-        return super().update(record_type=AppItem, **kwargs)
+        return super().update(AppItem, client=client, **kwargs)
 
     @classmethod
-    def delete(cls, **kwargs) -> Response:
-        """Delete an app item from the CMDB.
-
-        Convenience method that automatically uses AppItem type.
-
-        Args:
-            **kwargs: Parameters including:
-                - client (str): Client identifier for table isolation
-                - prn (str): App PRN to delete
-
-        Returns:
-            Response: SuccessResponse with structure:
-                - data (Dict): Confirmation containing deleted item information
-
-        Raises:
-            NotFoundException: If the app item does not exist
-            BadRequestException: If required parameters are missing
-
-        Warning:
-            Deleting an app may affect child items (branches, builds, components).
-            Ensure proper cleanup of dependent resources before deletion.
-        """
-        return super().delete(record_type=AppItem, **kwargs)
-
-    @classmethod
-    def patch(cls, **kwargs) -> Response:
+    def patch(cls, *, client: str, **kwargs) -> AppItem:
         """Partially update an app item using PATCH semantics.
 
         Convenience method that automatically uses AppItem type.
@@ -195,7 +173,7 @@ class AppActions(ItemTableActions):
                 - Any other updatable app fields
 
         Returns:
-            Response: SuccessResponse with structure:
+            BaseModel: BaseModel object with structure:
                 - data (Dict): Updated app item dictionary with merged values
 
         Raises:
@@ -206,4 +184,57 @@ class AppActions(ItemTableActions):
             This performs a partial update, merging provided fields with existing data.
             Only specified fields will be updated.
         """
-        return super().patch(record_type=AppItem, **kwargs)
+        return super().patch(AppItem, client=client, **kwargs)
+
+    @classmethod
+    def delete(cls, *, client: str, **kwargs) -> bool:
+        """Delete an app item from the CMDB.
+
+        Convenience method that automatically uses AppItem type.
+
+        Args:
+            **kwargs: Parameters including:
+                - client (str): Client identifier for table isolation
+                - prn (str): App PRN to delete
+
+        Returns:
+            BaseModel: BaseModel object with structure:
+                - data (Dict): Confirmation containing deleted item information
+
+        Raises:
+            NotFoundException: If the app item does not exist
+            BadRequestException: If required parameters are missing
+
+        Warning:
+            Deleting an app may affect child items (branches, builds, components).
+            Ensure proper cleanup of dependent resources before deletion.
+        """
+        return super().delete(AppItem, client=client, **kwargs)
+
+    @classmethod
+    def patch(cls, *, client: str, **kwargs) -> AppItem:
+        """Partially update an app item using PATCH semantics.
+
+        Convenience method that automatically uses AppItem type.
+
+        Args:
+            **kwargs: App item attributes to modify including:
+                - client (str): Client identifier for table isolation
+                - prn (str): App PRN to update
+                - contact_email (str, optional): New contact email
+                - metadata (dict, optional): Metadata fields to merge/update
+                - Any other updatable app fields
+
+        Returns:
+            BaseModel: BaseModel object with structure:
+                - data (Dict): Updated app item dictionary with merged values
+
+        Raises:
+            NotFoundException: If the app item does not exist
+            BadRequestException: If required parameters are missing
+
+        Note:
+            This performs a partial update, merging provided fields with existing data.
+            Only specified fields will be updated.
+        """
+        return super().patch(AppItem, client=client, **kwargs)

@@ -1,8 +1,6 @@
 """All table Actions share a CRUD interface and this Model class defines the functions for Create, Read, Update, Delete functions."""
 
-from typing import Protocol
-
-from .response import Response
+from typing import Protocol, Any
 
 
 class TableActions(Protocol):
@@ -37,17 +35,17 @@ class TableActions(Protocol):
 
         **Required Methods**: All implementing classes must provide these class methods:
 
-        - **list(cls, \\**kwargs) -> Response**: List all items in the table
-        - **get(cls, \\**kwargs) -> Response**: Get a specific item by primary key
-        - **create(cls, \\**kwargs) -> Response**: Create a new item in the table
-        - **update(cls, \\**kwargs) -> Response**: Update an existing item completely
-        - **delete(cls, \\**kwargs) -> Response**: Delete an item from the table
-        - **patch(cls, \\**kwargs) -> Response**: Partially update specific fields
+        - **list(cls, \\**kwargs)**: List all items in the table
+        - **get(cls, \\**kwargs)**: Get a specific item by primary key
+        - **create(cls, \\**kwargs)**: Create a new item in the table
+        - **update(cls, \\**kwargs)**: Update an existing item completely
+        - **delete(cls, \\**kwargs)**: Delete an item from the table
+        - **patch(cls, \\**kwargs)**: Partially update specific fields
 
         **Protocol Benefits**:
         - This is a Protocol, so classes don't need to explicitly inherit from it
         - Type checkers will verify that implementing classes have all required methods
-        - All methods are class methods that accept **kwargs and return Response objects
+        - All methods are class methods that accept **kwargs and return target objects
         - Structural typing allows duck typing while maintaining type safety
 
     Examples:
@@ -67,25 +65,10 @@ class TableActions(Protocol):
         >>> from core_db.registry.portfolio.actions import PortfolioActions
         >>> result = handle_action(PortfolioActions, "list", client="acme")
 
-        >>> # Implementation Example
-        >>> class MyTableActions:
-        ...     '''Automatically conforms to TableActions protocol'''
-        ...
-        ...     @classmethod
-        ...     def list(cls, **kwargs) -> Response:
-        ...         # Implementation here
-        ...         return SuccessResponse([])
-        ...
-        ...     @classmethod
-        ...     def get(cls, **kwargs) -> Response:
-        ...         # Implementation here
-        ...         return SuccessResponse({})
-        ...
-        ...     # ... implement other required methods
     """
 
     @classmethod
-    def list(cls, **kwargs) -> Response:
+    def list(cls, **kwargs) -> Any:
         """List all items in the table.
 
         Various implementations in subclasses may behave differently. Some may return
@@ -99,7 +82,7 @@ class TableActions(Protocol):
                 - filters (dict): Query filters for result filtering
 
         Returns:
-            Response: Response object containing the list of items or an error
+            BaseModel object containing the list of items or an error
 
         Raises:
             NotFoundException: If your subclass has not implemented the list method
@@ -117,7 +100,7 @@ class TableActions(Protocol):
         ...
 
     @classmethod
-    def get(cls, **kwargs) -> Response:
+    def get(cls, **kwargs) -> Any:
         """Returns a record from the table by primary hash_key and range_key.
 
         The intent is to return one and only one unique record.
@@ -130,7 +113,7 @@ class TableActions(Protocol):
                 - Additional parameters specific to the table implementation
 
         Returns:
-            Response: Response object containing the requested item or an error
+            BaseModel object containing the requested item or an error
 
         Raises:
             NotFoundException: If your subclass has not implemented the get method
@@ -149,7 +132,7 @@ class TableActions(Protocol):
         ...
 
     @classmethod
-    def create(cls, **kwargs) -> Response:
+    def create(cls, **kwargs) -> Any:
         """Creates a new record in the table.
 
         The primary hash_key and range_key must be provided. Other fields may be
@@ -163,7 +146,7 @@ class TableActions(Protocol):
                 - client (str): Client identifier for client-specific tables
 
         Returns:
-            Response: Response object containing the created item or an error
+            BaseModel: BaseModel object containing the created item or an error
 
         Raises:
             NotFoundException: If your subclass has not implemented the create method
@@ -190,7 +173,7 @@ class TableActions(Protocol):
         ...
 
     @classmethod
-    def update(cls, **kwargs) -> Response:
+    def update(cls, **kwargs) -> Any:
         """Updates a record in the table.
 
         The primary hash_key and range_key must be provided. This performs a complete
@@ -204,7 +187,7 @@ class TableActions(Protocol):
                 - client (str): Client identifier for client-specific tables
 
         Returns:
-            Response: Response object containing the updated item or an error
+            BaseModel: BaseModel object containing the updated item or an error
 
         Raises:
             NotFoundException: If your subclass has not implemented the update method
@@ -232,7 +215,7 @@ class TableActions(Protocol):
         ...
 
     @classmethod
-    def delete(cls, **kwargs) -> Response:
+    def delete(cls, **kwargs) -> bool:
         """Deletes a record from the table.
 
         The primary hash_key and range_key must be provided.
@@ -245,7 +228,7 @@ class TableActions(Protocol):
                 - force (bool): Force deletion even if dependent resources exist
 
         Returns:
-            Response: Response object confirming deletion or an error
+            BaseModel: BaseModel object confirming deletion or an error
 
         Raises:
             NotFoundException: If your subclass has not implemented the delete method
@@ -265,7 +248,7 @@ class TableActions(Protocol):
         ...
 
     @classmethod
-    def patch(cls, **kwargs) -> Response:
+    def patch(cls, **kwargs) -> Any:
         """Allows you to specify only a partial set of fields to update in a record.
 
         The effect will be that the full record will be fetched, the fields specified
@@ -280,7 +263,7 @@ class TableActions(Protocol):
                 - client (str): Client identifier for client-specific tables
 
         Returns:
-            Response: Response object containing the patched item or an error
+            BaseModel: BaseModel object containing the patched item or an error
 
         Raises:
             NotFoundException: If your subclass has not implemented the patch method

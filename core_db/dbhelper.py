@@ -40,22 +40,18 @@ Examples:
     ... )
 """
 
-from typing import Any
+from typing import Any, ChainMap
 
-import os
 import core_logging as log
 
-import core_framework as util
+from core_framework.models import DeploymentDetails
 
 from core_framework.constants import (
-    DD_ENVIRONMENT,
-    DD_SCOPE,
-    ENV_ENVIRONMENT,
+    SCOPE_PORTFOLIO,
+    SCOPE_APP,
     SCOPE_BRANCH,
     SCOPE_BUILD,
     SCOPE_COMPONENT,
-    TR_STATUS,
-    TR_RESPONSE,
 )
 
 from .actions import TableActions
@@ -65,8 +61,10 @@ from .item.app.actions import AppActions
 from .item.branch.actions import BranchActions
 from .item.build.actions import BuildActions
 from .item.component.actions import ComponentActions
+from .item.models import ItemModelRecord
 
 from .event.actions import EventActions
+from .event.models import EventItem
 
 from .registry.client.actions import ClientActions as RegClientActions
 from .registry.portfolio.actions import PortfolioActions as RegPortfolioActions
@@ -74,6 +72,8 @@ from .registry.app.actions import AppActions as RegAppActions
 from .registry.zone.actions import ZoneActions as RegZoneActions
 
 from .facter.actions import FactsActions
+
+from .exceptions import NotFoundException, ConflictException
 
 PRN = "prn"
 STATUS = "status"
@@ -154,81 +154,20 @@ Note:
 
 
 def update_status(
-    prn: str, status: str, message: str | None = None, details: dict = {}
-) -> dict:
-    """Updates the status of a PRN in the database.
+    scope: str,
+    deployment_details: DeploymentDetails,
+    *,
+    status: str | None = None,
+    message: str | None = None,
+    details: dict | None = None,
+) -> None:
+    """Updates the status of a PRN in the database.  If it doesn't throw an expection, it worked."""
 
-    This function performs a comprehensive status update by:
-    1. Logging the status change with structured logging
-    2. Creating an event record in the events table
-    3. Updating the item's status in the items table
-    4. Adding environment information to the details
-
-    Args:
-        prn (str): Pipeline Reference Number identifying the item to update.
-            Must be a valid PRN format (e.g., "build:acme:web-services:user-api:main:123")
-        status (str): Status code from BuildStatus or other status constants.
-            Common values include "success", "failure", "in_progress", "pending"
-        message (str, optional): Text message describing the status change.
-            Defaults to None.
-        details (dict, optional): Additional item details to include with the status.
-            Defaults to empty dict. Environment information is automatically added.
-
-    Returns:
-        dict: Result dictionary containing:
-            - TR_STATUS: "ok" if successful, "error" if failed
-            - TR_RESPONSE: Human-readable response message
-            - MESSAGE: Error message if an exception occurred
-
-    Examples:
-        >>> # Update build status to success
-        >>> result = update_status(
-        ...     prn="build:acme:web-services:user-api:main:123",
-        ...     status="success",
-        ...     message="Build completed successfully",
-        ...     details={"duration": "2m30s", "artifacts": ["lambda.zip"]}
-        ... )
-        >>> print(result)
-        {'TR_STATUS': 'ok', 'TR_RESPONSE': 'Status updated'}
-
-        >>> # Update component deployment status
-        >>> result = update_status(
-        ...     prn="component:acme:web-services:user-api:main:123:lambda",
-        ...     status="deployed",
-        ...     message="Lambda function deployed to production"
-        ... )
-
-        >>> # Update with failure status
-        >>> result = update_status(
-        ...     prn="build:acme:web-services:user-api:main:124",
-        ...     status="failure",
-        ...     message="Build failed due to test failures",
-        ...     details={"failed_tests": 3, "error_log": "tests/output.log"}
-        ... )
-    """
-    environment = os.getenv(ENV_ENVIRONMENT)
-
-    # Try and set environment from config if not already set
-    try:
-        if DD_ENVIRONMENT not in details and environment:
-            details[DD_ENVIRONMENT] = environment
-    except Exception:
-        pass
-
-    log.status(
-        status=status,
-        reason=message,
-        details={DD_SCOPE: util.get_prn_scope(prn), **details},
-        identity=prn,
-    )
-
-    __api_put_event(prn, status, message)
-    __api_update_status(prn, status, message)
-
-    return {TR_STATUS: OK, TR_RESPONSE: "Status updated"}
+    __api_put_event(scope, deployment_details, status=status, message=message, details=details)
+    __api_update_status(scope, deployment_details, status=status, message=message)
 
 
-def update_item(prn: str, **kwargs) -> dict:
+def update_item(scope: str, deployment_details: DeploymentDetails, metadata: dict | None = None, **kwargs) -> ItemModelRecord:
     """Add or update an item in the database.
 
     This function updates an existing item or creates a new one if it doesn't exist.
@@ -236,89 +175,86 @@ def update_item(prn: str, **kwargs) -> dict:
     update operation is delegated to that class.
 
     Args:
-        prn (str): The Pipeline Reference Number identifying the item.
-            Must be a valid PRN format that can be parsed to determine scope
-        **kwargs: The item details to update. Available fields depend on the item type:
-            - status (str): Current status of the item
-            - name (str): Display name of the item
-            - contact_email (str): Contact email for the item owner
-            - Additional fields specific to the item type
+        scope (str): The scope of the item to update. Must be one of:
+            - portfolio
+            - app
+            - branch
+            - build
+            - component
+        deployment_details (DeploymentDetails): The deployment details containing client, portfolio, app, branch,
+        status (str): Current status of the item
+        name (str): Display name of the item
+        contact_email (str): Contact email for the item owner
+        metadata (dict): Medatadata data
+        **kwargs: Additional item data specific to the item type
 
     Returns:
-        dict: The response from the update operation, typically containing:
-            - TR_STATUS: "ok" if successful, "error" if failed
-            - TR_RESPONSE: Human-readable response message
-            - data: The updated item data (if successful)
-            - MESSAGE: Error message (if failed)
+        ItemModelRecord: The updated item record
 
     Raises:
         ValueError: If the PRN format is invalid or the scope cannot be determined
         ValueError: If the PRN scope is not supported by any registered action class
 
-    Examples:
-        >>> # Update a portfolio item
-        >>> result = update_item(
-        ...     prn="portfolio:acme:web-services",
-        ...     status="active",
-        ...     name="Web Services Portfolio",
-        ...     contact_email="devops@acme.com"
-        ... )
 
-        >>> # Update a build with deployment info
-        >>> result = update_item(
-        ...     prn="build:acme:web-services:user-api:main:123",
-        ...     status="deployed",
-        ...     deployed_at="2025-01-01T12:00:00Z",
-        ...     version="1.2.3"
-        ... )
-
-        >>> # Update component configuration
-        >>> result = update_item(
-        ...     prn="component:acme:web-services:user-api:main:123:lambda",
-        ...     status="configured",
-        ...     component_type="lambda",
-        ...     runtime="python3.9"
-        ... )
-
-        >>> # Check result
-        >>> if result["TR_STATUS"] == "ok":
-        ...     print("Item updated successfully")
-        ...     updated_data = result.get("data", {})
-        ... else:
-        ...     print(f"Update failed: {result.get('MESSAGE')}")
     """
     try:
-        scope = util.get_prn_scope(prn)
-        if not scope:
-            raise ValueError(f"Cannot determine scope from PRN: '{prn}'")
+        client = deployment_details.client
 
-        log.debug(f"(API) Updating item '{prn}' - {kwargs}")
+        prn, _ = __get_prn_and_name(scope, deployment_details)
 
-        klazz = actions_routes.get(scope)
+        log.debug(f"(API) Updating item '{prn}'")
+
+        klazz = actions_routes.get(f"item:{scope}")
         if not klazz:
             raise ValueError(f"Unsupported PRN '{prn}', cannot determine DB class")
 
-        kwargs[PRN] = prn
-        result = klazz.update(**kwargs)
-
-        if result.status != OK:
-            log.error(f"Failed to update item '{prn}': {result.data}", identity=prn)
-
-        return result.model_dump()
+        try:
+            log.debug(f"Checking if item '{prn}' exists")
+            result: ItemModelRecord = klazz.get(client=client, prn=prn)
+            if metadata:
+                log.debug(f"Updating metadata for item '{prn}'", details=metadata)
+                result.metadata = metadata
+            data = result.model_dump(by_alias=False, mode="json")  # dates will be converted to ISO strings
+            data.update(kwargs)  # update only top-level keys.  no deep merge.
+            log.debug(f"Item '{prn}' exists, updating")
+            result = klazz.update(client=client, **data)
+            log.debug(f"Item '{prn}' updated")
+            return result
+        except NotFoundException:
+            log.debug(f"Item '{prn}' does not exist, bailing out...")
+            return None
 
     except Exception as e:
-        log.error(f"Failed to update item '{prn}'", identity=prn)
-        return {TR_STATUS: ERROR, TR_RESPONSE: "Failed to update item", MESSAGE: str(e)}
+        log.error(f"Failed to update item '{prn}'")
+        raise
 
 
-def register_item(prn: str, name: str, **kwargs) -> dict:
-    """Creates a new item in the database.
+def __get_prn_and_name(scope: str, deployment_details: DeploymentDetails) -> tuple[str, str]:
+    """Helper to get the PRN and name from the deployment details based on scope."""
+    if scope == SCOPE_PORTFOLIO:
+        return deployment_details.get_portfolio_prn(), deployment_details.portfolio
+    elif scope == SCOPE_APP:
+        return deployment_details.get_app_prn(), deployment_details.app
+    elif scope == SCOPE_BRANCH:
+        return deployment_details.get_branch_prn(), deployment_details.branch
+    elif scope == SCOPE_BUILD:
+        return deployment_details.get_build_prn(), deployment_details.build
+    elif scope == SCOPE_COMPONENT:
+        return deployment_details.get_component_prn(), deployment_details.component
+    else:
+        raise ValueError(f"Unsupported SCOPE '{scope}'. Must be branch, build or component")
+
+
+def register_item(
+    scope: str, deployment_details: DeploymentDetails, *, status: str | None = None, component_type: str | None = None, **kwargs
+) -> ItemModelRecord | None:
+    """Creates (Or Updates) an item in the database.
 
     This function registers a new deployment item based on the PRN scope. It automatically
     sets up the hierarchical relationships (parent_prn, app_prn, etc.) based on the PRN
     format and item type.
 
-    Args:
+    Parameters:
         prn (str): The Pipeline Reference Number for the new item.
             Must be a valid PRN format that indicates the item type and hierarchy
         name (str): The display name of the item.
@@ -353,99 +289,50 @@ def register_item(prn: str, name: str, **kwargs) -> dict:
         - Build: Sets branch_prn from first 4 PRN segments
         - Component: Sets build_prn from first 5 PRN segments
 
-    Examples:
-        >>> # Register a new branch
-        >>> result = register_item(
-        ...     prn="branch:acme:web-services:user-api:feature-auth",
-        ...     name="feature-auth",
-        ...     short_name="feature-auth",
-        ...     status="active"
-        ... )
 
-        >>> # Register a new build
-        >>> result = register_item(
-        ...     prn="build:acme:web-services:user-api:main:125",
-        ...     name="Build #125",
-        ...     status="building",
-        ...     commit_sha="abc123def456"
-        ... )
-
-        >>> # Register a new component
-        >>> result = register_item(
-        ...     prn="component:acme:web-services:user-api:main:125:lambda",
-        ...     name="User API Lambda",
-        ...     component_type="lambda",
-        ...     status="pending"
-        ... )
-
-        >>> # Check registration result
-        >>> if result["TR_STATUS"] == "ok":
-        ...     print("Item registered successfully")
-        ...     item_data = result.get("data", {})
-        ... else:
-        ...     print(f"Registration failed: {result.get('MESSAGE')}")
-
-        >>> # Register with additional metadata
-        >>> result = register_item(
-        ...     prn="component:acme:web-services:user-api:main:125:api",
-        ...     name="User API Gateway",
-        ...     component_type="api",
-        ...     contact_email="api-team@acme.com",
-        ...     runtime="nodejs18.x"
-        ... )
     """
     try:
-        scope = util.get_prn_scope(prn)
-        if not scope:
-            raise ValueError(f"Cannot determine scope from PRN: '{prn}'")
+        client = deployment_details.client
 
-        if scope == SCOPE_BRANCH:
-            data = {"app_prn": ":".join(prn.split(":")[0:3]), "name": name}
-        elif scope == SCOPE_BUILD:
-            data = {"branch_prn": ":".join(prn.split(":")[0:4]), "name": name}
-        elif scope == SCOPE_COMPONENT:
-            data = {
-                "build_prn": ":".join(prn.split(":")[0:5]),
-                "name": name,
-                "component_type": kwargs["component_type"],
-            }
-        else:
-            raise ValueError(
-                f"Unsupported SCOPE '{scope}'. Must be branch, build or component"
-            )
+        prn, name = __get_prn_and_name(scope, deployment_details)
 
-        if kwargs:
-            data = {**data, **kwargs}
+        data = {"prn": prn, "name": name}
+        if status is not None:
+            data["status"] = status
+        if component_type is not None and scope == SCOPE_COMPONENT:
+            data["component_type"] = component_type
+        data = ChainMap(data, kwargs)
 
         # Register the item (may not be required if it already exists)
-        log.debug(
-            f"(API) registering {scope} '{prn}' {kwargs.get(STATUS, '')}", identity=prn
-        )
+        log.debug(f"(API) registering {scope} '{prn}' {kwargs.get(STATUS, '')}", identity=prn)
 
-        klazz = actions_routes.get(scope)
+        klazz = actions_routes.get(f"item:{scope}")
         if not klazz:
             raise ValueError(f"Unsupported PRN '{prn}', cannot determine DB class")
 
-        data[PRN] = prn
-        result = klazz.create(**data)
+        try:
+            log.debug(f"Checking if item '{prn}' exists")
+            item_record: ItemModelRecord = klazz.get(client=client, prn=prn)
+            log.debug(f"Item '{prn}' exists, updating")
+            item_record = klazz.update(client=client, prn=prn, **data)
+        except NotFoundException:
+            log.debug(f"Item '{prn}' does not exist, creating")
+            item_record = klazz.create(client=client, **data)
+            log.debug(f"Item '{prn}' created")
 
-        if result.status != OK:
-            log.error(
-                f"Failed to register item '{prn}':", details=result.data, identity=prn
-            )
+        return item_record
 
-        return result.model_dump()
-
+    except ConflictException as e:
+        log.warning(f"Conflict when registering item '{prn}': {e}", identity=prn)
+        raise
     except Exception as e:
         log.error(f"Failed to register item '{prn}'", identity=prn)
-        return {
-            TR_STATUS: ERROR,
-            TR_RESPONSE: "Failed to register item",
-            MESSAGE: str(e),
-        }
+        raise
 
 
-def __api_update_status(prn: str, status: str, message: str | None = None) -> dict:
+def __api_update_status(
+    scope, deployment_details: DeploymentDetails, *, status: str | None, message: str | None = None, **kwargs
+) -> ItemModelRecord:
     """Internal helper to update the status of an item via the API.
 
     This is a private function used internally by update_status() to handle the
@@ -467,45 +354,39 @@ def __api_update_status(prn: str, status: str, message: str | None = None) -> di
         ...     message="Build completed"
         ... )
     """
+    client = deployment_details.client
+
+    prn, _ = __get_prn_and_name(scope, deployment_details)
+
+    log.debug(f"(API) Setting status of {scope} '{prn}' to {status} ({message})")
+
+    data = {"prn": prn}
+    if status:
+        data["status"] = status
+    if message:
+        data["message"] = message  # message will be saved if the recordType (klazz) has the attribute.  or it is ignored.
+
+    klazz = actions_routes.get(f"item:{scope}")
+    if not klazz:
+        log.error(f"Unsupported scope '{scope}' for PRN '{prn}'")
+        raise ValueError(f"Unsupported PRN '{prn}', cannot determine DB class")
+
     try:
-        scope = util.get_prn_scope(prn)
-        if not scope:
-            raise ValueError(f"Cannot determine scope from PRN '{prn}'")
-
-        if not scope:
-            raise ValueError(f"Unsupported PRN '{prn}', cannot update API")
-
-        log.debug(
-            f"(API) Setting status of {scope} '{prn}' to {status} ({message})",
-            identity=prn,
-        )
-
-        data = {PRN: prn, STATUS: status, "message": message}
-
-        klazz = actions_routes.get(scope)
-        if not klazz:
-            log.error(f"Unsupported PRN '{prn}', cannot update API", identity=prn)
-            return {TR_STATUS: ERROR, TR_RESPONSE: "Unsupported PRN"}
-
-        result = klazz.update(**data)
-
-        if result.status != OK:
-            log.error(
-                f"Failed to update status of '{prn}': {result.data}", identity=prn
-            )
-
-        return result.model_dump()
-
-    except Exception as e:
-        log.error(f"Failed to create event '{prn}'", identity=prn)
-        return {
-            TR_STATUS: ERROR,
-            TR_RESPONSE: "Failed to create event",
-            MESSAGE: str(e),
-        }
+        log.debug(f"Updating item '{prn}' to status '{status}'")
+        result = klazz.patch(client=client, **data)
+        log.debug(f"Item '{prn}' updated to status '{status}'")
+        return result
+    except NotFoundException:
+        log.error(f"Item '{prn}' not found when updating status to '{status}'", identity=prn)
+        return None
+    except Exception:
+        log.error(f"Failed to update status of item '{prn}' to '{status}'", identity=prn)
+        raise
 
 
-def __api_put_event(prn: str, status: str, message: str | None = None) -> dict:
+def __api_put_event(
+    scope: str, deployment_details: DeploymentDetails, status: str, message: str | None = None, details: dict | None = None
+) -> EventItem | None:
     """Internal helper to create a new event in the database via the API.
 
     This is a private function used internally by update_status() to create
@@ -528,25 +409,18 @@ def __api_put_event(prn: str, status: str, message: str | None = None) -> dict:
         ... )
     """
     try:
-        log.debug(f"(API) New event: {prn} - {status} - {message}", identity=prn)
+        client = deployment_details.client
 
-        data = {PRN: prn, STATUS: status, MESSAGE: message}
+        prn, name = __get_prn_and_name(scope, deployment_details)
 
-        klazz = actions_routes["event"]
+        log.debug(f"(API) New event: {prn} - {status} - {message}")
 
-        result = klazz.create(**data)
+        data = {"prn": prn, "status": status.upper()}
+        if message:
+            data["message"] = message
 
-        if result.status != OK:
-            log.error(
-                f"Failed to create event '{prn}':", details=result.data, identity=prn
-            )
+        return EventActions.create(client=client, **data)
 
-        return result.model_dump()
-
-    except Exception as e:
-        log.error(f"Failed to create event '{prn}'", identity=prn)
-        return {
-            TR_STATUS: ERROR,
-            TR_RESPONSE: "Failed to create event",
-            MESSAGE: str(e),
-        }
+    except Exception:
+        log.error(f"Failed to create event '{prn}'")
+        raise

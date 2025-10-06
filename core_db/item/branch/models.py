@@ -158,14 +158,14 @@ class ReleaseInfo(BaseModel):
         description="Pipeline Reference Number of the released build",
     )
     build: Optional[str] = Field(
-        None,
         alias="Name",
         description="Name of the released build",
+        default=None,
     )
     release_date: Optional[str] = Field(
-        None,
         alias="ReleaseDate",
         description="Release date of the build",
+        default=None,
     )
 
     @model_validator(mode="before")
@@ -190,9 +190,7 @@ class ReleaseInfo(BaseModel):
         if not prn:
             raise ValueError("PRN is required for ReleaseInfo")
 
-        build = values.pop(
-            "build", values.pop("Build", prn[prn.rindex(":") + 1 :] if prn else None)
-        )
+        build = values.pop("build", values.pop("Build", prn[prn.rindex(":") + 1 :] if prn else None))
         if not build:
             raise ValueError("Build is required for ReleaseInfo")
         values["build"] = build
@@ -297,7 +295,7 @@ class BranchItem(ItemModelRecord):
         if released_build is None:
             released_build_prn = values.get("released_build_prn")
             if released_build_prn:
-                released_build = ReleaseInfo(prn=released_build_prn)
+                released_build = ReleaseInfo(Prn=released_build_prn)
             else:
                 released_build = None
             values["released_build"] = released_build
@@ -317,7 +315,7 @@ class BranchItem(ItemModelRecord):
         return values
 
     @classmethod
-    def model_class(cls, client: str = None) -> BranchModelType:
+    def model_class(cls, client: str) -> BranchModelType:
         """Get the PynamoDB model class for this Pydantic model.
 
         Args:

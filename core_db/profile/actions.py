@@ -123,7 +123,7 @@ class ProfileActions(TableActions):
 
             data = [UserProfile.from_model(item) for item in result]
 
-            paginator.cursor = getattr(result, "last_evaluated_key", None)
+            paginator.last_evaluated_key = getattr(result, "last_evaluated_key", None)
             paginator.total_count = len(data)
 
         except QueryError as e:
@@ -164,7 +164,7 @@ class ProfileActions(TableActions):
 
             data = [UserProfile.from_model(item) for item in result]
 
-            paginator.cursor = getattr(result, "last_evaluated_key", None)
+            paginator.last_evaluated_key = getattr(result, "last_evaluated_key", None)
             paginator.total_count = len(data)
 
         except QueryError as e:
@@ -206,9 +206,9 @@ class ProfileActions(TableActions):
                          client (str, required): Client identifier for table isolation.
 
         Returns:
-            Response: SuccessResponse containing either:
-                - Single profile: Complete profile data dictionary
-                - Multiple profiles: Dictionary with user_id, profiles list, count, active_only flag
+            BaseModel: BaseModel object with structure:
+                - data (Dict): Either a single profile or a list of profiles.
+                - metadata (Dict): Additional information about the request.
 
         Raises:
             BadRequestException: If user_id is missing or client parameter not provided.
@@ -323,8 +323,8 @@ class ProfileActions(TableActions):
             user_id (str): User ID to delete all profiles for.
 
         Returns:
-            Response: SuccessResponse indicating deletion status.
-
+            BaseModel: BaseModel object with structure:
+                - data (Dict): Success message on deletion.
         Raises:
             BadRequestException: If user_id is missing.
             NotFoundException: If no profiles found for the user.
@@ -394,7 +394,8 @@ class ProfileActions(TableActions):
             email (str): Email address to delete profiles for.
 
         Returns:
-            Response: SuccessResponse indicating deletion status.
+            BaseModel: BaseModel object with structure:
+                - data (Dict): Success message on deletion.
 
         Raises:
             BadRequestException: If email is missing.
@@ -571,7 +572,8 @@ class ProfileActions(TableActions):
             profile_name (str): Profile name to search for
 
         Returns:
-            Response: SuccessResponse containing the list of profiles associated with the email
+            BaseModel: BaseModel object with structure:
+                - data (List[Dict]): List of profiles associated with the email.
         """
         if not email or not profile_name:
             raise BadRequestException("Email and profile_name are required to retrieve profiles")

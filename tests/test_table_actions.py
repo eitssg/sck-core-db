@@ -1,11 +1,10 @@
 import os
 import pytest
 
-import boto3
+from pydantic import BaseModel
 
 import core_framework as util
 
-from core_db.response import Response
 from core_db.dbhelper import actions_routes
 
 from .test_table_actions_data import test_data
@@ -30,9 +29,7 @@ def get_table_command(action: str) -> tuple[str, str]:
     return action[:i], action[i + 1 :]
 
 
-@pytest.mark.skip(
-    reason="This test is skipped by default. Enable it if you want to run it."
-)
+@pytest.mark.skip(reason="This test is skipped by default. Enable it if you want to run it.")
 @pytest.mark.parametrize("request_data,expected_result", test_data)
 def test_table_actions(bootstrap_dynamo, request_data, expected_result):
 
@@ -71,13 +68,10 @@ def test_table_actions(bootstrap_dynamo, request_data, expected_result):
 
         response = method(client=client, **data)
 
-        assert isinstance(response, Response)
+        assert isinstance(response, BaseModel)
 
-        assert response.status == expected_result["status"]
-        assert response.code == expected_result["code"]
-        assert response.data is not None
+        response_data = response.model_dump()
 
-        response_data = response.data
         expected_data = expected_result.get("data", None)
 
         assert expected_data is not None
@@ -100,7 +94,7 @@ def test_table_actions(bootstrap_dynamo, request_data, expected_result):
     except AssertionError as e:
         logging.error(f"AssertionError: {e}")
         # Output all the details of the error
-        errors = e.errors if hasattr(e, "errors") else []
+        errors = getattr(e, "errors", [])
         for error in errors:
             logging.error(f"Error: {error}")
         assert False, f"AssertionError: {e}"

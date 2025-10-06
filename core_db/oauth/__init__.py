@@ -17,4 +17,7 @@ __all__ = [
     "AuthorizationsModelFactory",
     "RateLimitModelFactory",
     "ForgotPasswordModelFactory",
+    "OAuthTableModel",
+    "OAuthRecord",
+    "OAuthTableModelFactory",
 ]

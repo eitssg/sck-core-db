@@ -1,13 +1,11 @@
-from unittest import result
 import pytest
-import datetime
+
 from unittest.mock import patch
 
 import core_framework as util
 
 from core_db.profile.actions import ProfileActions
 from core_db.profile.model import UserProfile
-from core_db.response import Response, SuccessResponse, ErrorResponse
 from core_db.exceptions import BadRequestException, NotFoundException, ConflictException
 
 from .bootstrap import *

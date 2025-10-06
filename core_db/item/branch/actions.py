@@ -8,7 +8,8 @@ The BranchActions class extends ItemTableActions to provide branch-specific CRUD
 while inheriting common item management functionality.
 """
 
-from ...response import Response
+from typing import List, Tuple
+from core_db.models import Paginator
 from ..actions import ItemTableActions
 from .models import BranchItem
 
@@ -26,7 +27,7 @@ class BranchActions(ItemTableActions):
     """
 
     @classmethod
-    def list(cls, **kwargs) -> Response:
+    def list(cls, *, client: str, **kwargs) -> Tuple[List[BranchItem], Paginator]:
         """List branch items with optional filtering and pagination.
 
         Args:
@@ -34,27 +35,27 @@ class BranchActions(ItemTableActions):
                      and time-based filtering criteria.
 
         Returns:
-            Response: SuccessResponse with structure:
+            BaseModel: BaseModel object with structure:
                 - data (List[Dict]): List of branch item dictionaries
                 - metadata (Dict): Pagination information with cursor and total_count
         """
-        return super().list(record_type=BranchItem, **kwargs)
+        return super().list(BranchItem, client=client, **kwargs)
 
     @classmethod
-    def get(cls, **kwargs) -> Response:
+    def get(cls, *, client: str, **kwargs) -> BranchItem:
         """Retrieve a specific branch item by PRN.
 
         Args:
             **kwargs: Parameters including prn or branch_prn to identify the branch item.
 
         Returns:
-            Response: SuccessResponse with structure:
+            BaseModel: BaseModel object with structure:
                 - data (Dict): Single branch item dictionary
         """
-        return super().get(record_type=BranchItem, **kwargs)
+        return super().get(BranchItem, client=client, **kwargs)
 
     @classmethod
-    def create(cls, **kwargs) -> Response:
+    def create(cls, *, client: str, **kwargs) -> BranchItem:
         """Create a new branch item in the CMDB.
 
         Args:
@@ -62,13 +63,27 @@ class BranchActions(ItemTableActions):
                      and other branch-specific fields.
 
         Returns:
-            Response: SuccessResponse with structure:
+            BaseModel: BaseModel object with structure:
                 - data (Dict): Created branch item dictionary
         """
-        return super().create(record_type=BranchItem, **kwargs)
+        return super().create(BranchItem, client=client, **kwargs)
 
     @classmethod
-    def update(cls, **kwargs) -> Response:
+    def patch(cls, *, client: str, **kwargs) -> BranchItem:
+        """Update an existing branch item using PATCH semantics.
+
+        Args:
+            **kwargs: Branch item attributes to update, including prn to identify
+                     the item and fields to modify.
+
+        Returns:
+            BaseModel: BaseModel object with structure:
+                - data (Dict): Updated branch item dictionary
+        """
+        return super().patch(BranchItem, client=client, **kwargs)
+
+    @classmethod
+    def update(cls, *, client: str, **kwargs) -> BranchItem:
         """Update an existing branch item using PUT semantics.
 
         Args:
@@ -76,26 +91,25 @@ class BranchActions(ItemTableActions):
                      the item and fields to modify.
 
         Returns:
-            Response: SuccessResponse with structure:
+            BaseModel: BaseModel object with structure:
                 - data (Dict): Updated branch item dictionary
         """
-        return super().update(record_type=BranchItem, **kwargs)
+        return super().update(BranchItem, client=client, **kwargs)
 
     @classmethod
-    def delete(cls, **kwargs) -> Response:
+    def delete(cls, *, client: str, **kwargs) -> bool:
         """Delete a branch item from the CMDB.
 
         Args:
             **kwargs: Parameters including prn or branch_prn to identify the branch item to delete.
 
         Returns:
-            Response: SuccessResponse with structure:
-                - data (Dict): Deletion confirmation dictionary
+            bool: True if the deletion was successful, False otherwise
         """
-        return super().delete(record_type=BranchItem, **kwargs)
+        return super().delete(BranchItem, client=client, **kwargs)
 
     @classmethod
-    def patch(cls, **kwargs) -> Response:
+    def patch(cls, *, client: str, **kwargs) -> BranchItem:
         """Partially update a branch item using PATCH semantics.
 
         Args:
@@ -103,7 +117,7 @@ class BranchActions(ItemTableActions):
                      the item and specific fields to update.
 
         Returns:
-            Response: SuccessResponse with structure:
+            BaseModel: BaseModel object with structure:
                 - data (Dict): Updated branch item dictionary
         """
-        return super().patch(record_type=BranchItem, **kwargs)
+        return super().patch(BranchItem, client=client, **kwargs)

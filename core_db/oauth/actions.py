@@ -37,7 +37,8 @@ class OAuthActions(TableActions):
             **kwargs: Fields for Authorizations pydantic model (must include client and code).
 
         Returns:
-            Response: SuccessResponse with created record data.
+            BaseModel: BaseModel object with structure:
+                - data (Dict): Created authorization code record data.
 
         Raises:
             ConflictException: If the code already exists.
@@ -66,16 +67,16 @@ class OAuthActions(TableActions):
             raise UnknownException(f"Failed to create authorization: {e}") from e
 
     @classmethod
-    def list(
-        cls, record_type: OAuthRecord, **kwargs
-    ) -> Tuple[List[OAuthRecord], Paginator]:
+    def list(cls, record_type: OAuthRecord, **kwargs) -> Tuple[List[OAuthRecord], Paginator]:
         """List authorization codes for a client.
 
         Args:
             **kwargs: Must include client.
 
         Returns:
-            Response: SuccessResponse with list data or NoContentResponse if none.
+            BaseModel: BaseModel object with structure:
+                - data (List[Dict]): List of authorization code dictionaries.
+                - metadata (Dict): Pagination information.
         """
         client = kwargs.get("client", kwargs.get("Client"))
 
@@ -104,7 +105,8 @@ class OAuthActions(TableActions):
             **kwargs: Must include client and code.
 
         Returns:
-            Response: SuccessResponse with record data.
+            BaseModel: BaseModel object with structure:
+                - data (Dict): Authorization code record data.
 
         Raises:
             NotFoundException: If the code does not exist.
@@ -139,7 +141,8 @@ class OAuthActions(TableActions):
                       fields explicitly set to None will be removed.
 
         Returns:
-            Response: SuccessResponse with updated record.
+            BaseModel: BaseModel object with structure:
+                - data (Dict): Updated authorization code record data.
         """
         return cls._update(record_type, remove_none=True, **kwargs)
 
@@ -151,21 +154,18 @@ class OAuthActions(TableActions):
             **kwargs: Must include client and code. Provided non-None fields will be set.
 
         Returns:
-            Response: SuccessResponse with updated record.
+           BaseModel: BaseModel object with structure:
+               - data (Dict): Updated authorization code record data.
         """
         return cls._update(record_type, remove_none=False, **kwargs)
 
     @classmethod
-    def _update(
-        cls, record_type: OAuthRecord, remove_none: bool, **kwargs
-    ) -> OAuthRecord:
+    def _update(cls, record_type: OAuthRecord, remove_none: bool, **kwargs) -> OAuthRecord:
         """Internal update helper."""
 
         client = kwargs.get("client", kwargs.get("Client"))
         code = kwargs.get("code", kwargs.get("Code"))
-        client_id = kwargs.get(
-            "client_id", kwargs.get("ClientId", kwargs.get("clientId"))
-        )
+        client_id = kwargs.get("client_id", kwargs.get("ClientId", kwargs.get("clientId")))
 
         if not client:
             raise BadRequestException("Missing client parameter")
@@ -209,15 +209,10 @@ class OAuthActions(TableActions):
                     actions.append(attr.set(value))
                     if key == "used" and value is True:
                         if not client_id:
-                            raise BadRequestException(
-                                "client_id is required when marking used=True"
-                            )
+                            raise BadRequestException("client_id is required when marking used=True")
                         actions.append(attributes["used_at"].set(now))
                         # If marking used=True, ensure it was previously False (or not set)
-                        conditions.append(
-                            (model_class.used == False)
-                            | model_class.used.does_not_exist()
-                        )
+                        conditions.append((model_class.used == False) | model_class.used.does_not_exist())
                         conditions.append(model_class.client_id == client_id)
                         conditions.append(model_class.expires_at > now)
 
@@ -236,9 +231,7 @@ class OAuthActions(TableActions):
         except UpdateError as e:
             if "ConditionalCheckFailed" in str(e):
                 # Any conditional failure (missing item, already used, expired, or client mismatch)
-                raise NotFoundException(
-                    "Authorization code not found or not eligible for update"
-                ) from e
+                raise NotFoundException("Authorization code not found or not eligible for update") from e
 
             raise UnknownException(f"Failed to update authorization: {e}") from e
 
@@ -253,7 +246,8 @@ class OAuthActions(TableActions):
             **kwargs: Must include client and code.
 
         Returns:
-            Response: SuccessResponse with a message on success.
+            BaseModel: BaseModel object with structure:
+                - data (Dict): Success message on deletion.
         """
         client = kwargs.get("client", kwargs.get("Client"))
         code = kwargs.get("code", kwargs.get("Code"))

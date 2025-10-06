@@ -19,13 +19,13 @@ Features:
     - **Audit Trail**: Automatic creation/modification timestamp tracking
 
 App Hierarchy:
-    ```
+
     Portfolio (parent)
     ├── App (this module)
     │   ├── Branch (app_prn references this)
     │   │   ├── Build (branch_prn references branch)
     │   │   │   └── Component (build_prn references build)
-    ```
+
 
 Schema Structure:
     The app schema in the core-automation-items table includes:
@@ -129,51 +129,51 @@ Validation Rules:
     - Approvers must follow workflow sequence rules
 
 Configuration Examples:
-    ```python
-    # Basic app configuration
-    app_config = {
-        "prn": "app:acme:web-services:api",
-        "name": "Web API Service",
-        "portfolio_prn": "portfolio:acme:web-services",
-        "repository": "https://github.com/acme/web-api.git",
-        "default_branch": "main",
-        "zone": "production",
-        "contact_email": "api-team@acme.com",
-        "status": "active"
-    }
-
-    # Advanced app with approval workflow
-    app_with_workflow = {
-        "prn": "app:enterprise:platform:auth",
-        "name": "Authentication Service",
-        "portfolio_prn": "portfolio:enterprise:platform",
-        "repository": "https://github.com/enterprise/auth-service.git",
-        "default_branch": "main",
-        "zone": "production",
-        "contact_email": "auth-team@enterprise.com",
-        "approvers": [
-            {
-                "sequence": 1,
-                "email": "security-lead@enterprise.com",
-                "name": "Security Lead",
-                "enabled": True,
-                "depends_on": []
-            },
-            {
-                "sequence": 2,
-                "email": "platform-manager@enterprise.com",
-                "name": "Platform Manager",
-                "enabled": True,
-                "depends_on": ["security-lead@enterprise.com"]
-            }
-        ],
-        "deployment_config": {
-            "auto_deploy": False,
-            "require_tests": True,
-            "security_scan": True
+    .. code: python
+        # Basic app configuration
+        app_config = {
+            "prn": "app:acme:web-services:api",
+            "name": "Web API Service",
+            "portfolio_prn": "portfolio:acme:web-services",
+            "repository": "https://github.com/acme/web-api.git",
+            "default_branch": "main",
+            "zone": "production",
+            "contact_email": "api-team@acme.com",
+            "status": "active"
         }
-    }
-    ```
+
+        # Advanced app with approval workflow
+        app_with_workflow = {
+            "prn": "app:enterprise:platform:auth",
+            "name": "Authentication Service",
+            "portfolio_prn": "portfolio:enterprise:platform",
+            "repository": "https://github.com/enterprise/auth-service.git",
+            "default_branch": "main",
+            "zone": "production",
+            "contact_email": "auth-team@enterprise.com",
+            "approvers": [
+                {
+                    "sequence": 1,
+                    "email": "security-lead@enterprise.com",
+                    "name": "Security Lead",
+                    "enabled": True,
+                    "depends_on": []
+                },
+                {
+                    "sequence": 2,
+                    "email": "platform-manager@enterprise.com",
+                    "name": "Platform Manager",
+                    "enabled": True,
+                    "depends_on": ["security-lead@enterprise.com"]
+                }
+            ],
+            "deployment_config": {
+                "auto_deploy": False,
+                "require_tests": True,
+                "security_scan": True
+            }
+        }
+
 
 Related Modules:
     - core_db.item.portfolio: Parent portfolio items that apps reference
@@ -203,6 +203,6 @@ Note:
 """
 
 from .actions import AppActions
-from .models import AppModel, ItemModelRecord
+from .models import AppModel, AppItem
 
-__all__ = ["AppActions", "AppModel", "ItemModelRecord"]
+__all__ = ["AppActions", "AppModel", "AppItem"]

@@ -743,9 +743,7 @@ def test_get_portfolio_facts():
     assert facts["Domain"] == "platform.acme.com"
     assert facts["Project"]["Name"] == "ACME Enterprise Platform"
     assert facts["Project"]["Code"] == "AEP"
-    assert (
-        facts["Project"]["Repository"] == "https://github.com/acme/enterprise-platform"
-    )
+    assert facts["Project"]["Repository"] == "https://github.com/acme/enterprise-platform"
 
 
 def test_get_app_facts():
@@ -1023,9 +1021,7 @@ def test_get_facts():
     assert isinstance(facts["Tags"], dict)
     for tag_key, tag_value in facts["Tags"].items():
         assert isinstance(tag_key, str), f"Tag key {tag_key} should be string"
-        assert isinstance(
-            tag_value, (str, int, float, bool)
-        ), f"Tag value for {tag_key} should be primitive type"
+        assert isinstance(tag_value, (str, int, float, bool)), f"Tag value for {tag_key} should be primitive type"
 
     # ========== Integration Validation ==========
     # Verify that zone matches app configuration

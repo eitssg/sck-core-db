@@ -18,13 +18,13 @@ Features:
     - **Audit Trail**: Automatic creation/modification timestamp tracking
 
 Portfolio Hierarchy:
-    ```
+
     Portfolio (this module)
     ├── App (portfolio_prn references this)
     │   ├── Branch (app_prn references app)
     │   │   ├── Build (branch_prn references branch)
     │   │   │   └── Component (build_prn references build)
-    ```
+
 
 Schema Structure:
     The portfolio schema in the core-automation-items table includes:
@@ -110,3 +110,6 @@ Note:
     may impact all child app, branch, build, and component items. Consider cascading
     effects and implement appropriate cleanup or prevention logic.
 """
+
+from .actions import PortfolioActions
+from .models import PortfolioModel, PortfolioModelFactory, PortfolioItem

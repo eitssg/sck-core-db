@@ -20,13 +20,13 @@ Features:
     - **Audit Trail**: Automatic creation/modification timestamp tracking
 
 Component Hierarchy:
-    ```
+
     Portfolio (great-great-grandparent)
     ├── App (great-grandparent)
     │   ├── Branch (grandparent)
     │   │   ├── Build (parent)
     │   │   │   └── Component (this module - leaf node)
-    ```
+
 
 Schema Structure:
     The component schema in the core-automation-items table includes:
@@ -209,173 +209,173 @@ Validation Rules:
     - AWS resources must have valid ARN format
 
 Component Types:
-    ```python
-    # Supported component types
-    component_types = {
-        "lambda": "AWS Lambda function",
-        "container": "ECS/Fargate container service",
-        "infrastructure": "CloudFormation infrastructure stack",
-        "api-gateway": "API Gateway REST or HTTP API",
-        "database": "RDS, DynamoDB, or other database",
-        "storage": "S3 bucket or EFS file system",
-        "messaging": "SQS queue, SNS topic, or EventBridge",
-        "cdn": "CloudFront distribution",
-        "static-website": "S3 static website hosting",
-        "batch-job": "AWS Batch job definition"
-    }
-    ```
+    ..code: python
+        # Supported component types
+        component_types = {
+            "lambda": "AWS Lambda function",
+            "container": "ECS/Fargate container service",
+            "infrastructure": "CloudFormation infrastructure stack",
+            "api-gateway": "API Gateway REST or HTTP API",
+            "database": "RDS, DynamoDB, or other database",
+            "storage": "S3 bucket or EFS file system",
+            "messaging": "SQS queue, SNS topic, or EventBridge",
+            "cdn": "CloudFront distribution",
+            "static-website": "S3 static website hosting",
+            "batch-job": "AWS Batch job definition"
+        }
+
 
 Deployment Status Lifecycle:
-    ```python
-    # Component deployment status progression
-    deployment_statuses = [
-        "pending",     # Component ready for deployment
-        "deploying",   # Deployment in progress
-        "deployed",    # Successfully deployed and healthy
-        "failed",      # Deployment failed
-        "rollback",    # Rolling back to previous version
-        "archived",    # Component archived/deprecated
-        "maintenance"  # Component in maintenance mode
-    ]
-    ```
+    ..code: python
+        # Component deployment status progression
+        deployment_statuses = [
+            "pending",     # Component ready for deployment
+            "deploying",   # Deployment in progress
+            "deployed",    # Successfully deployed and healthy
+            "failed",      # Deployment failed
+            "rollback",    # Rolling back to previous version
+            "archived",    # Component archived/deprecated
+            "maintenance"  # Component in maintenance mode
+        ]
+
 
 Configuration Examples:
-    ```python
-    # Lambda function component
-    lambda_component = {
-        "prn": "component:acme:web-services:api:main:123:auth-service",
-        "name": "Authentication Service",
-        "build_prn": "build:acme:web-services:api:main:123",
-        "component_type": "lambda",
-        "artifact_location": "s3://acme-artifacts/auth/123/auth-service.zip",
-        "deployment_status": "deployed",
-        "configuration": {
-            "runtime": "python3.9",
-            "memory": 1024,
-            "timeout": 60,
-            "environment_variables": {
-                "JWT_SECRET": "{{ssm:/acme/auth/jwt-secret}}",
-                "DB_CONNECTION": "{{rds:auth-db:endpoint}}"
+    ..code: python
+        # Lambda function component
+        lambda_component = {
+            "prn": "component:acme:web-services:api:main:123:auth-service",
+            "name": "Authentication Service",
+            "build_prn": "build:acme:web-services:api:main:123",
+            "component_type": "lambda",
+            "artifact_location": "s3://acme-artifacts/auth/123/auth-service.zip",
+            "deployment_status": "deployed",
+            "configuration": {
+                "runtime": "python3.9",
+                "memory": 1024,
+                "timeout": 60,
+                "environment_variables": {
+                    "JWT_SECRET": "{{ssm:/acme/auth/jwt-secret}}",
+                    "DB_CONNECTION": "{{rds:auth-db:endpoint}}"
+                },
+                "vpc_config": {
+                    "subnet_ids": ["subnet-12345", "subnet-67890"],
+                    "security_group_ids": ["sg-abcdef"]
+                }
             },
-            "vpc_config": {
-                "subnet_ids": ["subnet-12345", "subnet-67890"],
-                "security_group_ids": ["sg-abcdef"]
-            }
-        },
-        "aws_resources": [
-            {
-                "type": "AWS::Lambda::Function",
-                "logical_id": "AuthService",
-                "physical_id": "acme-auth-service",
-                "arn": "arn:aws:lambda:us-west-2:123456789012:function:acme-auth-service"
-            }
-        ]
-    }
+            "aws_resources": [
+                {
+                    "type": "AWS::Lambda::Function",
+                    "logical_id": "AuthService",
+                    "physical_id": "acme-auth-service",
+                    "arn": "arn:aws:lambda:us-west-2:123456789012:function:acme-auth-service"
+                }
+            ]
+        }
 
-    # Container service component
-    container_component = {
-        "prn": "component:enterprise:platform:web:main:200:frontend-app",
-        "name": "Frontend Application",
-        "build_prn": "build:enterprise:platform:web:main:200",
-        "component_type": "container",
-        "artifact_location": "123456789012.dkr.ecr.us-west-2.amazonaws.com/enterprise/frontend:v200",
-        "deployment_status": "deployed",
-        "configuration": {
-            "cpu": 512,
-            "memory": 1024,
-            "desired_count": 3,
-            "port": 3000,
-            "health_check_path": "/api/health",
-            "environment_variables": {
-                "NODE_ENV": "production",
-                "API_ENDPOINT": "https://api.enterprise.com"
+        # Container service component
+        container_component = {
+            "prn": "component:enterprise:platform:web:main:200:frontend-app",
+            "name": "Frontend Application",
+            "build_prn": "build:enterprise:platform:web:main:200",
+            "component_type": "container",
+            "artifact_location": "123456789012.dkr.ecr.us-west-2.amazonaws.com/enterprise/frontend:v200",
+            "deployment_status": "deployed",
+            "configuration": {
+                "cpu": 512,
+                "memory": 1024,
+                "desired_count": 3,
+                "port": 3000,
+                "health_check_path": "/api/health",
+                "environment_variables": {
+                    "NODE_ENV": "production",
+                    "API_ENDPOINT": "https://api.enterprise.com"
+                },
+                "auto_scaling": {
+                    "min_capacity": 2,
+                    "max_capacity": 10,
+                    "target_cpu": 70
+                }
             },
-            "auto_scaling": {
-                "min_capacity": 2,
-                "max_capacity": 10,
-                "target_cpu": 70
-            }
-        },
-        "aws_resources": [
-            {
-                "type": "AWS::ECS::Service",
-                "logical_id": "FrontendService",
-                "physical_id": "enterprise-frontend-service"
-            },
-            {
-                "type": "AWS::ApplicationAutoScaling::ScalableTarget",
-                "logical_id": "FrontendScalingTarget"
-            }
-        ]
-    }
+            "aws_resources": [
+                {
+                    "type": "AWS::ECS::Service",
+                    "logical_id": "FrontendService",
+                    "physical_id": "enterprise-frontend-service"
+                },
+                {
+                    "type": "AWS::ApplicationAutoScaling::ScalableTarget",
+                    "logical_id": "FrontendScalingTarget"
+                }
+            ]
+        }
 
-    # Infrastructure component
-    infrastructure_component = {
-        "prn": "component:acme:data:etl:main:150:data-pipeline",
-        "name": "Data Processing Pipeline",
-        "build_prn": "build:acme:data:etl:main:150",
-        "component_type": "infrastructure",
-        "artifact_location": "s3://acme-artifacts/etl/150/pipeline-template.yaml",
-        "deployment_status": "deployed",
-        "configuration": {
-            "stack_name": "acme-data-pipeline",
-            "parameters": {
-                "DataBucketName": "acme-data-lake",
-                "ProcessingSchedule": "rate(1 hour)",
-                "NotificationEmail": "data-team@acme.com"
+        # Infrastructure component
+        infrastructure_component = {
+            "prn": "component:acme:data:etl:main:150:data-pipeline",
+            "name": "Data Processing Pipeline",
+            "build_prn": "build:acme:data:etl:main:150",
+            "component_type": "infrastructure",
+            "artifact_location": "s3://acme-artifacts/etl/150/pipeline-template.yaml",
+            "deployment_status": "deployed",
+            "configuration": {
+                "stack_name": "acme-data-pipeline",
+                "parameters": {
+                    "DataBucketName": "acme-data-lake",
+                    "ProcessingSchedule": "rate(1 hour)",
+                    "NotificationEmail": "data-team@acme.com"
+                },
+                "tags": {
+                    "Environment": "production",
+                    "Team": "data-engineering",
+                    "CostCenter": "analytics"
+                }
             },
-            "tags": {
-                "Environment": "production",
-                "Team": "data-engineering",
-                "CostCenter": "analytics"
-            }
-        },
-        "aws_resources": [
-            {
-                "type": "AWS::S3::Bucket",
-                "logical_id": "ProcessingBucket",
-                "physical_id": "acme-data-processing-bucket"
-            },
-            {
-                "type": "AWS::Lambda::Function",
-                "logical_id": "DataProcessor",
-                "physical_id": "acme-data-processor"
-            },
-            {
-                "type": "AWS::Events::Rule",
-                "logical_id": "ProcessingSchedule",
-                "physical_id": "acme-data-schedule"
-            }
-        ]
-    }
-    ```
+            "aws_resources": [
+                {
+                    "type": "AWS::S3::Bucket",
+                    "logical_id": "ProcessingBucket",
+                    "physical_id": "acme-data-processing-bucket"
+                },
+                {
+                    "type": "AWS::Lambda::Function",
+                    "logical_id": "DataProcessor",
+                    "physical_id": "acme-data-processor"
+                },
+                {
+                    "type": "AWS::Events::Rule",
+                    "logical_id": "ProcessingSchedule",
+                    "physical_id": "acme-data-schedule"
+                }
+            ]
+        }
+
 
 Health Check Configuration:
-    ```python
-    # Health check configurations by component type
-    health_checks = {
-        "lambda": {
-            "type": "function_invocation",
-            "timeout": 10,
-            "retry_count": 3
-        },
-        "container": {
-            "type": "http",
-            "path": "/health",
-            "port": 8080,
-            "interval": 30,
-            "timeout": 5,
-            "healthy_threshold": 2,
-            "unhealthy_threshold": 3
-        },
-        "api-gateway": {
-            "type": "http",
-            "path": "/health",
-            "expected_status": 200,
-            "timeout": 10
+    ..code: python
+        # Health check configurations by component type
+        health_checks = {
+            "lambda": {
+                "type": "function_invocation",
+                "timeout": 10,
+                "retry_count": 3
+            },
+            "container": {
+                "type": "http",
+                "path": "/health",
+                "port": 8080,
+                "interval": 30,
+                "timeout": 5,
+                "healthy_threshold": 2,
+                "unhealthy_threshold": 3
+            },
+            "api-gateway": {
+                "type": "http",
+                "path": "/health",
+                "expected_status": 200,
+                "timeout": 10
+            }
         }
-    }
-    ```
+
 
 Related Modules:
     - core_db.item.build: Parent build items that components reference

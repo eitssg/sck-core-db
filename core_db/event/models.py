@@ -1,13 +1,12 @@
 """Defines the data model and attributes stored in DynamoDB using the pynamdb interface."""
 
-from typing import Type, Union, Dict, Any, Optional, Self
+from typing import Type, Union, Dict, Any, Optional
 from datetime import datetime, timezone
 import dateutil
 
 from pydantic import Field, field_validator, model_validator
 
 from pynamodb.attributes import UnicodeAttribute, UTCDateTimeAttribute, MapAttribute
-from pynamodb.expressions.update import Action
 
 
 import core_logging as log
@@ -21,13 +20,7 @@ from core_framework.constants import (
 )
 from core_framework.time_utils import make_default_time
 
-from ..models import DatabaseTable, TableFactory, DatabaseRecord, Paginator
-from ..exceptions import (
-    BadRequestException,
-    ConflictException,
-    UnknownException,
-    NotFoundException,
-)
+from ..models import DatabaseTable, TableFactory, DatabaseRecord
 
 
 def convert_level_name(value: Union[int, str]) -> str:
@@ -123,9 +116,7 @@ class EventModel(DatabaseTable):
 
     # Keys for events
     prn = UnicodeAttribute(hash_key=True, attr_name="Prn")
-    timestamp = UTCDateTimeAttribute(
-        range_key=True, default_for_new=make_default_time, attr_name="Timestamp"
-    )
+    timestamp = UTCDateTimeAttribute(range_key=True, default_for_new=make_default_time, attr_name="Timestamp")
 
     # Event details
     event_type = UnicodeAttribute(default_for_new="STATUS", attr_name="EventType")
@@ -292,14 +283,14 @@ class EventItem(DatabaseRecord):
         description='The status for the event "ok", "error", "running", etc.',
     )
     message: Optional[str] = Field(
-        None,
         alias="Message",
         description="Event message details",
+        default=None,
     )
     details: Optional[Dict[str, Any]] = Field(
-        None,
         alias="Details",
         description="Additional detailed information about the event",
+        default=None,
     )
 
     @model_validator(mode="before")
@@ -322,7 +313,7 @@ class EventItem(DatabaseRecord):
 
         prn = values.get("prn")
         if not prn:
-            raise ValueError(f"prn not specified in event")
+            raise ValueError("prn not specified in event")
 
         values["item_type"] = EventItem.get_item_type(prn)
 

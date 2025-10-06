@@ -898,9 +898,7 @@ test_data = [
                         "delegate_aws_account_ids": ["123456789012"],
                     },
                 },
-                "region_facts": {
-                    "sin": {"aws_region": "ap-southeast-1", "az_count": 3}
-                },
+                "region_facts": {"sin": {"aws_region": "ap-southeast-1", "az_count": 3}},
             },
         },
         {

@@ -1,18 +1,18 @@
-import pytest
-from core_db.item.portfolio.actions import PortfolioActions
-from core_db.item.app.actions import AppActions
-from core_db.item.branch.actions import BranchActions
-from core_db.item.build.actions import BuildActions
-from core_db.item.component.actions import ComponentActions
-from core_db.response import SuccessResponse
+import core_framework as util
 
-from .bootstrap import *
+from core_db.event import EventItem
+from core_db.item.portfolio import PortfolioActions, PortfolioItem
+from core_db.item.app import AppActions, AppItem
+from core_db.item.branch import BranchActions, BranchItem
+from core_db.item.build import BuildActions, BuildItem
+from core_db.item.component import ComponentActions, ComponentItem
 
-client = util.get_client()
+from .bootstrap import *  # noqa: F401
+
+client = util.get_client() or "core"
 
 """Create a portfolio item - foundation for all other tests."""
-portfolio_data = {
-    "client": client,
+portfolio_data: dict = {
     "name": "test-portfolio",
     "contact_email": "test@example.com",
     "metadata": {
@@ -20,8 +20,7 @@ portfolio_data = {
         "description": "Test portfolio for integration tests",
     },
 }
-app_data = {
-    "client": client,
+app_data: dict = {
     "portfolio": "test-portfolio",
     "name": "test-app",
     "contact_email": "app-team@example.com",
@@ -31,8 +30,7 @@ app_data = {
         "tags": {"language": "python", "framework": "fastapi"},
     },
 }
-branch_data = {
-    "client": client,
+branch_data: dict = {
     "portfolio": "test-portfolio",
     "app": "test-app",
     "name": "main",
@@ -43,8 +41,7 @@ branch_data = {
     },
 }
 
-build_data = {
-    "client": client,
+build_data: dict = {
     "portfolio": "test-portfolio",
     "app": "test-app",
     "branch": "main",
@@ -57,8 +54,7 @@ build_data = {
     },
 }
 
-component_data = {
-    "client": client,
+component_data: dict = {
     "portfolio": "test-portfolio",
     "app": "test-app",
     "branch": "main",
@@ -75,7 +71,7 @@ component_data = {
 }
 
 # Global test data to maintain state across dependent tests
-test_data = {
+test_data: dict = {
     "portfolio": portfolio_data,
     "app": app_data,
     "branch": branch_data,
@@ -90,17 +86,19 @@ test_data = {
 
 def test_portfolio_items_create(bootstrap_dynamo):
 
-    response = PortfolioActions.create(**portfolio_data)
+    response: PortfolioItem = PortfolioActions.create(client=client, **portfolio_data)
 
-    assert isinstance(response, SuccessResponse)
-    assert response.data is not None
-    assert response.data["name"] == portfolio_data["name"]
-    assert response.data["contact_email"] == portfolio_data["contact_email"]
-    assert response.data["metadata"]["tags"]["environment"] == "test"
+    assert isinstance(response, PortfolioItem)
+    assert response.name == portfolio_data["name"]
+    assert response.contact_email == portfolio_data["contact_email"]
+    assert response.metadata is not None
+    assert "tags" in response.metadata
+    assert "environment" in response.metadata["tags"]
+    assert response.metadata["tags"]["environment"] == "test"
 
     # Store for dependent tests
-    test_data["portfolio"] = response.data
-    print(f"✅ Created portfolio: {response.data.get('prn')}")
+    test_data["portfolio"] = response
+    print(f"✅ Created portfolio: {response.prn}")
 
 
 def test_portfolio_items_list():
@@ -108,34 +106,30 @@ def test_portfolio_items_list():
 
     portfolio_prn = "prn:test-portfolio"
 
-    response = PortfolioActions.list(client=client, prn=portfolio_prn)
+    response, paginator = PortfolioActions.list(client=client, prn=portfolio_prn)
 
-    assert isinstance(response, SuccessResponse)
-    assert response.data is not None
-    assert isinstance(response.data, list)
-    assert len(response.data) >= 1, "Should find at least the created portfolio"
+    assert isinstance(response, list)
+    assert len(response) >= 1, "Should find at least the created portfolio"
+    assert paginator.total_count >= 1
 
     # Verify we can find our created portfolio
     found = False
-    for item in response.data:
-        if item["prn"] == portfolio_prn:
+    for item in response:
+        if item.prn == portfolio_prn:
             found = True
             break
 
     assert found, f"Should find portfolio {portfolio_prn} in list results"
-    print(f"✅ Listed portfolios, found: {len(response.data)} items")
+    print(f"✅ Listed portfolios, found: {len(response)} items")
 
 
 def test_portfolio_items_update():
     """Update portfolio item - depends on list test."""
-    assert (
-        test_data["portfolio"] is not None
-    ), "Portfolio create and list tests must run first"
+    assert test_data["portfolio"] is not None, "Portfolio create and list tests must run first"
 
     portfolio_prn = "prn:test-portfolio"
 
     update_data = {
-        "client": client,
         "prn": portfolio_prn,
         "contact_email": "updated@example.com",
         "metadata": {
@@ -144,32 +138,25 @@ def test_portfolio_items_update():
         },
     }
 
-    response = PortfolioActions.update(**update_data)
+    response: PortfolioItem = PortfolioActions.update(client=client, **update_data)
 
-    assert isinstance(response, SuccessResponse)
-    assert response.data is not None
-    assert response.data["contact_email"] == update_data["contact_email"]
-    assert response.data["metadata"]["tags"]["updated"] == "true"
-    assert (
-        response.data["metadata"]["description"] == "Updated test portfolio description"
-    )
+    assert isinstance(response, PortfolioItem)
+    assert response.contact_email == update_data["contact_email"]
 
     # Update stored data
-    test_data["portfolio"] = response.data
+    test_data["portfolio"] = response
     print(f"✅ Updated portfolio: {portfolio_prn}")
 
 
 def test_portfolio_items_delete():
     """Delete portfolio item - depends on update test."""
-    assert (
-        test_data["portfolio"] is not None
-    ), "Portfolio create, list, and update tests must run first"
+    assert test_data["portfolio"] is not None, "Portfolio create, list, and update tests must run first"
 
     portfolio_prn = "prn:test-portfolio"
 
-    response = PortfolioActions.delete(client=client, prn=portfolio_prn)
+    response: bool = PortfolioActions.delete(client=client, prn=portfolio_prn)
 
-    assert isinstance(response, SuccessResponse)
+    assert response is True
     print(f"✅ Deleted portfolio: {portfolio_prn}")
 
 
@@ -181,17 +168,16 @@ def test_portfolio_items_delete():
 def test_app_items_create(bootstrap_dynamo):
     """Create an app item - depends on portfolio being available."""
 
-    response = AppActions.create(**app_data)
+    response: AppItem = AppActions.create(client=client, **app_data)
 
-    assert isinstance(response, SuccessResponse)
-    assert response.data is not None
-    assert response.data["name"] == app_data["name"]
-    assert response.data["portfolio_prn"] == "prn:test-portfolio"
-    assert response.data["contact_email"] == app_data["contact_email"]
+    assert isinstance(response, AppItem)
+    assert response.name == app_data["name"]
+    assert response.portfolio_prn == "prn:test-portfolio"
+    assert response.contact_email == app_data["contact_email"]
 
     # Store for dependent tests
-    test_data["app"] = response.data
-    print(f"✅ Created app: {response.data.get('prn')}")
+    test_data["app"] = response
+    print(f"✅ Created app: {response.prn}")
 
 
 def test_app_items_list():
@@ -200,22 +186,20 @@ def test_app_items_list():
 
     app_prn = "prn:test-portfolio:test-app"
 
-    response = AppActions.list(client=client, prn=app_prn)
+    response, paginator = AppActions.list(client=client, prn=app_prn)
 
-    assert isinstance(response, SuccessResponse)
-    assert response.data is not None
-    assert isinstance(response.data, list)
-    assert len(response.data) >= 1, "Should find at least the created app"
+    assert isinstance(response, list)
+    assert len(response) >= 1, "Should find at least the created app"
 
     # Verify we can find our created app
     found = False
-    for item in response.data:
-        if item["prn"] == app_prn:
+    for item in response:
+        if item.prn == app_prn:
             found = True
             break
 
     assert found, f"Should find app {app_prn} in list results"
-    print(f"✅ Listed apps, found: {len(response.data)} items")
+    print(f"✅ Listed apps, found: {len(response)} items")
 
 
 def test_app_items_update():
@@ -225,7 +209,6 @@ def test_app_items_update():
     app_prn = "prn:test-portfolio:test-app"
 
     update_data = {
-        "client": client,
         "prn": app_prn,
         "contact_email": "updated-app-team@example.com",
         "metadata": {
@@ -235,33 +218,26 @@ def test_app_items_update():
         },
     }
 
-    response = AppActions.update(**update_data)
+    response: AppItem = AppActions.update(client=client, **update_data)
 
-    assert isinstance(response, SuccessResponse)
-    assert response.data is not None
-    assert response.data["contact_email"] == update_data["contact_email"]
-    assert (
-        response.data["metadata"]["description"]
-        == "Updated test application description"
-    )
-    assert response.data["metadata"]["tags"]["updated"] == "true"
+    assert isinstance(response, AppItem)
+
+    assert response.contact_email == update_data["contact_email"]
 
     # Update stored data
-    test_data["app"] = response.data
+    test_data["app"] = response
     print(f"✅ Updated app: {app_prn}")
 
 
 def test_app_items_delete():
     """Delete app item - depends on update test."""
-    assert (
-        test_data["app"] is not None
-    ), "App create, list, and update tests must run first"
+    assert test_data["app"] is not None, "App create, list, and update tests must run first"
 
     app_prn = "prn:test-portfolio:test-app"
 
-    response = AppActions.delete(client=client, prn=app_prn)
+    response: bool = AppActions.delete(client=client, prn=app_prn)
 
-    assert isinstance(response, SuccessResponse)
+    assert response is True
     print(f"✅ Deleted app: {app_prn}")
 
 
@@ -273,16 +249,15 @@ def test_app_items_delete():
 def test_branch_items_create(bootstrap_dynamo):
     """Create a branch item - depends on app being available."""
 
-    response = BranchActions.create(**branch_data)
+    response: BranchItem = BranchActions.create(client=client, **branch_data)
 
-    assert isinstance(response, SuccessResponse)
-    assert response.data is not None
-    assert response.data["name"] == branch_data["name"]
-    assert response.data["app_prn"] == "prn:test-portfolio:test-app"
+    assert isinstance(response, BranchItem)
+    assert response.name == branch_data["name"]
+    assert response.app_prn == "prn:test-portfolio:test-app"
 
     # Store for dependent tests
-    test_data["branch"] = response.data
-    print(f"✅ Created branch: {response.data.get('prn')}")
+    test_data["branch"] = response
+    print(f"✅ Created branch: {response.prn}")
 
 
 def test_branch_items_list():
@@ -291,34 +266,30 @@ def test_branch_items_list():
 
     branch_prn = "prn:test-portfolio:test-app:main"
 
-    response = BranchActions.list(client=client, prn=branch_prn)
+    response, paginator = BranchActions.list(client=client, prn=branch_prn)
 
-    assert isinstance(response, SuccessResponse)
-    assert response.data is not None
-    assert isinstance(response.data, list)
-    assert len(response.data) >= 1, "Should find at least the created branch"
+    assert isinstance(response, list)
+    assert len(response) >= 1, "Should find at least the created branch"
+    assert paginator.total_count >= 1
 
     # Verify we can find our created branch
     found = False
-    for item in response.data:
-        if item["prn"] == branch_prn:
+    for item in response:
+        if item.prn == branch_prn:
             found = True
             break
 
     assert found, f"Should find branch {branch_prn} in list results"
-    print(f"✅ Listed branches, found: {len(response.data)} items")
+    print(f"✅ Listed branches, found: {len(response)} items")
 
 
 def test_branch_items_update():
     """Update branch item - depends on list test."""
-    assert (
-        test_data["branch"] is not None
-    ), "Branch create and list tests must run first"
+    assert test_data["branch"] is not None, "Branch create and list tests must run first"
 
     branch_prn = "prn:test-portfolio:test-app:main"
 
     update_data = {
-        "client": client,
         "prn": branch_prn,
         "contact_email": "updated-branch-team@example.com",
         "released_build_prn": "prn:test-portfolio:test-app:main:1.0.0",
@@ -330,34 +301,30 @@ def test_branch_items_update():
         },
     }
 
-    response = BranchActions.update(**update_data)
+    response: BranchItem = BranchActions.update(client=client, **update_data)
 
-    assert isinstance(response, SuccessResponse)
-    assert response.data is not None
-    assert response.data["metadata"]["description"] == "Updated main branch description"
-    assert response.data["metadata"]["tags"]["updated"] == "true"
+    assert isinstance(response, BranchItem)
+    assert response.metadata is not None
+    assert response.metadata["description"] == "Updated main branch description"
+    assert response.metadata["tags"]["updated"] == "true"
+
     # The prn will be normalized as '.' characters are not allowed and replaced with '-'
-    assert (
-        response.data["released_build"]["prn"]
-        == "prn:test-portfolio:test-app:main:1-0-0"
-    )
+    assert response.released_build.prn == "prn:test-portfolio:test-app:main:1-0-0"
 
     # Update stored data
-    test_data["branch"] = response.data
+    test_data["branch"] = response
     print(f"✅ Updated branch: {branch_prn}")
 
 
 def test_branch_items_delete():
     """Delete branch item - depends on update test."""
-    assert (
-        test_data["branch"] is not None
-    ), "Branch create, list, and update tests must run first"
+    assert test_data["branch"] is not None, "Branch create, list, and update tests must run first"
 
     branch_prn = "prn:test-portfolio:test-app:main"
 
-    response = BranchActions.delete(client=client, prn=branch_prn)
+    response: bool = BranchActions.delete(client=client, prn=branch_prn)
 
-    assert isinstance(response, SuccessResponse)
+    assert response is True
     print(f"✅ Deleted branch: {branch_prn}")
 
 
@@ -369,19 +336,18 @@ def test_branch_items_delete():
 def test_build_items_create(bootstrap_dynamo):
     """Create a build item - depends on branch being available."""
 
-    response = BuildActions.create(**build_data)
+    response: BuildItem = BuildActions.create(client=client, **build_data)
 
-    assert isinstance(response, SuccessResponse)
-    assert response.data is not None
-    assert response.data["name"] == build_data["name"]
-    assert response.data["branch_prn"] == "prn:test-portfolio:test-app:main"
+    assert isinstance(response, BuildItem)
+    assert response.name == build_data["name"]
+    assert response.branch_prn == "prn:test-portfolio:test-app:main"
 
     # The prn will be normalized as '.' characters are not allowed and replaced with '-'
-    assert response.data["prn"] == "prn:test-portfolio:test-app:main:1-0-0"
+    assert response.prn == "prn:test-portfolio:test-app:main:1-0-0"
 
     # Store for dependent tests
-    test_data["build"] = response.data
-    print(f"✅ Created build: {response.data.get('prn')}")
+    test_data["build"] = response
+    print(f"✅ Created build: {response.prn}")
 
 
 def test_build_items_list():
@@ -390,22 +356,21 @@ def test_build_items_list():
 
     build_prn = "prn:test-portfolio:test-app:main:1-0-0"
 
-    response = BuildActions.list(client=client, prn=build_prn)
+    response, paginator = BuildActions.list(client=client, prn=build_prn)
 
-    assert isinstance(response, SuccessResponse)
-    assert response.data is not None
-    assert isinstance(response.data, list)
-    assert len(response.data) >= 1, "Should find at least the created build"
+    assert isinstance(response, list)
+    assert len(response) >= 1, "Should find at least the created build"
+    assert paginator.total_count >= 1
 
     # Verify we can find our created build
     found = False
-    for item in response.data:
-        if item["prn"] == build_prn:
+    for item in response:
+        if item.prn == build_prn:
             found = True
             break
 
     assert found, f"Should find build {build_prn} in list results"
-    print(f"✅ Listed builds, found: {len(response.data)} items")
+    print(f"✅ Listed builds, found: {len(response)} items")
 
 
 def test_build_items_update():
@@ -415,7 +380,6 @@ def test_build_items_update():
     build_prn = "prn:test-portfolio:test-app:main:1-0-0"
 
     update_data = {
-        "client": client,
         "prn": build_prn,
         "metadata": {
             "description": "Updated test build description",
@@ -424,30 +388,28 @@ def test_build_items_update():
         },
     }
 
-    response = BuildActions.update(**update_data)
+    response: BuildItem = BuildActions.update(client=client, **update_data)
 
-    assert isinstance(response, SuccessResponse)
-    assert response.data is not None
-    assert response.data["metadata"]["description"] == "Updated test build description"
-    assert response.data["metadata"]["tags"]["updated"] == "true"
-    assert response.data["metadata"]["tags"]["type"] == "release"
+    assert isinstance(response, BuildItem)
+    assert response.metadata is not None
+    assert response.metadata["description"] == "Updated test build description"
+    assert response.metadata["tags"]["updated"] == "true"
+    assert response.metadata["tags"]["type"] == "release"
 
     # Update stored data
-    test_data["build"] = response.data
+    test_data["build"] = response
     print(f"✅ Updated build: {build_prn}")
 
 
 def test_build_items_delete():
     """Delete build item - depends on update test."""
-    assert (
-        test_data["build"] is not None
-    ), "Build create, list, and update tests must run first"
+    assert test_data["build"] is not None, "Build create, list, and update tests must run first"
 
     build_prn = "prn:test-portfolio:test-app:main:1-0-0"
 
-    response = BuildActions.delete(client=client, prn=build_prn)
+    response: bool = BuildActions.delete(client=client, prn=build_prn)
 
-    assert isinstance(response, SuccessResponse)
+    assert response is True
     print(f"✅ Deleted build: {build_prn}")
 
 
@@ -459,17 +421,16 @@ def test_build_items_delete():
 def test_component_items_create(bootstrap_dynamo):
     """Create a component item - depends on build being available."""
 
-    response = ComponentActions.create(**component_data)
+    response: ComponentItem = ComponentActions.create(client=client, **component_data)
 
-    assert isinstance(response, SuccessResponse)
-    assert response.data is not None
-    assert response.data["name"] == component_data["name"]
-    assert response.data["component_type"] == component_data["component_type"]
-    assert response.data["build_prn"] == "prn:test-portfolio:test-app:main:1-0-0"
+    assert isinstance(response, ComponentItem)
+    assert response.name == component_data["name"]
+    assert response.component_type == component_data["component_type"]
+    assert response.build_prn == "prn:test-portfolio:test-app:main:1-0-0"
 
     # Store for dependent tests
-    test_data["component"] = response.data
-    print(f"✅ Created component: {response.data.get('prn')}")
+    test_data["component"] = response
+    print(f"✅ Created component: {response.prn}")
 
 
 def test_component_items_list():
@@ -478,34 +439,30 @@ def test_component_items_list():
 
     component_prn = "prn:test-portfolio:test-app:main:1-0-0:api-gateway"
 
-    response = ComponentActions.list(client=client, prn=component_prn)
+    response, paginator = ComponentActions.list(client=client, prn=component_prn)
 
-    assert isinstance(response, SuccessResponse)
-    assert response.data is not None
-    assert isinstance(response.data, list)
-    assert len(response.data) >= 1, "Should find at least the created component"
+    assert isinstance(response, list)
+    assert len(response) >= 1, "Should find at least the created component"
+    assert paginator.total_count >= 1
 
     # Verify we can find our created component
     found = False
-    for item in response.data:
-        if item["prn"] == component_prn:
+    for item in response:
+        if item.prn == component_prn:
             found = True
             break
 
     assert found, f"Should find component {component_prn} in list results"
-    print(f"✅ Listed components, found: {len(response.data)} items")
+    print(f"✅ Listed components, found: {len(response)} items")
 
 
 def test_component_items_update():
     """Update component item - depends on list test."""
-    assert (
-        test_data["component"] is not None
-    ), "Component create and list tests must run first"
+    assert test_data["component"] is not None, "Component create and list tests must run first"
 
     component_prn = "prn:test-portfolio:test-app:main:1-0-0:api-gateway"
 
     update_data = {
-        "client": client,
         "prn": component_prn,
         "metadata": {
             "description": "Updated API Gateway component description",
@@ -513,30 +470,25 @@ def test_component_items_update():
         },
     }
 
-    response = ComponentActions.update(**update_data)
+    response: ComponentItem = ComponentActions.update(client=client, **update_data)
 
-    assert isinstance(response, SuccessResponse)
-    assert response.data is not None
-    assert (
-        response.data["metadata"]["description"]
-        == "Updated API Gateway component description"
-    )
-    assert response.data["metadata"]["tags"]["updated"] == "true"
+    assert isinstance(response, ComponentItem)
+    assert response.metadata is not None
+    assert response.metadata["description"] == "Updated API Gateway component description"
+    assert response.metadata["tags"]["updated"] == "true"
 
     # Update stored data
-    test_data["component"] = response.data
+    test_data["component"] = response.metadata
     print(f"✅ Updated component: {component_prn}")
 
 
 def test_component_items_delete():
     """Delete component item - depends on update test."""
-    assert (
-        test_data["component"] is not None
-    ), "Component create, list, and update tests must run first"
+    assert test_data["component"] is not None, "Component create, list, and update tests must run first"
 
     component_prn = "prn:test-portfolio:test-app:main:1-0-0:api-gateway"
 
-    response = ComponentActions.delete(client=client, prn=component_prn)
+    response: bool = ComponentActions.delete(client=client, prn=component_prn)
 
-    assert isinstance(response, SuccessResponse)
+    assert response is True
     print(f"✅ Deleted component: {component_prn}")
