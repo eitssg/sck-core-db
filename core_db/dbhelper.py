@@ -314,7 +314,7 @@ def register_item(
             log.debug(f"Checking if item '{prn}' exists")
             item_record: ItemModelRecord = klazz.get(client=client, prn=prn)
             log.debug(f"Item '{prn}' exists, updating")
-            item_record = klazz.update(client=client, prn=prn, **data)
+            item_record = klazz.update(client=client, **data)
         except NotFoundException:
             log.debug(f"Item '{prn}' does not exist, creating")
             item_record = klazz.create(client=client, **data)
