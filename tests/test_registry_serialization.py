@@ -317,12 +317,12 @@ def zone_facts():
             "resource_namespace": "acme-prod-west",
             "network_name": "acme-production-network",
             # These are ListAttribute, not MapAttribute!
-            "vpc_aliases": ["vpc-12345abcde", "vpc-67890fghij"],
-            "subnet_aliases": [
-                "subnet-web1a12345",
-                "subnet-app1a11111",
-                "subnet-db1a33333",
-            ],
+            "vpc_aliases": {"vpc-12345abcde": {"cidr": "192.168.1.0/24"}, "vpc-67890fghij": {"cidr": "192.168.2.0/24"}},
+            "subnet_aliases": {
+                "subnet-web1a12345": {"cidr": "192.168.1.0/24"},
+                "subnet-app1a11111": {"cidr": "192.168.1.0/24"},
+                "subnet-db1a33333": {"cidr": "192.168.1.0/24"},
+            },
             "tags": {
                 "Environment": "production",
                 "Region": "us-west-2",
@@ -426,12 +426,15 @@ def zone_fact_alias():
             "ResourceNamespace": "acme-prod-west",  # alias for resource_namespace
             "NetworkName": "acme-production-network",  # alias for network_name
             # These remain as lists (no PascalCase needed for list items)
-            "VpcAliases": ["vpc-12345abcde", "vpc-67890fghij"],  # alias for vpc_aliases
-            "SubnetAliases": [
-                "subnet-web1a12345",
-                "subnet-app1a11111",
-                "subnet-db1a33333",
-            ],  # alias for subnet_aliases
+            "VpcAliases": {
+                "vpc-12345abcde": {"cidr": "192.168.1.0/24"},
+                "vpc-67890fghij": {"cidr": "192.168.2.0/24"},
+            },  # alias for vpc_aliases
+            "SubnetAliases": {
+                "subnet-web1a12345": {"cidr": "192.168.1.0/24"},
+                "subnet-app1a11111": {"cidr": "192.168.1.0/24"},
+                "subnet-db1a33333": {"cidr": "192.168.1.0/24"},
+            },  # alias for subnet_aliases
             "Tags": {
                 "Environment": "production",
                 "Region": "us-west-2",

@@ -30,7 +30,7 @@ client_facts = {
     "organization_account": "123456789012",
     "organization_email": "aws-admin@acme.com",
     # Domain and Networking
-    "domain": "acme.com",
+    "domain": "platform.acme.com",
     # AWS Account Assignments (Multi-account architecture)
     "iam_account": "123456789012",  # Same as org account for this example
     "audit_account": "123456789013",  # Dedicated audit account
@@ -72,18 +72,22 @@ zone_facts = {
         },
         "resource_namespace": "acme-prod",
         "network_name": "production-network",
-        "vpc_aliases": ["vpc-prod-main", "vpc-prod-backup", "vpc-prod-dmz"],
-        "subnet_aliases": [
-            "subnet-prod-public-1a",
-            "subnet-prod-public-1b",
-            "subnet-prod-public-1c",
-            "subnet-prod-private-1a",
-            "subnet-prod-private-1b",
-            "subnet-prod-private-1c",
-            "subnet-prod-database-1a",
-            "subnet-prod-database-1b",
-            "subnet-prod-database-1c",
-        ],
+        "vpc_aliases": {
+            "vpc-prod-main": {"cidr": "192.168.1.0/24"},
+            "vpc-prod-backup": {"cidr": "192.168.2.0/24"},
+            "vpc-prod-dmz": {"cidr": "192.168.3.0/24"},
+        },
+        "subnet_aliases": {
+            "subnet-prod-public-1a": {"cidr": "192.168.1.0/24"},
+            "subnet-prod-public-1b": {"cidr": "192.168.1.0/24"},
+            "subnet-prod-public-1c": {"cidr": "192.168.1.0/24"},
+            "subnet-prod-private-1a": {"cidr": "192.168.2.0/24"},
+            "subnet-prod-private-1b": {"cidr": "192.168.2.0/24"},
+            "subnet-prod-private-1c": {"cidr": "192.168.2.0/24"},
+            "subnet-prod-database-1a": {"cidr": "192.168.3.0/24"},
+            "subnet-prod-database-1b": {"cidr": "192.168.3.0/24"},
+            "subnet-prod-database-1c": {"cidr": "192.168.3.0/24"},
+        },
         "tags": {
             "Environment": "production",
             "Owner": "platform-team",
@@ -166,13 +170,13 @@ zone_facts = {
             "proxy": [
                 {
                     "host": "proxy.acme.com",
-                    "port": "8080",
+                    "port": 8080,
                     "url": "http://proxy.acme.com:8080",
                     "no_proxy": "*.acme.com,10.0.0.0/8,172.16.0.0/12,169.254.169.254,localhost",
                 },
                 {
                     "host": "proxy-backup.acme.com",
-                    "port": "8080",
+                    "port": 8080,
                     "url": "http://proxy-backup.acme.com:8080",
                     "no_proxy": "*.acme.com,10.0.0.0/8,172.16.0.0/12,169.254.169.254,localhost",
                 },
@@ -877,7 +881,7 @@ def test_get_facts():
         proxy_list = facts["Proxy"]
         assert len(proxy_list) >= 1
         assert proxy_list[0]["Host"] == "proxy.acme.com"
-        assert proxy_list[0]["Port"] == "8080"
+        assert proxy_list[0]["Port"] == 8080
 
     # ========== DNS Configuration Assertions ==========
     assert "NameServers" in facts
