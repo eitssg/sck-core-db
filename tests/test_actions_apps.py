@@ -28,7 +28,6 @@ app_facts = [
         "region": "us-east-1",
         "repository": "https://github.com/acme/core-api",
         "enforce_validation": "true",
-        "user_instantiated": "false",
         "image_aliases": {"base": "nginx:1.21-alpine", "app": "acme/core-api:latest"},
         "tags": {
             "Environment": "production",
@@ -54,7 +53,6 @@ app_facts = [
         "region": "us-central-1",
         "repository": "https://github.com/acme/billing-service",
         "enforce_validation": "false",
-        "user_instantiated": "true",
         "image_aliases": {"base": "alpine:3.15", "app": "acme/billing-service:uat"},
         "tags": {"Environment": "uat", "Team": "billing", "Purpose": "testing"},
         "metadata": {

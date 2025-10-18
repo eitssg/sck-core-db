@@ -515,7 +515,6 @@ app_facts = {
     "region": "us-east-1",  # Primary region from zone
     "repository": "https://github.com/acme/enterprise-platform",
     "enforce_validation": "true",
-    "user_instantiated": "false",
     # Image Aliases for Application Deployment
     "image_aliases": {
         "api-gateway": "ami-0c02fb55956c7d316",  # Ubuntu 22 for API gateway

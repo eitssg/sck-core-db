@@ -1103,10 +1103,6 @@ def verify_portfolio_facts_pascal_case(result: dict):
     if "UpdatedAt" in result:
         assert "UpdatedAt" in result  # PascalCase alias for updated_at
 
-    # Test user_instantiated field (if present) - PascalCase field name
-    if "UserInstantiated" in result:
-        assert isinstance(result["UserInstantiated"], (str, type(None)))
-
 
 def verify_portfolio_facts_snake_case(result: dict):
 
