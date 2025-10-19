@@ -29,7 +29,6 @@ class AppFactsModel(DatabaseTable):
     # App Details
 
     environment = UnicodeAttribute(null=True, attr_name="Environment")
-    account = UnicodeAttribute(null=True, attr_name="Account")
     zone = UnicodeAttribute(null=False, attr_name="Zone")
     region = UnicodeAttribute(null=False, attr_name="Region")
     repository = UnicodeAttribute(null=True, attr_name="Repository")
@@ -95,11 +94,6 @@ class AppFact(DatabaseRecord):
         default=None,
         alias="Environment",
         description="Environment where the app is deployed (e.g., 'production', 'staging')",
-    )
-    account: Optional[str] = Field(
-        default=None,
-        alias="Account",
-        description="AWS account number where the app is deployed",
     )
     zone: str = Field(
         ...,

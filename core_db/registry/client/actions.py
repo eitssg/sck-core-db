@@ -41,12 +41,52 @@ from .models import ClientFact
 class ClientActions(RegistryAction):
 
     @classmethod
-    def list(cls, *, client_id: str | None = None, **kwargs) -> Tuple[list[ClientFact], Paginator]:
+    def list(cls, *, client_id: str | None = None, client: str | None = None, **kwargs) -> Tuple[list[ClientFact], Paginator]:
 
         if client_id:
             return cls._list_by_client_id(client_id, **kwargs)
+        elif client:
+            return cls._list_by_client(client, **kwargs)
         else:
             return cls._list_all_clients(**kwargs)
+
+    @classmethod
+    def _list_by_client(cls, client: str, **kwargs) -> Tuple[List[ClientFact], Paginator]:
+
+        try:
+            # load the search parameters into a Paginator instance
+            paginator = Paginator(**kwargs)
+        except Exception as e:
+            raise BadRequestException(f"Invalid pagination parameters: {str(e)}") from e
+
+        model_class = ClientFact.model_class()
+
+        try:
+
+            scan_args = paginator.get_scan_args()
+            scan_args["filter_condition"] = model_class.client == client
+
+            # Retrieve the client item from the database
+            items = model_class.scan(**scan_args)
+
+            # Validate and convert PynamoDB item to ClientFact instance
+            data = [ClientFact.from_model(item) for item in items]
+
+            paginator.last_evaluated_key = getattr(items, "last_evaluated_key", None)
+            paginator.total_count = len(data)
+
+            return data, paginator
+
+        except ScanError as e:
+            if "ResourceNotFoundException" in str(e):
+                raise NotFoundException(f"Client with client '{client}' not found") from e
+
+            log.error(f"GetError while retrieving client by client '{client}': {str(e)}")
+            raise UnknownException(f"Failed to retrieve client '{client}'") from e
+
+        except Exception as e:
+            log.error(f"Error while retrieving client by client '{client}': {str(e)}")
+            raise UnknownException(f"Failed to retrieve client '{client}'") from e
 
     @classmethod
     def _list_all_clients(cls, **kwargs) -> Tuple[List[ClientFact], Paginator]:
@@ -89,10 +129,7 @@ class ClientActions(RegistryAction):
 
         try:
             # Retrieve the client item from the database
-            items = model_class.scan(
-                filter_condition=(model_class.client_id == client_id),
-                **paginator.get_scan_args(),
-            )
+            items = model_class.query(hash_key=client_id, **paginator.get_query_args())
 
             # Validate and convert PynamoDB item to ClientFact instance
             return [ClientFact.from_model(item) for item in items], paginator
@@ -109,7 +146,7 @@ class ClientActions(RegistryAction):
             raise UnknownException(f"Failed to retrieve client '{client_id}'") from e
 
     @classmethod
-    def get(cls, client: str) -> ClientFact:
+    def get(cls, client_id: str, client: str) -> ClientFact:
 
         if not client:
             raise BadRequestException("Client identifier is required to load ClientFact")
@@ -118,7 +155,7 @@ class ClientActions(RegistryAction):
 
         try:
 
-            item = model_class.get(client)
+            item = model_class.get(client_id, client)
 
             return ClientFact.from_model(item)
 
@@ -161,7 +198,7 @@ class ClientActions(RegistryAction):
         return cls._update(remove_none=remove_none, **kwargs)
 
     @classmethod
-    def delete(cls, *, client: str) -> bool:
+    def delete(cls, *, client_id: str, client: str) -> bool:
         if not client:
             raise ValueError("Client identifier is required to delete ClientFact")
 
@@ -169,7 +206,7 @@ class ClientActions(RegistryAction):
 
         try:
 
-            item = model_class(client)
+            item = model_class(client_id, client)
             item.delete(condition=model_class.client.exists())
 
             return True
@@ -185,7 +222,7 @@ class ClientActions(RegistryAction):
     @classmethod
     def _update(cls, *, remove_none: bool, record: ClientFact | None = None, **kwargs) -> ClientFact:
 
-        excluded_fields = {"client", "created_at", "updated_at"}
+        excluded_fields = {"client", "client_id", "created_at", "updated_at"}
 
         if record:
             client = record.client

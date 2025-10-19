@@ -195,8 +195,6 @@ class AppItem(ItemModelRecord):
         Returns:
             AppModelType: Client-specific PynamoDB AppModel class
         """
-        if client is None:
-            client = util.get_client()
         return AppModelFactory.get_model(client)
 
     @classmethod

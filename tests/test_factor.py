@@ -703,7 +703,9 @@ def test_create_facts(bootstrap_dynamo):
 
 def test_get_client_facts():
 
-    facts = get_client_facts(client)
+    # Retrieve client facts, client_id of None means it
+    # will retrieve 1 client that matches the name, or it will raise an error
+    facts = get_client_facts(None, client)
 
     # Validate core client identity
     assert facts["ClientId"] == "ACME001"

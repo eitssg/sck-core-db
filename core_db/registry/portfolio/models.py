@@ -1,7 +1,7 @@
 """Definition of the Portfolio Facts in the core-automation-portfolios table"""
-
+from datetime import datetime
 from typing import Any, Dict, Optional, List, Type
-from pydantic import Field, ConfigDict, BaseModel
+from pydantic import Field, ConfigDict, BaseModel, field_validator
 from pynamodb.attributes import (
     UnicodeAttribute,
     BooleanAttribute,
@@ -412,6 +412,19 @@ class PortfolioFact(DatabaseRecord):
         alias="AppCount",
         description="Number of applications in this portfolio",
     )
+
+    @field_validator("metadata", mode="before")
+    @classmethod
+    def validate_metadata(cls, value):
+        if not isinstance(value, dict):
+            raise ValueError("Metadata must be a dictionary")
+        rv = {}
+        for k, v in value.items():
+            if isinstance(v, datetime):
+                rv[str(k)] = v.isoformat()
+            else:
+                rv[str(k)] = str(v)
+        return rv
 
     @classmethod
     def from_model(cls, model: PortfolioFactsModel) -> "PortfolioFact":

@@ -48,6 +48,34 @@ class KmsFacts(EnhancedMapAttribute):
     allow_sns = BooleanAttribute(null=True, attr_name="AllowSNS")
 
 
+class SubnetAliasFacts(EnhancedMapAttribute):
+    """
+    Attributes:
+        cidr: The CIDR block of the subnet.
+        availability_zone: The availability zone of the subnet.
+        description: A description of the subnet alias.
+    """
+
+    name = UnicodeAttribute(null=False, attr_name="Name")
+    cidr = ListAttribute(of=UnicodeAttribute, null=False, attr_name="Cidr")
+    availability_zone = UnicodeAttribute(null=False, attr_name="AvailabilityZone")
+    description = UnicodeAttribute(null=True, attr_name="Description")
+    subnet_id = UnicodeAttribute(null=False, attr_name="SubnetId")
+
+
+class VpcAliasFacts(EnhancedMapAttribute):
+    """
+    Attributes:
+        cidr: The CIDR block of the VPC.
+        description: A description of the VPC alias.
+    """
+
+    name = UnicodeAttribute(null=False, attr_name="Name")
+    cidr = ListAttribute(of=UnicodeAttribute, null=False, attr_name="Cidr")
+    description = UnicodeAttribute(null=True, attr_name="Description")
+    vpc_id = UnicodeAttribute(null=False, attr_name="VpcId")
+
+
 class AccountFacts(EnhancedMapAttribute):
     """
     Attributes:
@@ -248,6 +276,63 @@ class ProxyFactsItem(BaseModel):
     )
 
 
+class VPCAliasFactsItem(BaseModel):
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    name: str = Field(
+        ...,
+        alias="Name",
+        description="The name of the VPC alias",
+    )
+    cidr: List[str] = Field(
+        ...,
+        alias="Cidr",
+        description="The CIDR block of the VPC",
+    )
+    description: Optional[str] = Field(
+        default=None,
+        alias="Description",
+        description="A description of the VPC alias",
+    )
+    vpc_id: str = Field(
+        ...,
+        alias="VpcId",
+        description="The VPC ID",
+    )
+
+
+class SubnetAliasFactsItem(BaseModel):
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    name: str = Field(
+        ...,
+        alias="Name",
+        description="The name of the Subnet alias",
+    )
+    cidr: str = Field(
+        ...,
+        alias="Cidr",
+        description="The CIDR block of the subnet",
+    )
+    availability_zone: str = Field(
+        ...,
+        alias="AvailabilityZone",
+        description="The availability zone of the subnet",
+    )
+    description: Optional[str] = Field(
+        default=None,
+        alias="Description",
+        description="A description of the subnet alias",
+    )
+    subnet_id: str = Field(
+        ...,
+        alias="SubnetId",
+        description="The Subnet ID",
+    )
+
+
 class AccountFactsItem(BaseModel):
 
     model_config = ConfigDict(populate_by_name=True)
@@ -287,15 +372,15 @@ class AccountFactsItem(BaseModel):
         alias="NetworkName",
         description="Name of the network",
     )
-    vpc_aliases: Optional[dict] = Field(
+    vpc_aliases: Optional[dict[str, VPCAliasFactsItem]] = Field(
         default=None,
         alias="VpcAliases",
-        description="VPC aliases created by network pipelines",
+        description="VPC aliases created by network pipelines.  VPC alias and Subnet Alias must have the same key",
     )
-    subnet_aliases: Optional[dict] = Field(
+    subnet_aliases: Optional[dict[str, List[SubnetAliasFactsItem]]] = Field(
         default=None,
         alias="SubnetAliases",
-        description="Subnet aliases created by network pipelines",
+        description="Subnet aliases created by network pipelines.  VPC alias and Subnet Alias must have the same key",
     )
     tags: Optional[Dict[str, Any]] = Field(
         default=None,
