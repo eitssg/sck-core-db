@@ -49,6 +49,7 @@ class ClientFactsModel(DatabaseTable):
 
     # Domain and networking
     domain = UnicodeAttribute(null=True, attr_name="Domain")
+    zone_id = UnicodeAttribute(null=True, attr_name="ZoneId")
     homepage = UnicodeAttribute(null=True, attr_name="Homepage")
 
     # AWS Account assignments for multi-account architecture
@@ -219,6 +220,11 @@ class ClientFact(DatabaseRecord):
         default=None,
         alias="Domain",
         description="Primary domain name for the organization's web presence",
+    )
+    zone_id: Optional[str] = Field(
+        default=None,
+        alias="ZoneId",
+        description="Route53 Hosted Zone ID for the organization's domain",
     )
     homepage: Optional[str] = Field(
         default=None,

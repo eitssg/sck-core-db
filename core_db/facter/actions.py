@@ -196,14 +196,11 @@ class FactsActions(TableActions):
         configuration data from all relevant registry tables.
 
         Args:
-            **kwargs (dict): Request parameters including client and PRN information.
-                Expected parameters:
-                - client_id (str): Client identifier for authorization context.
-                - client (str): Client identifier. If not provided, will use
-                  environment variable or fail with BadRequestException.
-                - prn (str): Pipeline Reference Number specifying the deployment scope.
-                  Must be valid for portfolio, app, branch, build, or component scope.
-                - zone (str, optional): Alternative parameter name for PRN.
+            - client (str, optional): Client identifier. If not provided, will use
+                environment variable or fail with BadRequestException.
+            - prn (str): Pipeline Reference Number specifying the deployment scope.
+                Must be valid for portfolio, app, branch, build, or component scope.
+            - zone (str, optional): Alternative parameter name for PRN.
 
         Returns:
             BaseModel: BaseModel object containing the merged facts data.

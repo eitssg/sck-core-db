@@ -365,7 +365,7 @@ class AccountFactsItem(BaseModel):
     resource_namespace: Optional[str] = Field(
         default=None,
         alias="ResourceNamespace",
-        description="Namespace for resources",
+        description="Namespace for network resources IMPORT. (e.g. 'core-network')",
     )
     network_name: Optional[str] = Field(
         default=None,
