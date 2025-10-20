@@ -279,14 +279,15 @@ class FactsActions(TableActions):
             4. Returns aggregated facts suitable for Jinja2 template rendering
 
             The client parameter can be provided explicitly or will be retrieved
-            from the environment using util.get_client(). Both PRN and zone
+            from the environment. Both PRN and zone
             parameters are supported for backward compatibility.
         """
         log.debug(f"Retrieving Facts with parameters:", details=kwargs)
 
         # The client information can come from the query string or the environment variables
         # client must come from pathParameters
-        client = str(kwargs.pop("client", util.get_client()))
+        client_id = str(kwargs.get("client_id"))
+        client = str(kwargs.pop("client"))
         prn = str(kwargs.pop("prn", None))
 
         if not prn or prn == "None":
@@ -301,6 +302,7 @@ class FactsActions(TableActions):
             raise BadRequestException("Client, portfolio, and app are required in the PRN to retrieve Facts")
 
         deployment_details = DeploymentDetails(
+            ClientId=client_id,
             Client=client,
             Portfolio=portfolio,
             App=app,

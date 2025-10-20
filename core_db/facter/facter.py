@@ -69,16 +69,23 @@ from ..registry.client.models import ClientFact
 from ..registry.portfolio.models import PortfolioFact
 from ..registry.zone.models import ZoneFact
 from ..registry.app.models import AppFact
+from ..exceptions import BadRequestException
 
 
-def get_client_facts(client: str) -> dict | None:
+def get_client_facts(client_id: str | None, client: str) -> dict | None:
     """Retrieve client configuration facts from the DynamoDB registry.
 
     Fetches comprehensive client details including organization configuration,
     AWS account mappings, regional settings, and S3 bucket configurations.
 
+    client_id is conditionally required.  If multiple clients exist with the same
+    client slug, client_id must be provided to uniquely identify the desired client record.
+
+    client_id (hash_key) + client (range_key) uniquely identify a client record.
+
     Args:
-        client (str): The client identifier (slug) to retrieve from the database.
+        client_id (str): The client id. Optional but recommended
+        client (str): The client (slug) to retrieve from the database.
             Must be a non-empty string representing a registered client.
 
     Returns:
@@ -102,7 +109,7 @@ def get_client_facts(client: str) -> dict | None:
 
     Examples:
         >>> # Retrieve client facts for ACME Corporation
-        >>> client_facts = get_client_facts("ACME001")
+        >>> client_facts = get_client_facts("cid-1", "ACME001")
         >>> if client_facts:
         ...     print(f"Client: {client_facts['ClientName']}")  # "ACME Corporation"
         ...     print(f"Domain: {client_facts['Domain']}")      # "acme.com"
@@ -110,7 +117,7 @@ def get_client_facts(client: str) -> dict | None:
         ...     print(f"Master Region: {client_facts['MasterRegion']}")  # "us-east-1"
 
         >>> # Handle missing client gracefully
-        >>> facts = get_client_facts("nonexistent")
+        >>> facts = get_client_facts("cid-1", "nonexistent")
         >>> print(facts)  # None
 
         >>> # Access nested configurations
@@ -126,15 +133,24 @@ def get_client_facts(client: str) -> dict | None:
     try:
         model_class = ClientFact.model_class()
 
-        item = model_class.get(client)
+        if client_id is not None:
+            item = model_class.get(hash_key=client_id, range_key=client)
+
+        else:
+            condition = model_class.client == client
+            items = list(model_class.scan(condition=condition))
+            if len(items) == 0:
+                raise GetError()
+            if len(items) > 1:
+                raise BadRequestException(
+                    f"Multiple clients found with client slug: {client}.  You must specify client_id to retrieve a specific client."
+                )
+            item = items[0]
 
         return ClientFact.from_model(item).model_dump(by_alias=True)
 
-    except GetError:
-        log.error(f"Client not found: {client}")
-        return None
-    except Exception as e:
-        log.error(f"Error getting client facts: {str(e)}")
+    except (DoesNotExist, GetError) as e:
+        log.error(f"Client not found: {client}: {str(e)}")
         return None
 
 
@@ -208,15 +224,8 @@ def get_portfolio_facts(client: str, portfolio: str) -> dict | None:
 
         return PortfolioFact.from_model(item).model_dump(by_alias=True)
 
-    except DoesNotExist:
-        log.error(f"Portfolio not found: {client} / {portfolio}")
-        return None
-    except GetError:
-        log.error(f"Portfolio not found: {client} / {portfolio}")
-        return None
-
-    except Exception as e:
-        log.error(f"Error getting portfolio facts: {e}")
+    except (DoesNotExist, GetError) as e:
+        log.error(f"Portfolio not found: {client} / {portfolio}: {str(e)}")
         return None
 
 
@@ -295,11 +304,8 @@ def get_zone_facts(client: str, zone: str) -> dict | None:
 
         return ZoneFact.from_model(item).model_dump(by_alias=True)
 
-    except GetError:
-        log.error(f"Zone not found: {client} / {zone}")
-        return None
-    except Exception as e:
-        log.error(f"Error getting zone facts: {e}")
+    except (DoesNotExist, GetError) as e:
+        log.error(f"Zone not found: {client} / {zone}: {str(e)}")
         return None
 
 
@@ -363,10 +369,6 @@ def get_zone_facts_by_account_id(client: str, account_id: str) -> list[dict] | N
 
     except ScanError as e:
         log.error(f"Zone facts scan error: {e}")
-        return None
-
-    except Exception as e:
-        log.error(f"Error getting zone facts by account ID: {e}")
         return None
 
 
@@ -480,12 +482,8 @@ def get_app_facts(deployment_details: DeploymentDetails) -> list[dict] | None:
 
         return data
 
-    except QueryError as e:
+    except (DoesNotExist, QueryError) as e:
         log.error(f"App facts query error: {e}")
-        return None
-
-    except Exception as e:
-        log.error(f"Error getting app facts: {e}")
         return None
 
 
@@ -888,7 +886,7 @@ def get_facts(deployment_details: DeploymentDetails) -> dict:  # noqa: C901
     facts = util.merge.deep_merge(account_facts, region_facts, merge_lists=True)
 
     # Get all the zone details next
-    facts = util.merge.deep_merge_in_place(facts, zone_facts, merge_lists=True)
+    # facts = util.merge.deep_merge_in_place(facts, zone_facts, merge_lists=True)
 
     # Next, merge the portfolio facts into the facts
     facts = util.merge.deep_merge_in_place(facts, portfolio_facts, merge_lists=True)
@@ -929,8 +927,9 @@ def _get_client_facts(deployment_details: DeploymentDetails) -> dict:
     log.debug("Getting facts for client: %s", deployment_details.client)
 
     # Get the dictionary of client facts dictionary for this deployment
+    client_id = deployment_details.client_id
     client = deployment_details.client
-    client_facts = get_client_facts(client)
+    client_facts = get_client_facts(client_id, client)
     if not client_facts:
         log.info(f"No client facts found for {client}. Contact DevOps to register this client.")
         return ClientFact(Client=client, ClientStatus="UNREGISTERED", OrganizationEmail="help@core.net").model_dump(by_alias=True)

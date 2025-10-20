@@ -29,10 +29,10 @@ class ClientFactsModel(DatabaseTable):
         pass
 
     # Primary key
-    client = UnicodeAttribute(hash_key=True, attr_name="Client")
+    client_id = UnicodeAttribute(hash_key=True, attr_name="ClientId")
+    client = UnicodeAttribute(range_key=True, attr_name="Client")
 
     # Core client metadata
-    client_id = UnicodeAttribute(null=True, attr_name="ClientId")
     client_secret = UnicodeAttribute(null=True, attr_name="ClientSecret")
     client_type = UnicodeAttribute(null=True, attr_name="ClientType")
     client_status = UnicodeAttribute(null=True, attr_name="ClientStatus")
@@ -95,19 +95,6 @@ class ClientFactsModel(DatabaseTable):
 
         return bucket_mapping[bucket_type]
 
-    def is_multi_account(self) -> bool:
-        accounts = {
-            self.organization_account,
-            self.iam_account,
-            self.audit_account,
-            self.automation_account,
-            self.security_account,
-            self.network_account,
-        }
-        accounts.discard(None)  # type: ignore
-
-        return len(accounts) > 1
-
 
 ClientFactsType = Type[ClientFactsModel]
 
@@ -159,17 +146,17 @@ class TagPolicyFact(BaseModel):
 
 class ClientFact(DatabaseRecord):
 
+    client_id: str = Field(
+        ...,
+        alias="ClientId",
+        description="Hash Key client id (a.k.a OAuth client_id)",
+    )
     client: str = Field(
         ...,
         alias="Client",
-        description="Client ID or slug as the unique identifier for the client organization",
+        description="Range Key (Client slug) as a unique identifier for the client within the ClientID scope",
     )
     # Core Client Fields with PascalCase aliases
-    client_id: Optional[str] = Field(
-        default=None,
-        alias="ClientId",
-        description="Alternative client identifier for external system integration",
-    )
     client_secret: Optional[str] = Field(
         default=None,
         alias="ClientSecret",
@@ -341,19 +328,6 @@ class ClientFact(DatabaseRecord):
             raise ValueError(f"Unknown bucket type: {bucket_type}. Valid types: {list(bucket_mapping.keys())}")
 
         return bucket_mapping[bucket_type] or ""
-
-    def is_multi_account(self) -> bool:
-        accounts = {
-            self.organization_account,
-            self.iam_account,
-            self.audit_account,
-            self.automation_account,
-            self.security_account,
-            self.network_account,
-        }
-        # Remove None values and check if more than one unique account
-        accounts.discard(None)
-        return len(accounts) > 1
 
     @classmethod
     def from_model(cls, model: ClientFactsModel) -> "ClientFact":

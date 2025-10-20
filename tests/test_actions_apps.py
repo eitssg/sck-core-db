@@ -23,7 +23,6 @@ app_facts = [
         "app_regex": "core-api-.*",
         "name": "Core API Production",
         "environment": "production",
-        "account": "123456789012",
         "zone": "prod-east",
         "region": "us-east-1",
         "repository": "https://github.com/acme/core-api",
@@ -48,7 +47,6 @@ app_facts = [
         "app_regex": "billing-service-.*",
         "name": "Billing Service UAT",
         "environment": "uat",
-        "account": "234567890123",
         "zone": "uat-central",
         "region": "us-central-1",
         "repository": "https://github.com/acme/billing-service",
@@ -262,7 +260,6 @@ def test_app_patch_with_none_values():
         "portfolio": portfolio,
         "app_regex": app_regex,
         "metadata": {"monitoring_level": "standard", "new_monitoring_field": "enabled"},
-        "account": None,  # This should not remove the field in PATCH mode
     }
 
     response: AppFact = AppActions.patch(client=client, **patch_data)
@@ -271,9 +268,6 @@ def test_app_patch_with_none_values():
     assert response.metadata
     assert response.metadata["monitoring_level"] == "standard"
     assert response.metadata["new_monitoring_field"] == "enabled"
-
-    # Account should still exist (PATCH doesn't remove None fields)
-    assert response.account == "123456789012"
 
 
 def test_app_update_with_none_values():
@@ -293,7 +287,6 @@ def test_app_update_with_none_values():
         "zone": current_data.zone,
         "region": current_data.region,
         "environment": "production",  # Change this
-        "account": None,  # This should remove the field in UPDATE mode
         "metadata": {"deployment_strategy": "rolling", "environment_updated": "true"},
     }
 
@@ -303,9 +296,6 @@ def test_app_update_with_none_values():
     assert response.environment == "production"
     assert response.metadata
     assert response.metadata["environment_updated"] == "true"
-
-    # Account should be None/removed
-    assert response.account is None
 
 
 # =============================================================================
@@ -653,7 +643,6 @@ def test_nested_data_structure_casing():
         "zone": "test-zone",
         "region": "us-test-1",
         "environment": "test",
-        "account": "123456789012",
         "repository": "https://github.com/test/nested",
         "enforce_validation": "true",
         "image_aliases": {"base": "alpine:latest", "app": "test/app:v1"},
@@ -672,7 +661,6 @@ def test_nested_data_structure_casing():
     assert "Zone" in data
     assert "Region" in data
     assert "Environment" in data
-    assert "Account" in data
     assert "Repository" in data
     assert "EnforceValidation" in data
     assert "ImageAliases" in data

@@ -455,7 +455,7 @@ class EventActions(TableActions):
     @classmethod
     def _list_all_events(cls, **kwargs) -> Tuple[List[EventItem], Paginator]:  # noqa: C901
         """Scan all events for client with pagination."""
-        client = kwargs.get("client") or util.get_client()
+        client = kwargs.get("client")
         if not client:
             raise BadRequestException("Client identifier is required for event listing.")
 

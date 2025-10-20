@@ -171,16 +171,16 @@ def test_get_client_facts():
     """Test retrieving specific client facts."""
     client = "acme-corp"
 
-    response: ClientFact = ClientActions.get(client=client)
+    client_list, _ = ClientActions.list(client=client)
 
-    assert response is not None, "Response should not be None"
+    assert client_list is not None, "Response should not be None"
 
-    assert isinstance(response, ClientFact), "Response should be a ClientFact instance"
+    assert isinstance(client_list, list), "Response should be a list of ClientFact instances"
 
-    assert response.client_id == "ACME001"
-    assert response.client_name == "ACME Corporation"
-    assert response.client_type == "enterprise"
-    assert response.client_status == "active"
+    assert client_list[0].client_id == "ACME001"
+    assert client_list[0].client_name == "ACME Corporation"
+    assert client_list[0].client_type == "enterprise"
+    assert client_list[0].client_status == "active"
 
 
 def test_list_client_facts():
