@@ -9,7 +9,7 @@ from core_db.item.component import ComponentActions, ComponentItem
 
 from .bootstrap import *  # noqa: F401
 
-client = util.get_client() or "core"
+client = "core"
 
 """Create a portfolio item - foundation for all other tests."""
 portfolio_data: dict = {

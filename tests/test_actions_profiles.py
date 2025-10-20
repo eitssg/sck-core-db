@@ -11,7 +11,7 @@ from core_db.exceptions import BadRequestException, NotFoundException, ConflictE
 from .bootstrap import *
 
 # Test client for all profile tests
-client = util.get_client()
+client = "core"
 
 
 user_profiles = [

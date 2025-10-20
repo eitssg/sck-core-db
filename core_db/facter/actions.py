@@ -198,7 +198,8 @@ class FactsActions(TableActions):
         Args:
             **kwargs (dict): Request parameters including client and PRN information.
                 Expected parameters:
-                - client (str, optional): Client identifier. If not provided, will use
+                - client_id (str): Client identifier for authorization context.
+                - client (str): Client identifier. If not provided, will use
                   environment variable or fail with BadRequestException.
                 - prn (str): Pipeline Reference Number specifying the deployment scope.
                   Must be valid for portfolio, app, branch, build, or component scope.

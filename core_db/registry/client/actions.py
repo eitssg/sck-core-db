@@ -146,7 +146,7 @@ class ClientActions(RegistryAction):
             raise UnknownException(f"Failed to retrieve client '{client_id}'") from e
 
     @classmethod
-    def get(cls, client_id: str, client: str) -> ClientFact:
+    def get(cls, *, client_id: str, client: str) -> ClientFact:
 
         if not client:
             raise BadRequestException("Client identifier is required to load ClientFact")

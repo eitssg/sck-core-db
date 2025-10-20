@@ -15,6 +15,8 @@ from core_db.oauth.models import OAuthTableModelFactory
 
 import core_logging as log
 
+client = "core"
+
 
 @pytest.fixture(scope="module")
 def bootstrap_dynamo():
@@ -25,7 +27,6 @@ def bootstrap_dynamo():
     assert host == "http://localhost:8000", "DYNAMODB_HOST must be set to http://localhost:8000"
 
     try:
-        client = util.get_client()
 
         if ClientFactsFactory.exists():
             ClientFactsFactory.delete_table(wait=True)

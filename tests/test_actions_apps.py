@@ -14,7 +14,7 @@ from core_db.exceptions import (
 
 from .bootstrap import *
 
-client = util.get_client()
+client = "core"
 
 app_facts = [
     # Production App
@@ -440,7 +440,7 @@ def test_missing_required_parameters():
     with pytest.raises(BadRequestException):
         AppActions.get(client=client, portfolio="test")
 
-    # Test list without client (if util.get_client() returns None)
+    # Test list without client
     with patch("core_framework.get_client", return_value=None):
         with pytest.raises(BadRequestException):
             AppActions.list(client=None)

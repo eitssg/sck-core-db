@@ -15,7 +15,7 @@ from core_db.facter import (
 
 from .bootstrap import *
 
-client = util.get_client()
+client = "core"
 
 client_facts = {
     "client": client,

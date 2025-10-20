@@ -15,7 +15,7 @@ from core_db.exceptions import (
 
 from .bootstrap import *
 
-client = util.get_client() or "core"
+client = "core"
 
 zone_facts = [
     # Production Zone

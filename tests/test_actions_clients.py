@@ -14,7 +14,7 @@ from core_db.exceptions import (
 from .bootstrap import *
 
 
-client = util.get_client()
+client = "core"
 
 client_facts = [
     {

@@ -186,7 +186,7 @@ class AuthAuditSchemas(DatabaseRecord):
 class AuthAuditActions(TableActions):
 
     @classmethod
-    def get(cls, *, client: str, pk: str, sk: str) -> Optional[AuthAuditSchemas]:
+    def get(cls, *, client: str, pk: str, sk: str) -> AuthAuditSchemas:
 
         try:
             model_cls = AuthAuditModelFactory.get_model(client)
