@@ -106,7 +106,6 @@ class OAuthActions(TableActions):
 
         Returns:
             BaseModel: BaseModel object with structure:
-                - data (Dict): Authorization code record data.
 
         Raises:
             NotFoundException: If the code does not exist.

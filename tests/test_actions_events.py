@@ -27,7 +27,7 @@ from core_db.models import Paginator
 
 from .bootstrap import *  # noqa: F403, F401
 
-client = util.get_client() or "core"
+client = "core"
 
 # Fixed: All PRNs are the same, only timestamps differ
 data: list[dict] = [

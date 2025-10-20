@@ -339,16 +339,13 @@ class EventActions(TableActions):
         is not provided, performs table Scan to retrieve all events.
 
         Args:
-            **kwargs: Filtering and pagination options including:
-
-                - prn (str, optional): Pipeline Reference Number. If not provided, scans all events.
-                - earliest_time (str, optional): ISO8601 timestamp for start of time range.
-                - latest_time (str, optional): ISO8601 timestamp for end of time range.
-                - sort_forward (bool, optional): Sort order (True for ascending, False for descending).
-                  Defaults to True.
-                - limit (int, optional): Maximum number of events to return. Defaults to 100.
-                - cursor (str, optional): Base64-encoded pagination token for continuing queries.
-                - client (str, optional): Client identifier for table isolation.
+            client (str): Client identifier for table isolation
+            prn (str | optional): Pipeline Reference Number. If not provided, scans all events.
+            earliest_time (str, optional): ISO8601 timestamp for start of time range.
+            latest_time (str, optional): ISO8601 timestamp for end of time range.
+            sort_forward (bool, optional): Sort order (True for ascending, False for descending). Defaults to True.
+            limit (int, optional): Maximum number of events to return. Defaults to 100.
+            cursor (str, optional): Base64-encoded pagination token for continuing queries.
 
         Returns:
             BaseModel: BaseModel object containing:
@@ -392,13 +389,13 @@ class EventActions(TableActions):
 
         Args:
             client (str): Client identifier for table access
-            **kwargs: Additional filtering and pagination options including:
-                - prn (str): Pipeline Reference Number to filter by
-                - earliest_time (datetime, optional): Start of time range filter
-                - latest_time (datetime, optional): End of time range filter
-                - sort_forward (bool, optional): Sort direction for timestamp
-                - limit (int, optional): Maximum items to return
-                - cursor (str, optional): Pagination cursor
+            prn (str): Pipeline Reference Number to filter by
+
+            earliest_time (datetime, optional): Start of time range filter
+            latest_time (datetime, optional): End of time range filter
+            sort_forward (bool, optional): Sort direction for timestamp
+            limit (int, optional): Maximum items to return
+            cursor (str, optional): Pagination cursor
 
         Returns:
             BaseModel: BaseModel object containing the list of events for the specified PRN

@@ -23,7 +23,7 @@ from core_db.registry.portfolio.models import (
     OwnerFacts,
 )
 
-client = util.get_client()
+client = "core"
 
 
 @pytest.fixture

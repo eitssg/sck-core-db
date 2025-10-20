@@ -140,4 +140,6 @@ Note:
     cloud operations.
 """
 
-__version__ = "0.1.2-pre.28+1d11573"
+from importlib.metadata import version
+
+__version__ = version("sck-core-db")
