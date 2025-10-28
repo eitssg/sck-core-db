@@ -183,9 +183,18 @@ class PortfolioItem(ItemModelRecord):
         if not contact_email:
             raise ValueError("Contact email is required for PortfolioItem")
 
-        values["item_type"] = "portfolio"
+        values["item_type"] = cls.get_item_type()
 
         return values
+    
+    @classmethod
+    def get_item_type(cls) -> str:
+        """Get the item type for this model.
+
+        Returns:
+            str: The item type, always "portfolio" for PortfolioItem
+        """
+        return "portfolio"
 
     @classmethod
     def model_class(cls, client: str) -> PortfolioModelType:

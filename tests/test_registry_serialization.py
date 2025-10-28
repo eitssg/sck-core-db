@@ -317,11 +317,14 @@ def zone_facts():
             "resource_namespace": "acme-prod-west",
             "network_name": "acme-production-network",
             # These are ListAttribute, not MapAttribute!
-            "vpc_aliases": {"vpc-12345abcde": {"cidr": "192.168.1.0/24"}, "vpc-67890fghij": {"cidr": "192.168.2.0/24"}},
+            "vpc_aliases": {
+                "vpc-12345abcde": {"cidr": ["192.168.1.0/24"], "vpc_id": "vpc-12345abcde"},
+                "vpc-67890fghij": {"cidr": ["192.168.2.0/24"], "vpc_id": "vpc-67890fghij"}
+            },
             "subnet_aliases": {
-                "subnet-web1a12345": {"cidr": "192.168.1.0/24"},
-                "subnet-app1a11111": {"cidr": "192.168.1.0/24"},
-                "subnet-db1a33333": {"cidr": "192.168.1.0/24"},
+                "subnet-web1a12345": [{"cidr": "192.168.1.0/24", "subnet_id": "subnet-abcde12345"}],
+                "subnet-app1a11111": [{"cidr": "192.168.1.0/24", "subnet_id": "subnet-fghij67890"}],
+                "subnet-db1a33333": [{"cidr": "192.168.1.0/24", "subnet_id": "subnet-ijklmnop12"}],
             },
             "tags": {
                 "Environment": "production",
@@ -427,13 +430,13 @@ def zone_fact_alias():
             "NetworkName": "acme-production-network",  # alias for network_name
             # These remain as lists (no PascalCase needed for list items)
             "VpcAliases": {
-                "vpc-12345abcde": {"cidr": "192.168.1.0/24"},
-                "vpc-67890fghij": {"cidr": "192.168.2.0/24"},
+                "vpc-12345abcde": {"cidr": ["192.168.1.0/24"], "vpc_id": "vpc-12345abcde"},
+                "vpc-67890fghij": {"cidr": ["192.168.2.0/24"], "vpc_id": "vpc-67890fghij"},
             },  # alias for vpc_aliases
             "SubnetAliases": {
-                "subnet-web1a12345": {"cidr": "192.168.1.0/24"},
-                "subnet-app1a11111": {"cidr": "192.168.1.0/24"},
-                "subnet-db1a33333": {"cidr": "192.168.1.0/24"},
+                "subnet-web1a12345": [{"cidr": "192.168.1.0/24", "subnet_id": "subnet-web1a12345"}],
+                "subnet-app1a11111": [{"cidr": "192.168.1.0/24", "subnet_id": "subnet-app1a11111"}],
+                "subnet-db1a33333": [{"cidr": "192.168.1.0/24", "subnet_id": "subnet-db1a33333"}],
             },  # alias for subnet_aliases
             "Tags": {
                 "Environment": "production",
@@ -525,7 +528,6 @@ def app_facts():
         # App Details - ACTUAL FIELDS from AppFactsModel model
         "name": "User Management Service",
         "environment": "production",
-        "account": "123456789012",
         "zone": "production-west",
         "region": "us-west-2",
         "repository": "https://github.com/acme/user-service",
@@ -560,7 +562,6 @@ def app_facts_alias():
         # App Details - PascalCase aliases from AppFact model
         "Name": "User Management Service",  # alias for name
         "Environment": "production",  # alias for environment
-        "Account": "123456789012",  # alias for account
         "Zone": "production-west",  # alias for zone
         "Region": "us-west-2",  # alias for region
         "Repository": "https://github.com/acme/user-service",  # alias for repository
@@ -760,7 +761,6 @@ def validate_app_facts_snake_case(result: dict):
     # Test app configuration fields
     assert result["name"] == "User Management Service"
     assert result["environment"] == "production"
-    assert result["account"] == "123456789012"
     assert result["zone"] == "production-west"
     assert result["region"] == "us-west-2"
     assert result["repository"] == "https://github.com/acme/user-service"
@@ -788,7 +788,6 @@ def validate_app_facts_pascal_case(result: dict):
     assert result["AppRegex"] == "user-service.*"
     assert result["Name"] == "User Management Service"
     assert result["Environment"] == "production"
-    assert result["Account"] == "123456789012"
     assert result["Zone"] == "production-west"
     assert result["Region"] == "us-west-2"
     assert result["Repository"] == "https://github.com/acme/user-service"
@@ -814,7 +813,6 @@ def validate_app_fact_model(result: AppFact):
     # Test app configuration
     assert result.name == "User Management Service"
     assert result.environment == "production"
-    assert result.account == "123456789012"
     assert result.zone == "production-west"
     assert result.region == "us-west-2"
     assert result.repository == "https://github.com/acme/user-service"
@@ -836,7 +834,6 @@ def validate_app_facts_model(result: AppFactsModel):
     # Test app configuration
     assert result.name == "User Management Service"
     assert result.environment == "production"
-    assert result.account == "123456789012"
     assert result.zone == "production-west"
     assert result.region == "us-west-2"
     assert result.repository == "https://github.com/acme/user-service"
@@ -1394,7 +1391,6 @@ def test_app_fact_pydantic_instantiation(app_facts: dict):
     # Test app configuration
     assert result.name == "User Management Service"
     assert result.environment == "production"
-    assert result.account == "123456789012"
     assert result.zone == "production-west"
     assert result.region == "us-west-2"
     assert result.repository == "https://github.com/acme/user-service"

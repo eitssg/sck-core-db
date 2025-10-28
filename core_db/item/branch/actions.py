@@ -9,8 +9,14 @@ while inheriting common item management functionality.
 """
 
 from typing import List, Tuple
-from core_db.models import Paginator
+
+import core_framework as util
+
+from ...exceptions import BadRequestException
+from ...models import Paginator
+
 from ..actions import ItemTableActions
+
 from .models import BranchItem
 
 
@@ -39,7 +45,17 @@ class BranchActions(ItemTableActions):
                 - data (List[Dict]): List of branch item dictionaries
                 - metadata (Dict): Pagination information with cursor and total_count
         """
-        return super().list(BranchItem, client=client, **kwargs)
+
+        parent_prn: str | None = kwargs.pop("parent_prn", None)
+        prn: str | None = kwargs.pop("prn", None)
+        if not parent_prn and prn:
+            parent_prn = prn
+
+        # parent_prn is not required.  But validate it if specified
+        if parent_prn and not util.validate_app_prn(parent_prn):
+            raise BadRequestException("Invalid or missing app PRN for listing branch items")
+
+        return super().list(BranchItem, client=client, parent_prn=parent_prn, **kwargs)
 
     @classmethod
     def get(cls, *, client: str, **kwargs) -> BranchItem:

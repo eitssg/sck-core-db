@@ -44,7 +44,7 @@ class ClientActions(RegistryAction):
     def list(cls, *, client_id: str | None = None, client: str | None = None, **kwargs) -> Tuple[list[ClientFact], Paginator]:
 
         if client_id:
-            return cls._list_by_client_id(client_id, **kwargs)
+            return cls._list_by_client_id(client_id, client=client, **kwargs)
         elif client:
             return cls._list_by_client(client, **kwargs)
         else:
@@ -117,7 +117,7 @@ class ClientActions(RegistryAction):
             raise UnknownException(f"Unexpected error while listing clients: {str(e)}") from e
 
     @classmethod
-    def _list_by_client_id(cls, client_id: str, **kwargs) -> Tuple[List[ClientFact], Paginator]:
+    def _list_by_client_id(cls, client_id: str, client: str | None = None, **kwargs) -> Tuple[List[ClientFact], Paginator]:
 
         try:
             # load the search parameters into a Paginator instance
@@ -125,11 +125,15 @@ class ClientActions(RegistryAction):
         except Exception as e:
             raise BadRequestException(f"Invalid pagination parameters: {str(e)}") from e
 
+        query_args = paginator.get_query_args()
+        if client:
+            query_args["range_key_condition"] = ClientFact.model_class().client == client
+
         model_class = ClientFact.model_class()
 
         try:
             # Retrieve the client item from the database
-            items = model_class.query(hash_key=client_id, **paginator.get_query_args())
+            items = model_class.query(hash_key=client_id, **query_args)
 
             # Validate and convert PynamoDB item to ClientFact instance
             return [ClientFact.from_model(item) for item in items], paginator
@@ -172,20 +176,26 @@ class ClientActions(RegistryAction):
 
         try:
             if not record:
-                record = ClientFact(**kwargs)
-
+                record = ClientFact.model_validate(kwargs)
         except Exception as e:
             raise BadRequestException(f"Invalid Client Record {str(e)}") from e
+        
+        if not record.client or not record.client_id:
+            raise BadRequestException("ClientId/Client identifier is required to create ClientFact")
 
         try:
 
+            condition = model_class.client.does_not_exist() & model_class.client_id.does_not_exist()
+
             item = record.to_model()
-            item.save(model_class.client.does_not_exist())
+            item.save(condition=condition)
 
             return record
 
         except PutError as e:
-            raise ConflictException(f"Client '{record.client}' already exists") from e
+            if "ConditionalCheckFailedException" in str(e):
+                raise ConflictException(f"Client '{record.client}' already exists") from e
+            raise UnknownException(f"Failed to create client '{record.client}': {str(e)}") from e
         except Exception as e:
             raise UnknownException(f"Failed to create client '{record.client}'") from e
 
@@ -194,8 +204,8 @@ class ClientActions(RegistryAction):
         return cls._update(remove_none=True, record=record, **kwargs)
 
     @classmethod
-    def patch(cls, *, remove_none: bool = False, **kwargs) -> ClientFact:
-        return cls._update(remove_none=remove_none, **kwargs)
+    def patch(cls, **kwargs) -> ClientFact:
+        return cls._update(remove_none=False, **kwargs)
 
     @classmethod
     def delete(cls, *, client_id: str, client: str) -> bool:
@@ -206,8 +216,10 @@ class ClientActions(RegistryAction):
 
         try:
 
+            condition = model_class.client.exists() & model_class.client_id.exists()
+
             item = model_class(client_id, client)
-            item.delete(condition=model_class.client.exists())
+            item.delete(condition=condition)
 
             return True
 
@@ -225,14 +237,16 @@ class ClientActions(RegistryAction):
         excluded_fields = {"client", "client_id", "created_at", "updated_at"}
 
         if record:
+            client_id = record.client_id
             client = record.client
-            values = record.model_dump(by_alias=False, exclude_none=False)
+            values = record.model_dump(by_alias=False, exclude_none=False, exclude=excluded_fields)
         else:
+            client_id = kwargs.get("client_id")
             client = kwargs.get("client")
             values = {k: v for k, v in kwargs.items() if k not in excluded_fields}
 
-        if not client:
-            raise BadRequestException("Client identifier is required to update")
+        if not client or not client_id:
+            raise BadRequestException("ClientId/Client identifier is required to update")
 
         model_class = ClientFact.model_class()
 
@@ -258,8 +272,10 @@ class ClientActions(RegistryAction):
 
             actions.append(model_class.updated_at.set(make_default_time()))
 
-            item = model_class(client)
-            item.update(actions=actions, condition=model_class.client.exists())
+            condition = model_class.client.exists() & model_class.client_id.exists()
+
+            item = model_class(client_id, client)
+            item.update(actions=actions, condition=condition)
             item.refresh()
 
             return ClientFact.from_model(item)

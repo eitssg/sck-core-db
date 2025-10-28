@@ -28,6 +28,7 @@ Usage Patterns:
     - core_db.item.component: Component-specific operations
 """
 
+import re
 from typing import List, Tuple, Type
 from datetime import datetime
 
@@ -245,6 +246,10 @@ class ItemTableActions(TableActions):
 
         if not client:
             raise BadRequestException("Client is required for item listing")
+        
+        prn = kwargs.get("prn")
+        if not parent_prn and prn:
+            parent_prn = prn
 
         if not parent_prn:
             return cls._list_all(record_type, client=client, **kwargs)
@@ -283,6 +288,14 @@ class ItemTableActions(TableActions):
 
         if condition is not None:
             scan_args["filter_condition"] = condition
+
+        # add item type to the filter conditions
+        item_type = record_type.get_item_type()
+        type_condition = model_class.item_type == item_type
+        if "filter_condition" in scan_args:
+            scan_args["filter_condition"] = scan_args["filter_condition"] & type_condition
+        else:
+            scan_args["filter_condition"] = type_condition
 
         try:
 
@@ -389,8 +402,8 @@ class ItemTableActions(TableActions):
     ) -> Tuple[List[ItemModelRecordType], Paginator]:
         """uses the index to list items by parent_prn and date range"""
 
-        if not parent_prn or not earliest_time or not latest_time:
-            raise BadRequestException("parent_prn, earliest_time, and latest_time are required")
+        if not parent_prn:
+            raise BadRequestException("parent_prn is required")
 
         try:
             paginator = Paginator(**kwargs)
@@ -411,6 +424,14 @@ class ItemTableActions(TableActions):
 
         if condition is not None:
             query_args["range_key_condition"] = condition
+
+        # add item type to the range key conditions
+        item_type = record_type.get_item_type()
+        type_condition = model_class.item_type == item_type
+        if "filter_condition" in query_args:
+            query_args["filter_condition"] = query_args["filter_condition"] & type_condition
+        else:
+            query_args["filter_condition"] = type_condition
 
         try:
 

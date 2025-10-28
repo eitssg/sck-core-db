@@ -59,7 +59,16 @@ class PortfolioActions(ItemTableActions):
                     - cursor (str): Cursor token for next page (if more results exist)
                     - total_count (int): Total number of items returned in this page
         """
-        return super().list(PortfolioItem, client=client, **kwargs)
+        parent_prn: str | None = kwargs.pop("parent_prn", None)
+        prn: str | None = kwargs.pop("prn", None)
+        if not parent_prn and prn:
+            parent_prn = prn
+
+        # The parent prn for a portfolio is always 'prn'
+        if parent_prn and parent_prn != 'prn':
+            raise ValueError("Invalid parent_prn for portfolio items; must be 'prn'")
+        
+        return super().list(PortfolioItem, client=client, parent_prn=parent_prn, **kwargs)
 
     @classmethod
     def get(cls, *, client: str, **kwargs) -> PortfolioItem:

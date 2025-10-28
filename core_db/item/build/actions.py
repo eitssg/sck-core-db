@@ -10,8 +10,12 @@ while inheriting common item management functionality.
 
 from typing import List, Tuple
 
+import core_framework as util
+
+from ...exceptions import BadRequestException
 from ...models import Paginator
 from ..actions import ItemTableActions
+
 from .models import BuildItem
 
 
@@ -38,7 +42,17 @@ class BuildActions(ItemTableActions):
         Returns:
             Tuple containing list of build items and pagination metadata.
         """
-        return super().list(BuildItem, client=client, **kwargs)
+        # 'prn' is the alias for 'parent_prn' for listing builds
+        parent_prn: str | None = kwargs.pop("parent_prn", None)
+        prn: str | None = kwargs.pop("prn", None)
+        if not parent_prn and prn:
+            parent_prn = prn
+
+        # parent_prn is not required.  But validate it if specified
+        if parent_prn and not util.validate_branch_prn(parent_prn):
+            raise BadRequestException("Invalid or missing branch PRN for listing build items")
+
+        return super().list(BuildItem, client=client, parent_prn=parent_prn, **kwargs)
 
     @classmethod
     def get(cls, *, client: str, **kwargs) -> BuildItem:

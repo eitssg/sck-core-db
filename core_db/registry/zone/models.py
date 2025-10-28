@@ -280,13 +280,13 @@ class VPCAliasFactsItem(BaseModel):
 
     model_config = ConfigDict(populate_by_name=True)
 
-    name: str = Field(
-        ...,
+    name: str | None = Field(
+        default=None,
         alias="Name",
         description="The name of the VPC alias",
     )
-    cidr: List[str] = Field(
-        ...,
+    cidr: List[str] | None = Field(
+        default=None,
         alias="Cidr",
         description="The CIDR block of the VPC",
     )
@@ -306,18 +306,18 @@ class SubnetAliasFactsItem(BaseModel):
 
     model_config = ConfigDict(populate_by_name=True)
 
-    name: str = Field(
-        ...,
+    name: str | None = Field(
+        default=None,
         alias="Name",
         description="The name of the Subnet alias",
     )
-    cidr: str = Field(
-        ...,
+    cidr: str | None = Field(
+        default=None,
         alias="Cidr",
         description="The CIDR block of the subnet",
     )
-    availability_zone: str = Field(
-        ...,
+    availability_zone: str | None = Field(
+        default=None,
         alias="AvailabilityZone",
         description="The availability zone of the subnet",
     )

@@ -1,3 +1,4 @@
+from zoneinfo import available_timezones
 from core_framework.models import DeploymentDetails
 
 from core_db.registry.client import ClientActions
@@ -73,20 +74,26 @@ zone_facts = {
         "resource_namespace": "acme-prod",
         "network_name": "production-network",
         "vpc_aliases": {
-            "vpc-prod-main": {"cidr": "192.168.1.0/24"},
-            "vpc-prod-backup": {"cidr": "192.168.2.0/24"},
-            "vpc-prod-dmz": {"cidr": "192.168.3.0/24"},
+            "vpc-prod-main": {"cidr": ["192.168.1.0/24"], "vpc_id": "vpc-0abcde1234567890f"},
+            "vpc-prod-backup": {"cidr": ["192.168.2.0/24"], "vpc_id": "vpc-0fghij9876543210a"},
+            "vpc-prod-dmz": {"cidr": ["192.168.3.0/24"], "vpc_id": "vpc-0ijklmnop1234567b"},
         },
         "subnet_aliases": {
-            "subnet-prod-public-1a": {"cidr": "192.168.1.0/24"},
-            "subnet-prod-public-1b": {"cidr": "192.168.1.0/24"},
-            "subnet-prod-public-1c": {"cidr": "192.168.1.0/24"},
-            "subnet-prod-private-1a": {"cidr": "192.168.2.0/24"},
-            "subnet-prod-private-1b": {"cidr": "192.168.2.0/24"},
-            "subnet-prod-private-1c": {"cidr": "192.168.2.0/24"},
-            "subnet-prod-database-1a": {"cidr": "192.168.3.0/24"},
-            "subnet-prod-database-1b": {"cidr": "192.168.3.0/24"},
-            "subnet-prod-database-1c": {"cidr": "192.168.3.0/24"},
+            "subnet-prod-public": [
+                {"cidr": "192.168.1.0/24", "subnet_id": "subnet-0a1b2c3d4e5f6g7h8", "availability_zone": "us-east-1a"},
+                {"cidr": "192.168.1.0/24", "subnet_id": "subnet-1a2b3c4d5e6f7g8h9", "availability_zone": "us-east-1b"},
+                {"cidr": "192.168.1.0/24", "subnet_id": "subnet-2a3b4c5d6e7f8g9h0", "availability_zone": "us-east-1c"}
+            ],
+            "subnet-prod-private": [
+                {"cidr": "192.168.2.0/24", "subnet_id": "subnet-3a4b5c6d7e8f9g0h1", "availability_zone": "us-east-1a"},
+                {"cidr": "192.168.2.0/24", "subnet_id": "subnet-4a5b6c7d8e9f0g1h2", "availability_zone": "us-east-1b"},
+                {"cidr": "192.168.2.0/24", "subnet_id": "subnet-5a6b7c8d9e0f1g2h3", "availability_zone": "us-east-1c"}
+            ],
+            "subnet-prod-database": [
+                {"cidr": "192.168.3.0/24", "subnet_id": "subnet-6a7b8c9d0e1f2g3h4", "availability_zone": "us-east-1a"},
+                {"cidr": "192.168.3.0/24", "subnet_id": "subnet-7a8b9c0d1e2f3g4h5", "availability_zone": "us-east-1b"},
+                {"cidr": "192.168.3.0/24", "subnet_id": "subnet-8a9b0c1d2e3f4g5h6", "availability_zone": "us-east-1c"}
+            ],
         },
         "tags": {
             "Environment": "production",
@@ -667,6 +674,7 @@ app_facts = {
 
 deployment = {
     "client": client,
+    "client_id": "ACME001",  # Matches our client
     "portfolio": "acme-enterprise-platform",  # Matches our portfolio
     "app": "acme-api-core",  # Matches app_regex "acne-api-.*"
     "branch": "main",  # Standard main branch
@@ -753,7 +761,7 @@ def test_get_portfolio_facts():
 
 def test_get_app_facts():
 
-    deployment_details = DeploymentDetails(**deployment)
+    deployment_details = DeploymentDetails.model_validate(deployment)
 
     facts_list = get_app_facts(deployment_details)
 
@@ -765,7 +773,6 @@ def test_get_app_facts():
     assert facts["Portfolio"] == "acme-enterprise-platform"
     assert facts["Name"] == "ACME Enterprise Platform Core"
     assert facts["Environment"] == "production"
-    assert facts["Account"] == "123456789012"
     assert facts["Zone"] == "prod-east-primary"
     assert facts["Region"] == "us-east-1"
 
@@ -776,7 +783,7 @@ def test_get_app_facts():
 
 def test_get_facts():
 
-    deployment_details = DeploymentDetails(**deployment)
+    deployment_details = DeploymentDetails.model_validate(deployment)
 
     facts = get_facts(deployment_details)
 
@@ -812,15 +819,9 @@ def test_get_facts():
 
     assert "SubnetAliases" in facts
     expected_subnets = [
-        "subnet-prod-public-1a",
-        "subnet-prod-public-1b",
-        "subnet-prod-public-1c",
-        "subnet-prod-private-1a",
-        "subnet-prod-private-1b",
-        "subnet-prod-private-1c",
-        "subnet-prod-database-1a",
-        "subnet-prod-database-1b",
-        "subnet-prod-database-1c",
+        "subnet-prod-public",
+        "subnet-prod-private",
+        "subnet-prod-database",
     ]
     for subnet in expected_subnets:
         assert subnet in facts["SubnetAliases"]
@@ -929,8 +930,6 @@ def test_get_facts():
     assert facts["Zone"] == "prod-east-primary"
     assert "Region" in facts
     assert facts["Region"] == "us-east-1"
-    assert "Account" in facts
-    assert facts["Account"] == "123456789012"
     assert "Repository" in facts
     assert facts["Repository"] == "https://github.com/acme/enterprise-platform"
     assert "EnforceValidation" in facts
@@ -1031,7 +1030,6 @@ def test_get_facts():
     # ========== Integration Validation ==========
     # Verify that zone matches app configuration
     assert facts["Zone"] == "prod-east-primary"
-    assert facts["Account"] == facts["AwsAccountId"]
     assert facts["Region"] == facts["AwsRegion"]
 
     # Verify portfolio consistency

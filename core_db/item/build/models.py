@@ -233,9 +233,18 @@ class BuildItem(ItemModelRecord):
 
         values["status"] = str(BuildStatus.from_str(values.get("status", "INIT")))
 
-        values["item_type"] = "build"
+        values["item_type"] = cls.get_item_type()
 
         return values
+    
+    @classmethod
+    def get_item_type(cls) -> str:
+        """Get the item type for this model.
+
+        Returns:
+            str: The item type, always "build" for BuildItem
+        """
+        return "build"
 
     @classmethod
     def model_class(cls, client: str) -> BuildModelType:

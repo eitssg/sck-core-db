@@ -246,9 +246,10 @@ def test_update_client_full():
 def test_patch_client_partial():
     """Test partial client update (PATCH semantics)."""
     client_name = "healthcare-plus"
-
+    client_id = "HEALTH001"
     # Only update description and status
     patch_data = {
+        "client_id": client_id,
         "client": client_name,
         "client_description": "Updated healthcare description via PATCH",
         "client_status": "maintenance",
@@ -266,8 +267,10 @@ def test_patch_client_partial():
 def test_patch_with_none_values():
     """Test PATCH behavior with None values (should not remove fields)."""
     client_name = "gov-agency"
+    client_id = "GOV001"
 
     patch_data = {
+        "client_id": client_id,
         "client": client_name,
         "client_description": "Updated government description",
         "organization_email": None,  # This should not remove the field
@@ -281,7 +284,7 @@ def test_patch_with_none_values():
     assert response.organization_email == "cloud-admin@dts.gov"
 
     # Get the client to verify None didn't remove the field
-    get_response: ClientFact = ClientActions.get(client=client_name)
+    get_response: ClientFact = ClientActions.get(client_id=client_id, client=client_name)
 
     assert get_response.client_description == "Updated government description"
     # organization_email should still exist (PATCH doesn't remove None fields)
@@ -291,9 +294,9 @@ def test_patch_with_none_values():
 def test_update_with_none_values():
     """Test UPDATE behavior with None values (should remove fields)."""
     client_name = "fintech-demo"
-
+    client_id = "FINTECH001"
     # Get current data first
-    current_data: ClientFact = ClientActions.get(client=client_name)
+    current_data: ClientFact = ClientActions.get(client_id=client_id, client=client_name)
 
     update_data = {
         "client": client_name,
@@ -328,19 +331,19 @@ def test_create_duplicate_client():
 def test_get_nonexistent_client():
     """Test getting non-existent client."""
     with pytest.raises(NotFoundException):  # Your implementation raises UnknownException
-        ClientActions.get(client="nonexistent-client")
+        ClientActions.get(client_id="NONEXISTENT001", client="nonexistent-client")
 
 
 def test_update_nonexistent_client():
     """Test updating non-existent client."""
     with pytest.raises(NotFoundException):
-        ClientActions.update(client="nonexistent-client", client_name="This Should Fail")
+        ClientActions.update(client_id="NONEXISTENT001", client="nonexistent-client", client_name="This Should Fail")
 
 
 def test_patch_nonexistent_client():
     """Test patching non-existent client."""
     with pytest.raises(NotFoundException):
-        ClientActions.patch(client="nonexistent-client", client_description="This Should Fail")
+        ClientActions.patch(client_id="NONEXISTENT001", client="nonexistent-client", client_description="This Should Fail")
 
 
 def test_missing_client_parameter():
@@ -351,7 +354,7 @@ def test_missing_client_parameter():
 
     # Test get without client
     with pytest.raises(BadRequestException):
-        ClientActions.get(client=None)
+        ClientActions.get(client_id=None, client=None)
 
     # Test update without client
     with pytest.raises(BadRequestException):
@@ -366,7 +369,7 @@ def test_invalid_client_data():
     """Test creating client with invalid data."""
     invalid_data = {
         "client": "test-client",
-        "client_id": "",  # Empty client_id might be invalid depending on your validation
+        "client_id": "", 
         "client_status": "invalid-status",  # Assuming you have enum validation
     }
 
@@ -406,32 +409,32 @@ def test_delete_client():
     }
 
     # Create the client
-    create_response: ClientFact = ClientActions.create(**delete_test_data)
+    ClientActions.create(**delete_test_data)
 
     # Verify it exists
-    get_response: ClientFact = ClientActions.get(client="delete-test-client")
+    get_response: ClientFact = ClientActions.get(client_id="DELETE001", client="delete-test-client")
     assert get_response.client == "delete-test-client"
 
     # Delete the client
-    did_delete = ClientActions.delete(client="delete-test-client")
+    did_delete = ClientActions.delete(client_id="DELETE001", client="delete-test-client")
     assert did_delete is True
 
     # Verify it's gone
     with pytest.raises(NotFoundException):
-        ClientActions.get(client="delete-test-client")
+        ClientActions.get(client_id="DELETE001", client="delete-test-client")
 
 
 def test_delete_nonexistent_client():
     """Test deleting non-existent client."""
     with pytest.raises(NotFoundException):
-        ClientActions.delete(client="nonexistent-client-for-deletion")
+        ClientActions.delete(client_id="NONEXISTENT001", client="nonexistent-client-for-deletion")
 
 
 def test_delete_without_client_parameter():
     """Test delete without client parameter should fail."""
     # Note: Your current implementation raises ValueError, but should probably be BadRequestException
     with pytest.raises((ValueError, BadRequestException)):
-        ClientActions.delete(client=None)
+        ClientActions.delete(client_id=None, client=None)
 
 
 # =============================================================================
@@ -441,7 +444,7 @@ def test_delete_without_client_parameter():
 
 def test_minimal_client_creation():
     """Test creating client with minimal required fields."""
-    minimal_data = {"client": "minimal-test", "client_name": "Minimal Test Client"}
+    minimal_data = {"client_id": "MINIMAL001", "client": "minimal-test", "client_name": "Minimal Test Client"}
 
     client_data: ClientFact = ClientActions.create(**minimal_data)
 
@@ -449,7 +452,7 @@ def test_minimal_client_creation():
     assert client_data.client_name == "Minimal Test Client"
 
     # Clean up
-    ClientActions.delete(client="minimal-test")
+    ClientActions.delete(client_id="MINIMAL001", client="minimal-test")
 
 
 def test_large_client_data():
@@ -485,20 +488,21 @@ def test_large_client_data():
     client_data: ClientFact = ClientActions.create(**comprehensive_data)
 
     # Verify all data was saved correctly
-    client_data: ClientFact = ClientActions.get(client="comprehensive-test")
+    client_data: ClientFact = ClientActions.get(client_id="COMP001", client="comprehensive-test")
 
     assert client_data.organization_id == "o-comprehensive123"
     assert client_data.scope == "comp-"
     assert len(client_data.client_description) > 100  # Verify large description saved
 
     # Clean up
-    ClientActions.delete(client="comprehensive-test")
+    ClientActions.delete(client_id="COMP001", client="comprehensive-test")
 
 
 def test_client_timestamps():
     """Test that timestamps are properly managed."""
     timestamp_test_data = {
         "client": "timestamp-test",
+        "client_id": "TIME001",
         "client_name": "Timestamp Test Client",
         "client_type": "test",
         "client_status": "active",
@@ -513,13 +517,13 @@ def test_client_timestamps():
     original_updated_at = created_client.updated_at
 
     # Update client (should change updated_at)
-    updated_client: ClientFact = ClientActions.patch(client="timestamp-test", client_description="Updated description")
+    updated_client: ClientFact = ClientActions.patch(client_id="TIME001", client="timestamp-test", client_description="Updated description")
 
     assert updated_client.created_at == created_client.created_at  # Should not change
     assert updated_client.updated_at != original_updated_at  # Should be updated
 
     # Clean up
-    ClientActions.delete(client="timestamp-test")
+    ClientActions.delete(client_id="TIME001", client="timestamp-test")
 
 
 # =============================================================================
@@ -533,14 +537,15 @@ def test_response_casing_consistency():
     # Test create response
     create_data = {
         "client": "casing-test",
+        "client_id": "CASING001",
         "client_name": "Casing Test Client",
         "client_type": "test",
     }
 
-    create_response: ClientFact = ClientActions.create(**create_data)
+    ClientActions.create(**create_data)
 
     # Test get response
-    get_response: ClientFact = ClientActions.get(client="casing-test")
+    ClientActions.get(client_id="CASING001", client="casing-test")
 
     # Test list response
     list_response, paginator = ClientActions.list(limit=1)
@@ -550,12 +555,12 @@ def test_response_casing_consistency():
     assert paginator.total_count == 1
 
     # Clean up
-    ClientActions.delete(client="casing-test")
+    ClientActions.delete(client_id="CASING001", client="casing-test")
 
 
 def test_error_response_casing():
     """Test that error responses also follow casing conventions."""
 
     with pytest.raises(NotFoundException) as exc_info:
-        ClientActions.get(client="nonexistent-client-casing-test")
+        ClientActions.get(client_id="NONEXISTENT001", client="nonexistent-client-casing-test")
     assert exc_info.value.message == "Client 'nonexistent-client-casing-test' not found"

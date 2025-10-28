@@ -310,9 +310,18 @@ class BranchItem(ItemModelRecord):
             short_name = util.generate_branch_short_name(name)
             values["short_name"] = short_name
 
-        values["item_type"] = "branch"
+        values["item_type"] = cls.get_item_type()
 
         return values
+
+    @classmethod
+    def get_item_type(cls) -> str:
+        """Get the item type for this model.
+
+        Returns:
+            str: The item type, always "branch" for BranchItem
+        """
+        return "branch"
 
     @classmethod
     def model_class(cls, client: str) -> BranchModelType:

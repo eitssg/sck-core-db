@@ -184,6 +184,20 @@ class ItemModelRecord(DatabaseRecord):
     )
 
     @classmethod
+    def get_item_type(cls) -> str:
+        """Get the item type string for this ItemModelRecord subclass.
+
+        Subclasses MUST implement this to return the correct item_type
+        corresponding to their specific item type (e.g., "portfolio", "app").
+
+        Returns:
+            str: The item type string for this subclass.
+        """
+        raise NotImplementedError(
+            f"You must implement the get_item_type method in {cls.__name__} to return the item type."
+        )
+    
+    @classmethod
     def get_parent_prn(cls, prn: str) -> str:
         """Extract the parent PRN from a given item PRN.
 

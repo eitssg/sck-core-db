@@ -314,6 +314,10 @@ class EventItem(DatabaseRecord):
         prn = values.get("prn")
         if not prn:
             raise ValueError("prn not specified in event")
+        
+        event_type = values.get("event_type") or values.get("EventType")
+        if event_type is None:
+            values["event_type"] = "STATUS" # default event type
 
         values["item_type"] = EventItem.get_item_type(prn)
 

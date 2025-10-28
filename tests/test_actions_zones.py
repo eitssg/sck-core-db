@@ -36,13 +36,13 @@ zone_facts = [
             "resource_namespace": "acme-prod",
             "network_name": "production-network",
             "vpc_aliases": {
-                "vpc-prod-main": {"cidr": "192.168.1.0/24"},
-                "vpc-prod-backup": {"cidr": "192.168.2.0/24"},
+                "vpc-prod-main": {"cidr": ["192.168.1.0/24"], "vpc_id": "vpc-0abcde1234567890e"},
+                "vpc-prod-backup": {"cidr": ["192.168.2.0/24"], "vpc_id": "vpc-0abcde1234567890f"},
             },
             "subnet_aliases": {
-                "subnet-prod-public": {"cidr": "192.168.1.0/24"},
-                "subnet-prod-private": {"cidr": "192.168.2.0/24"},
-                "subnet-prod-database": {"cidr": "192.168.3.0/24"},
+                "subnet-prod-public": [{"cidr": "192.168.1.0/24", "subnet_id": "subnet-0abcde1234567890f"}],
+                "subnet-prod-private": [{"cidr": "192.168.2.0/24", "subnet_id": "subnet-0abcde1234567890g"}],
+                "subnet-prod-database": [{"cidr": "192.168.3.0/24", "subnet_id": "subnet-0abcde1234567890h"}],
             },
             "tags": {
                 "Environment": "production",
@@ -161,12 +161,12 @@ zone_facts = [
             "resource_namespace": "acme-uat",
             "network_name": "uat-network",
             "vpc_aliases": {
-                "vpc-uat-main": {"cidr": "192.168.1.0/24"},
-                "vpc-uat-test": {"cidr": "192.168.2.0/24"},
+                "vpc-uat-main": {"cidr": ["192.168.1.0/24"], "vpc_id": "vpc-0fedcba9876543210"},
+                "vpc-uat-test": {"cidr": ["192.168.2.0/24"], "vpc_id": "vpc-0fedcba9876543211"},
             },
             "subnet_aliases": {
-                "subnet-uat-public": {"cidr": "192.168.1.0/24"},
-                "subnet-uat-private": {"cidr": "192.168.2.0/24"},
+                "subnet-uat-public": [{"cidr": "192.168.1.0/24", "subnet_id": "subnet-0fedcba9876543210"}],
+                "subnet-uat-private": [{"cidr": "192.168.2.0/24", "subnet_id": "subnet-0fedcba9876543211"}],
             },
             "tags": {
                 "Environment": "uat",
@@ -248,10 +248,12 @@ zone_facts = [
             },
             "resource_namespace": "acme-dev",
             "network_name": "dev-network",
-            "vpc_aliases": {"vpc-dev-main": {"cidr": "192.168.1.0/24"}},
+            "vpc_aliases": {
+                "vpc-dev-main": {"cidr": ["192.168.1.0/24"], "vpc_id": "vpc-0fedcba9876543210"}
+            },
             "subnet_aliases": {
-                "subnet-dev-public": {"cidr": "192.168.1.0/24"},
-                "subnet-dev-private": {"cidr": "192.168.2.0/24"},
+                "subnet-dev-public": [{"cidr": "192.168.1.0/24", "subnet_id": "subnet-0fedcba9876543210"}],
+                "subnet-dev-private": [{"cidr": "192.168.2.0/24", "subnet_id": "subnet-0fedcba9876543211"}]
             },
             "tags": {
                 "Environment": "development",
@@ -601,7 +603,10 @@ def test_zone_update_full():
             "resource_namespace": "acme-dev-updated",
             "network_name": "updated-dev-network",
             "vpc_aliases": {
-                "vpc-dev-updated": {"cidr": "192.168.1.0/24"},
+                "vpc-dev-updated": {
+                    "cidr": ["192.168.1.0/24"], 
+                    "vpc_id": "vpc-updated1234567890"
+                },
             },
             "tags": {
                 "Environment": "staging",

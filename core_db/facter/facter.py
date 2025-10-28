@@ -137,8 +137,10 @@ def get_client_facts(client_id: str | None, client: str) -> dict | None:
             item = model_class.get(hash_key=client_id, range_key=client)
 
         else:
-            condition = model_class.client == client
-            items = list(model_class.scan(condition=condition))
+            args = {
+                "filter_condition": model_class.client == client
+            }
+            items = list(model_class.scan(**args))
             if len(items) == 0:
                 raise GetError()
             if len(items) > 1:
@@ -932,7 +934,7 @@ def _get_client_facts(deployment_details: DeploymentDetails) -> dict:
     client_facts = get_client_facts(client_id, client)
     if not client_facts:
         log.info(f"No client facts found for {client}. Contact DevOps to register this client.")
-        return ClientFact(Client=client, ClientStatus="UNREGISTERED", OrganizationEmail="help@core.net").model_dump(by_alias=True)
+        return ClientFact(ClientId=client_id, Client=client, ClientStatus="UNREGISTERED", OrganizationEmail="help@core.net").model_dump(by_alias=True)
 
     log.debug("Client facts:", details=client_facts)
 

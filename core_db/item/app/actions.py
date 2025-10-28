@@ -10,7 +10,11 @@ while inheriting common item management functionality.
 
 from typing import Tuple, List
 
+import core_framework as util
+
+from ...exceptions import BadRequestException
 from ...models import Paginator
+
 from ..actions import ItemTableActions
 
 from .models import AppItem
@@ -61,7 +65,16 @@ class AppActions(ItemTableActions):
                     - cursor (str): Cursor token for next page (if more results exist)
                     - total_count (int): Total number of items returned in this page
         """
-        return super().list(AppItem, client=client, **kwargs)
+        parent_prn = kwargs.pop("parent_prn", None)
+        prn = kwargs.pop("prn", None)
+        if not parent_prn and prn:
+            parent_prn = prn
+
+        # parent_prn is not required for listing apps, but validate if specified
+        if parent_prn and not util.validate_portfolio_prn(parent_prn):
+            raise BadRequestException("Invalid or missing portfolio PRN for listing app items")
+
+        return super().list(AppItem, client=client, parent_prn=parent_prn, **kwargs)
 
     @classmethod
     def get(cls, *, client: str, **kwargs) -> AppItem:
